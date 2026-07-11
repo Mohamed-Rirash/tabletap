@@ -1,0 +1,329 @@
+defmodule Tabletap.Tenants do
+  @moduledoc """
+  Organizations, venues, memberships, staff invites — the tenancy core
+  (architecture.md "Multi-Tenancy", build-plan.md Feature 03).
+
+  Bootstrapping/resolution functions (`create_org_with_owner/1`,
+  `build_scope/2`, invite lookup/acceptance) run before a tenant scope
+  exists and use `skip_org_id: true` — one of the few contexts allowed to
+  (code-standards.md "Tenancy Rules"). Everything else takes `%Scope{}`
+  first and trusts `Tabletap.Repo.put_org_id/1` having already been set for
+  the current process (done once per request by `TabletapWeb.UserAuth`).
+  """
+
+  import Ecto.Query, warn: false
+
+  alias Tabletap.Accounts
+  alias Tabletap.Accounts.{Scope, User}
+  alias Tabletap.Repo
+  alias Tabletap.Tenants.{Membership, Org, StaffInvite, Venue}
+
+  ## Launch markets (design-qa.md Q57/Q60/Q61) — the signup form offers a
+  ## city picker instead of raw currency/timezone entry.
+
+  @city_options [
+    {"Hargeisa", "USD", "Africa/Mogadishu"},
+    {"Mogadishu", "USD", "Africa/Mogadishu"},
+    {"Jigjiga", "ETB", "Africa/Addis_Ababa"}
+  ]
+
+  @doc "The launch-market cities offered on the signup form, with their currency/timezone."
+  def city_options, do: @city_options
+
+  @doc """
+  Resolves a picked city name to `{:ok, {currency, timezone}}`, or `:error`
+  if `city_name` isn't one of `city_options/0`'s names. Never silently
+  defaults — currency locks permanently after a venue's first order
+  (design-qa.md Q53), so a caller that bypasses the signup form's own
+  client-side validation (a future API endpoint, a script) must get a loud
+  failure here, not a wrong-but-valid venue.
+  """
+  def resolve_city(city_name) do
+    case Enum.find(@city_options, fn {name, _, _} -> name == city_name end) do
+      {_name, currency, timezone} -> {:ok, {currency, timezone}}
+      nil -> :error
+    end
+  end
+
+  ## Org signup
+
+  @doc """
+  Creates a brand-new org, its first venue, an owner account (password
+  required — design-qa.md Q47), and the owner's org-wide membership, all in
+  one transaction. This is the only way an org comes into existence — there
+  is no bare "create an org" without an owner and a first venue
+  (build-plan.md Feature 03: "Org signup flow: create org → first venue →
+  owner membership").
+
+  `attrs` — `email`, `password`, `password_confirmation`, `business_name`,
+  `city` (one of `city_options/0`'s names). Returns `{:error, changeset}`
+  with an error on `:city` if `city` isn't recognized — the signup form
+  validates this client-side already, so this is a defensive boundary
+  check for any other caller, not a path a real signup should ever hit.
+  """
+  def create_org_with_owner(attrs) do
+    case resolve_city(attrs["city"] || attrs[:city]) do
+      {:ok, {currency, timezone}} -> do_create_org_with_owner(attrs, currency, timezone)
+      :error -> {:error, invalid_city_changeset(attrs)}
+    end
+  end
+
+  defp invalid_city_changeset(attrs) do
+    %Org{}
+    |> Org.registration_changeset(%{"name" => business_name(attrs)})
+    |> Ecto.Changeset.add_error(:city, "is not a supported launch city")
+  end
+
+  defp do_create_org_with_owner(attrs, currency, timezone) do
+    Repo.transact(fn ->
+      with {:ok, user} <- Accounts.register_owner(attrs),
+           {:ok, org} <-
+             %Org{}
+             |> Org.registration_changeset(%{"name" => business_name(attrs)})
+             |> Repo.insert(),
+           {:ok, venue} <-
+             %Venue{org_id: org.id}
+             |> Venue.registration_changeset(%{
+               "name" => business_name(attrs),
+               "currency" => currency,
+               "timezone" => timezone
+             })
+             |> Repo.insert(),
+           {:ok, membership} <-
+             %Membership{}
+             |> Membership.changeset(%{
+               org_id: org.id,
+               venue_id: nil,
+               user_id: user.id,
+               role: :owner
+             })
+             |> Repo.insert() do
+        {:ok, %{user: user, org: org, venue: venue, membership: membership}}
+      end
+    end)
+  end
+
+  defp business_name(attrs), do: attrs["business_name"] || attrs[:business_name]
+
+  ## Scope resolution — called once per request by TabletapWeb.UserAuth
+
+  @doc """
+  Builds the `%Scope{}` for an authenticated user: resolves which
+  membership is "current" (session-remembered, else the earliest), and
+  which venue (the membership's own venue for staff; the
+  session-remembered or first venue of the org for an owner, whose
+  membership is org-wide). A user with no memberships yet (e.g. a future
+  customer account, Feature 16) gets a scope with `org`/`venue`/`role` all
+  `nil` — logged in, but authorized for nothing staff-side, which is
+  correct deny-by-default behavior, not a bug.
+  """
+  def build_scope(nil, _session), do: Scope.for_user(nil)
+
+  def build_scope(user, session) do
+    memberships = list_active_memberships_for_user(user)
+
+    membership =
+      pick_by_id(memberships, session["current_membership_id"]) || List.first(memberships)
+
+    case membership do
+      nil ->
+        %Scope{user: user}
+
+      %Membership{venue_id: nil} = m ->
+        # Owner — org-wide membership, but the dashboard still needs a
+        # "current" venue to display.
+        org_venues = list_venues_for_org(m.org_id)
+        venue = pick_by_id(org_venues, session["current_venue_id"]) || List.first(org_venues)
+
+        %Scope{user: user, org: m.org, venue: venue, membership: m, role: m.role}
+
+      %Membership{} = m ->
+        %Scope{user: user, org: m.org, venue: m.venue, membership: m, role: m.role}
+    end
+  end
+
+  defp list_active_memberships_for_user(user) do
+    Repo.all(
+      from(m in Membership,
+        where: m.user_id == ^user.id and m.active == true,
+        order_by: [asc: m.inserted_at],
+        preload: [:org, :venue]
+      ),
+      skip_org_id: true
+    )
+  end
+
+  defp list_venues_for_org(org_id) do
+    Repo.all(
+      from(v in Venue,
+        where: v.org_id == ^org_id and is_nil(v.archived_at),
+        order_by: v.inserted_at
+      ),
+      skip_org_id: true
+    )
+  end
+
+  defp pick_by_id(_list, nil), do: nil
+  defp pick_by_id(list, id), do: Enum.find(list, &(&1.id == id))
+
+  ## Venues (tenant-scoped — relies on Repo.put_org_id already being set)
+
+  @doc "Lists the current org's active venues, for the venue switcher."
+  def list_venues(%Scope{org: %Org{}} = scope) do
+    Repo.all(
+      from(v in Venue,
+        where: v.org_id == ^scope.org.id and is_nil(v.archived_at),
+        order_by: v.inserted_at
+      )
+    )
+  end
+
+  # A scope with no resolved org (a bare authenticated user with no staff
+  # membership) sees no venues — deny-by-default, not a FunctionClauseError.
+  # Every caller today is already behind ScopeHooks.require_manager, which
+  # guarantees org is set, but this is cheap insurance against a future
+  # route that isn't.
+  def list_venues(%Scope{org: nil}), do: []
+
+  @doc """
+  Validates `venue_id` belongs to the scope's org before it's written to the
+  session as the "current venue" — the venue switcher's authorization
+  check.
+  """
+  def switch_venue(%Scope{org: %Org{}} = scope, venue_id) do
+    # Deliberately skip_org_id: true — this must be able to find a venue
+    # belonging to a DIFFERENT org (that's exactly the case being guarded
+    # against) and compare org_id explicitly, rather than have the
+    # tenant-scoped query silently filter it to not-found either way.
+    # archived_at is checked here too, matching list_venues/1's filter —
+    # otherwise a stale link could switch to a venue the switcher itself
+    # would never list.
+    case Repo.get(Venue, venue_id, skip_org_id: true) do
+      %Venue{org_id: org_id, archived_at: nil} = venue when org_id == scope.org.id ->
+        {:ok, venue}
+
+      _ ->
+        {:error, :not_found}
+    end
+  end
+
+  # POST /venues/switch only requires an authenticated session
+  # (require_authenticated_user), not a resolved org (that's require_manager,
+  # which /dashboard has but this action doesn't) — a bare user hitting it
+  # gets the same "not found" any other invalid venue_id would, not a crash.
+  def switch_venue(%Scope{org: nil}, _venue_id), do: {:error, :not_found}
+
+  ## Staff invites (tenant-scoped creation; token lookup/acceptance are
+  ## public — skip_org_id, since no scope exists yet for a brand-new hire)
+
+  @doc "Creates a staff invite for a venue in the current org (manager/owner action)."
+  def create_staff_invite(%Scope{org: %Org{}} = scope, venue_id, attrs) do
+    # Normalize to string keys before merging — Ecto.Changeset.cast/3
+    # rejects a map with mixed atom/string keys, and callers (LiveView
+    # params, tests, a future API) may hand either.
+    attrs =
+      attrs
+      |> Enum.into(%{}, fn {k, v} -> {to_string(k), v} end)
+      |> Map.merge(%{"org_id" => scope.org.id, "venue_id" => venue_id})
+
+    %StaffInvite{}
+    |> StaffInvite.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  # Same deny-by-default reasoning as list_venues/1 and switch_venue/2 —
+  # no route calls this without a resolved org today, but it isn't wired
+  # to one yet either, so there's nothing enforcing that stays true.
+  def create_staff_invite(%Scope{org: nil}, _venue_id, _attrs), do: {:error, :not_found}
+
+  @doc "Looks up a pending, unexpired invite by its token — public, pre-auth."
+  def get_valid_staff_invite_by_token(token) do
+    now = DateTime.utc_now(:second)
+
+    Repo.one(
+      from(i in StaffInvite,
+        where: i.token == ^token and is_nil(i.accepted_at) and i.expires_at > ^now,
+        preload: [:org, :venue]
+      ),
+      skip_org_id: true
+    )
+  end
+
+  @doc """
+  Accepts a staff invite: finds-or-creates the user and their venue
+  membership in one transaction, then marks the invite accepted.
+
+  Handles the case project-overview.md documents explicitly — "the same
+  person can be a manager at one venue and a waiter at another" — by
+  looking the email up first: an existing user just gets a new membership,
+  never a failed re-registration. Manager role requires a password (Q47):
+  a brand-new manager gets it via the normal password-required changeset;
+  an *existing* passwordless user accepting a manager invite is required
+  to set one right here, since they're being handed the one role that
+  can't be locked out by an email delay. Waiter/cashier/kitchen stay
+  magic-link-first — `magic_link_url_fun` (same shape as
+  `Accounts.deliver_login_instructions/2` expects) is used to send them a
+  login link once the membership is committed; manager never needs one
+  (they either just set a password or already have one).
+  """
+  def accept_staff_invite(%StaffInvite{} = invite, user_attrs, magic_link_url_fun)
+      when is_function(magic_link_url_fun, 1) do
+    result =
+      Repo.transact(fn ->
+        with {:ok, user} <- find_or_register_invited_user(invite, user_attrs),
+             {:ok, membership} <-
+               %Membership{}
+               |> Membership.changeset(%{
+                 org_id: invite.org_id,
+                 venue_id: invite.venue_id,
+                 user_id: user.id,
+                 role: invite.role
+               })
+               |> Repo.insert(),
+             {:ok, updated_invite} <-
+               invite
+               |> Ecto.Changeset.change(accepted_at: DateTime.utc_now(:second))
+               |> Repo.update() do
+          {:ok, %{user: user, membership: membership, invite: updated_invite}}
+        end
+      end)
+
+    with {:ok, %{user: user}} <- result do
+      maybe_deliver_login_instructions(invite.role, user, magic_link_url_fun)
+    end
+
+    result
+  end
+
+  defp find_or_register_invited_user(%StaffInvite{role: :manager} = invite, user_attrs) do
+    case Accounts.get_user_by_email(invite.email) do
+      nil ->
+        Accounts.register_owner(Map.put(user_attrs, "email", invite.email))
+
+      %User{hashed_password: nil} = user ->
+        # Existing magic-link-only account being promoted to a
+        # password-required role (Q47) — set the password now, not later.
+        Accounts.update_user_password(user, user_attrs)
+        |> case do
+          {:ok, {updated_user, _expired_tokens}} -> {:ok, updated_user}
+          {:error, _changeset} = error -> error
+        end
+
+      %User{} = user ->
+        {:ok, user}
+    end
+  end
+
+  defp find_or_register_invited_user(%StaffInvite{} = invite, user_attrs) do
+    case Accounts.get_user_by_email(invite.email) do
+      nil -> Accounts.register_user(Map.put(user_attrs, "email", invite.email))
+      %User{} = user -> {:ok, user}
+    end
+  end
+
+  defp maybe_deliver_login_instructions(:manager, _user, _magic_link_url_fun), do: :ok
+
+  defp maybe_deliver_login_instructions(_role, user, magic_link_url_fun) do
+    Accounts.deliver_login_instructions(user, magic_link_url_fun)
+  end
+end
