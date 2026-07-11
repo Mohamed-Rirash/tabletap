@@ -1,0 +1,68 @@
+import Config
+
+# Only in tests, remove the complexity from the password hashing algorithm
+config :bcrypt_elixir, :log_rounds, 1
+
+# Configure your database
+#
+# The MIX_TEST_PARTITION environment variable can be used
+# to provide built-in test partitioning in CI environment.
+# Run `mix help test` for more information.
+config :tabletap, Tabletap.Repo,
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  database: "tabletap_test#{System.get_env("MIX_TEST_PARTITION")}",
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: System.schedulers_online() * 2
+
+# Same database as Tabletap.Repo above — see lib/tabletap/oban_repo.ex.
+# Oban itself never runs jobs in test (testing: :manual below), but this
+# still needs to exist so the Repo can start under the app supervisor.
+config :tabletap, Tabletap.ObanRepo,
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  database: "tabletap_test#{System.get_env("MIX_TEST_PARTITION")}",
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: System.schedulers_online() * 2
+
+# We don't run a server during test. If one is required,
+# you can enable the server option below.
+config :tabletap, TabletapWeb.Endpoint,
+  http: [ip: {127, 0, 0, 1}, port: 4002],
+  secret_key_base: "z2rjGrEPqbQoTztXyW/q0nxb+2T7cApW+3VlrfsvOkMcjbPfljKD3JXZiv/3qGre",
+  server: false
+
+# In test we don't send emails
+config :tabletap, Tabletap.Mailer, adapter: Swoosh.Adapters.Test
+
+# Disable swoosh api client as it is only required for production adapters
+config :swoosh, :api_client, false
+
+# Print only warnings and errors during test
+config :logger, level: :warning
+
+# Initialize plugs at runtime for faster test compilation
+config :phoenix, :plug_init_mode, :runtime
+
+# Enable helpful, but potentially expensive runtime checks
+config :phoenix_live_view,
+  enable_expensive_runtime_checks: true
+
+# Sort query params output of verified routes for robust url comparisons
+config :phoenix,
+  sort_verified_routes_query_params: true
+
+# Oban: jobs never auto-execute in test — tests call Oban.Testing helpers
+# (perform_job/2, assert_enqueued/1) explicitly instead (code-standards.md:
+# every worker re-checks state and is idempotent, so this is safe to assert against directly)
+config :tabletap, Oban, testing: :manual
+
+# Cloak test key — same reasoning as dev.exs, not a production secret
+config :tabletap, Tabletap.Vault,
+  ciphers: [
+    default:
+      {Cloak.Ciphers.AES.GCM,
+       tag: "AES.GCM.V1", key: Base.decode64!("5GcxCAF62/hDzxUOn9Q8I2I/4Uwz9XIv24zXFMDLoSQ=")}
+  ]

@@ -1,0 +1,160 @@
+## "msgid"s in this file come from POT (.pot) files.
+###
+### Do not add, change, or remove "msgid"s manually here as
+### they're tied to the ones in the corresponding POT file
+### (with the same domain).
+###
+### Use "mix gettext.extract --merge" or "mix gettext.merge"
+### to merge POT files into PO files.
+msgid ""
+msgstr ""
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:88
+#, elixir-autogen, elixir-format
+msgid "%{count} day left in trial"
+msgid_plural "%{count} days left in trial"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:24
+#, elixir-autogen, elixir-format
+msgid "14 days, full features, no card required."
+msgstr ""
+
+#: lib/tabletap_web/components/core_components.ex:376
+#, elixir-autogen, elixir-format
+msgid "Actions"
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:89
+#: lib/tabletap_web/components/layouts.ex:104
+#, elixir-autogen, elixir-format
+msgid "Attempting to reconnect"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:44
+#, elixir-autogen, elixir-format
+msgid "Business name"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:45
+#, elixir-autogen, elixir-format
+msgid "Cadaani Coffee"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:84
+#, elixir-autogen, elixir-format
+msgid "Cashier"
+msgstr ""
+
+#: lib/tabletap_web/controllers/venue_controller.ex:31
+#, elixir-autogen, elixir-format
+msgid "Choose a venue to switch to."
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:52
+#, elixir-autogen, elixir-format
+msgid "City"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:74
+#, elixir-autogen, elixir-format
+msgid "Confirm password"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:80
+#, elixir-autogen, elixir-format
+msgid "Creating your venue..."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:85
+#, elixir-autogen, elixir-format
+msgid "Kitchen"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:26
+#, elixir-autogen, elixir-format
+msgid "Log in"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:82
+#, elixir-autogen, elixir-format
+msgid "Manager"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:55
+#, elixir-autogen, elixir-format
+msgid "Menu, tables, staff, and live orders land as the next build phases ship. Your trial is active — no card needed to keep exploring."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:81
+#, elixir-autogen, elixir-format
+msgid "Owner"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:67
+#, elixir-autogen, elixir-format
+msgid "Password"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:143
+#, elixir-autogen, elixir-format
+msgid "Something went wrong setting up your venue. Please try again."
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:96
+#, elixir-autogen, elixir-format
+msgid "Something went wrong!"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:81
+#, elixir-autogen, elixir-format
+msgid "Start free — 14 days, no card"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:22
+#, elixir-autogen, elixir-format
+msgid "Start your free trial"
+msgstr ""
+
+#: lib/tabletap_web/controllers/venue_controller.ex:21
+#, elixir-autogen, elixir-format
+msgid "That venue isn't part of your organization."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:33
+#, elixir-autogen, elixir-format
+msgid "Venue"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:83
+#, elixir-autogen, elixir-format
+msgid "Waiter"
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:81
+#, elixir-autogen, elixir-format
+msgid "We can't find the internet"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:59
+#, elixir-autogen, elixir-format
+msgid "Your email"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:53
+#, elixir-autogen, elixir-format
+msgid "Your venue is set up"
+msgstr ""
+
+#: lib/tabletap_web/components/core_components.ex:82
+#, elixir-autogen, elixir-format
+msgid "close"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/registration.ex:28
+#, elixir-autogen, elixir-format
+msgid "if you already have an account."
+msgstr ""
