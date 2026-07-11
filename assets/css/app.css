@@ -1,0 +1,517 @@
+/* See the Tailwind configuration guide for advanced usage
+   https://tailwindcss.com/docs/configuration */
+
+@import "tailwindcss" source(none);
+@import "phoenix-colocated/tabletap/colocated.css";
+@source "../css";
+@source "../js";
+@source "../../lib/tabletap_web";
+/* Required for Tailwind to automatically pick up changes in colocated CSS files in dev */
+@source "../../_build/dev/phoenix-colocated/tabletap/*/";
+
+/* A Tailwind plugin that makes "hero-#{ICON}" classes available.
+   The heroicons installation itself is managed by your mix.exs */
+@plugin "../vendor/heroicons";
+
+/* daisyUI Tailwind Plugin. You can update this file by fetching the latest version with:
+   curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui.js
+   Make sure to look at the daisyUI changelog: https://daisyui.com/docs/changelog/ */
+@plugin "../vendor/daisyui" {
+  themes: false;
+}
+
+/* daisyUI theme plugin. You can update this file by fetching the latest version with:
+  curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui-theme.js
+  We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
+  on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
+/* TableTap themes (ui-tokens.md) — hex, not oklch, for exact fidelity to
+   the design-token doc. daisyUI's own vocabulary (--color-base-*,
+   --color-primary, etc.) drives its built-in components; KDS is dark-only
+   per ui-tokens.md so it always sets [data-theme="dark"] explicitly rather
+   than following prefers-color-scheme. */
+@plugin "../vendor/daisyui-theme" {
+  name: "dark";
+  default: false;
+  prefersdark: true;
+  color-scheme: "dark";
+  --color-base-100: #211E24; /* --color-surface-dark */
+  --color-base-200: #17151A; /* --color-background-dark */
+  --color-base-300: #2B2730; /* --color-surface-raised-dark */
+  --color-base-content: #F4F1EC; /* --color-text-primary-dark */
+  --color-primary: #C96F2E; /* --color-accent (platform; staff surfaces only) */
+  --color-primary-content: #FFFFFF;
+  --color-secondary: #A9A19B; /* --color-text-secondary-dark */
+  --color-secondary-content: #17151A;
+  --color-accent: #C96F2E;
+  --color-accent-content: #FFFFFF;
+  --color-neutral: #3A3540; /* --color-border-dark */
+  --color-neutral-content: #F4F1EC;
+  --color-info: #2E7DC9; /* --status-accepted / --color-info */
+  --color-info-content: #FFFFFF;
+  --color-success: #2FA45C; /* --status-ready / --color-success */
+  --color-success-content: #FFFFFF;
+  --color-warning: #D9A62B; /* --color-warning */
+  --color-warning-content: #17151A;
+  --color-error: #C0392B; /* --color-danger */
+  --color-error-content: #FFFFFF;
+  --radius-selector: 0.5rem; /* --radius-sm */
+  --radius-field: 0.75rem; /* --radius-md */
+  --radius-box: 1rem; /* --radius-lg */
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1.5px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@plugin "../vendor/daisyui-theme" {
+  name: "light";
+  default: true;
+  prefersdark: false;
+  color-scheme: "light";
+  --color-base-100: #FFFFFF; /* --color-surface */
+  --color-base-200: #FAF8F5; /* --color-background */
+  --color-base-300: #F1EDE7; /* --color-surface-sunken */
+  --color-base-content: #241E19; /* --color-text-primary */
+  --color-primary: #C96F2E; /* --color-accent (platform; staff surfaces only) */
+  --color-primary-content: #FFFFFF;
+  --color-secondary: #6E655C; /* --color-text-secondary */
+  --color-secondary-content: #FFFFFF;
+  --color-accent: #C96F2E;
+  --color-accent-content: #FFFFFF;
+  --color-neutral: #E5DFD6; /* --color-border */
+  --color-neutral-content: #241E19;
+  --color-info: #2E7DC9;
+  --color-info-content: #FFFFFF;
+  --color-success: #2FA45C;
+  --color-success-content: #FFFFFF;
+  --color-warning: #D9A62B;
+  --color-warning-content: #241E19;
+  --color-error: #C0392B;
+  --color-error-content: #FFFFFF;
+  --radius-selector: 0.5rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1.5px;
+  --depth: 1;
+  --noise: 0;
+}
+
+/* TableTap semantic tokens (ui-tokens.md) — the bespoke component vocabulary
+   (status chips, KDS tickets, tenant brand) layered above daisyUI's own.
+   Order matches ui-tokens.md exactly so future edits are a straight diff. */
+:root {
+  /* Tenant brand — customer surface only; never used on staff surfaces
+     (ui-tokens.md Invariants). Falls back to the platform accent until a
+     venue sets one. */
+  --brand: var(--color-accent);
+  --brand-muted: color-mix(in srgb, var(--brand) 12%, transparent);
+
+  /* Order status — FIXED platform-wide, never tenant-themed */
+  --status-placed: #8A63D2;
+  --status-accepted: #2E7DC9;
+  --status-preparing: #D9822B;
+  --status-ready: #2FA45C;
+  --status-served: #57906B;
+  --status-cancelled: #C0392B;
+
+  /* Semantic (mirrors daisyUI's success/warning/error above; named per
+     ui-tokens.md so components can use either vocabulary consistently) */
+  --color-success: #2FA45C;
+  --color-warning: #D9A62B;
+  --color-danger: #C0392B;
+  --color-info: #2E7DC9;
+
+  /* Spacing (ui-tokens.md) — Tailwind's own scale covers most of this;
+     these exist for the two named exceptions design calls out explicitly */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+}
+
+/* Marketing display face — landing/marketing pages ONLY. Product surfaces
+   (customer, staff, back office) stay on the system stack: ui-tokens.md
+   says "no display font at MVP" and that rule governs the product, not the
+   marketing site. Self-hosted (priv/static/fonts) so the landing page makes
+   zero third-party requests — CDN fetches are unreliable on the launch
+   market's networks. */
+@font-face {
+  font-family: "Calistoga";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/calistoga-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@theme {
+  --font-display: "Calistoga", ui-serif, Georgia, serif;
+}
+
+/* Smooth in-page anchor scrolling (marketing nav) — guarded so users with
+   reduced-motion get instant jumps */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* KDS is dark-only (12h tablet shifts, glare — ui-tokens.md). No override
+   rule needed here: the KDS layout sets data-theme="dark" on its root
+   wrapper, and the @custom-variant "dark" above already keys off that
+   same attribute — the KDS layout just never reads the user/system
+   preference the other surfaces do. */
+
+/* Add variants based on LiveView classes */
+@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
+@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
+@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
+
+/* Use the data attribute for dark mode  */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* Make LiveView wrapper divs transparent for layout */
+[data-phx-session], [data-phx-teleported-src] { display: contents }
+
+/* This file is for your main application CSS */
+
+/* ============================================================
+   Marketing landing page — dark/bold/gradient system, scoped
+   under .mk so it never touches product surfaces or daisyUI's
+   data-theme tokens (the home page forces this look regardless
+   of the visitor's stored theme preference, the same way KDS
+   forces dark — see ui-tokens.md "Two theme modes"). Bold display
+   type comes from weight/tracking on the system stack rather than
+   a new webfont, so the marketing page makes zero extra font
+   requests beyond what the product already loads.
+   Status colors used inside product-mockup fragments (tracker,
+   KDS ticket, waiter card) are the literal hex values from
+   ui-tokens.md, never restyled to fit the gradient palette —
+   marketing chrome may reinvent itself, product truth may not. */
+.mk {
+  --mk-bg: #08080d;
+  --mk-bg-2: #0c0c14;
+  --mk-glass: rgba(255, 255, 255, 0.045);
+  --mk-glass-2: rgba(255, 255, 255, 0.08);
+  --mk-stroke: rgba(255, 255, 255, 0.09);
+  --mk-stroke-2: rgba(255, 255, 255, 0.18);
+  --mk-text: #f3f4f8;
+  --mk-muted: #a8acba;
+  --mk-faint: #75798a;
+  --mk-orange: #ff8a3d;
+  --mk-rose: #ff4d6d;
+  --mk-violet: #c084fc;
+  --mk-grad: linear-gradient(92deg, #ff8a3d 0%, #ff4d6d 55%, #c084fc 100%);
+  --mk-grad-soft: linear-gradient(
+    92deg,
+    rgba(255, 138, 61, 0.16),
+    rgba(255, 77, 109, 0.16) 55%,
+    rgba(192, 132, 252, 0.16)
+  );
+  --mk-glow: 0 10px 40px -10px rgba(255, 77, 109, 0.55);
+  color-scheme: dark;
+  background: var(--mk-bg);
+  color: var(--mk-text);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+.mk h1,
+.mk h2,
+.mk h3 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+}
+
+.mk-grad-text {
+  background: var(--mk-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Aurora + grid backdrop — hero only, absolutely positioned within
+   a relatively-positioned ancestor, layered behind content (z-index
+   handled by stacking context, not by fighting Tailwind's own). */
+.mk-aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.mk-aurora i {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(110px);
+  opacity: 0.5;
+}
+.mk-aurora .a1 {
+  width: 620px;
+  height: 620px;
+  background: #3d1428;
+  top: -260px;
+  left: -140px;
+}
+.mk-aurora .a2 {
+  width: 520px;
+  height: 520px;
+  background: #39204e;
+  top: -160px;
+  right: -160px;
+  opacity: 0.55;
+}
+.mk-aurora .a3 {
+  width: 460px;
+  height: 460px;
+  background: #3a1a0c;
+  bottom: -240px;
+  left: 38%;
+  opacity: 0.4;
+}
+.mk-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(
+    ellipse 92% 62% at 50% 0%,
+    #000 25%,
+    transparent 76%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse 92% 62% at 50% 0%,
+    #000 25%,
+    transparent 76%
+  );
+}
+
+.mk-glass {
+  background: var(--mk-glass);
+  border: 1px solid var(--mk-stroke);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.mk-glass-solid {
+  background: rgba(17, 16, 24, 0.92);
+  border: 1px solid var(--mk-stroke-2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.mk-btn-primary {
+  background: var(--mk-grad);
+  box-shadow: var(--mk-glow);
+  transition:
+    transform 0.2s cubic-bezier(0.22, 0.8, 0.32, 1),
+    box-shadow 0.25s;
+}
+.mk-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 52px -10px rgba(255, 77, 109, 0.75);
+}
+.mk-btn-ghost {
+  background: var(--mk-glass);
+  border: 1px solid var(--mk-stroke-2);
+  transition:
+    transform 0.2s cubic-bezier(0.22, 0.8, 0.32, 1),
+    border-color 0.2s;
+}
+.mk-btn-ghost:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+.mk-pill-dot {
+  background: rgba(74, 222, 128, 0.14);
+  color: #4ade80;
+}
+
+.mk-stat::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 18%;
+  right: 18%;
+  height: 1px;
+  background: var(--mk-grad);
+  opacity: 0.7;
+}
+
+.mk-step-num {
+  background: var(--mk-grad);
+  border: 3px solid var(--mk-bg);
+}
+
+.mk-card-hover {
+  transition:
+    transform 0.3s cubic-bezier(0.22, 0.8, 0.32, 1),
+    border-color 0.3s,
+    background 0.3s;
+}
+.mk-card-hover:hover {
+  transform: translateY(-5px);
+  border-color: var(--mk-stroke-2);
+  background: var(--mk-glass-2);
+}
+
+.mk-icon-tile {
+  background: var(--mk-grad-soft);
+  border: 1px solid var(--mk-stroke);
+  color: var(--mk-orange);
+}
+
+/* Ticket / KPI mockup primitives — chrome is dark-glass (matches
+   the marketing palette), but any status-bearing border/text uses
+   inline style="" with the literal ui-tokens.md hex so the fragment
+   stays truthful to the real product. */
+.mk-tkt {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--mk-stroke);
+  border-radius: 11px;
+}
+.mk-kpi {
+  border-bottom: 1px solid var(--mk-stroke);
+}
+.mk-kpi:last-of-type {
+  border-bottom: none;
+}
+.mk-spark i {
+  flex: 1;
+  border-radius: 3px;
+  background: var(--mk-glass-2);
+}
+.mk-spark i.hi {
+  background: var(--mk-grad);
+}
+
+.mk-float-chip {
+  background: rgba(21, 21, 34, 0.9);
+  border: 1px solid var(--mk-stroke-2);
+  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.mk-floaty-1 {
+  animation: mk-floaty 5.5s ease-in-out infinite;
+}
+.mk-floaty-2 {
+  animation: mk-floaty 6.5s ease-in-out 0.8s infinite;
+}
+@keyframes mk-floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+.mk-mod-chip {
+  border: 1px solid var(--mk-stroke-2);
+  color: var(--mk-muted);
+}
+.mk-mod-chip.sel {
+  background: var(--mk-grad);
+  border-color: transparent;
+  color: #fff;
+}
+
+.mk-stock-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--mk-stroke);
+  overflow: hidden;
+}
+.mk-stock-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.mk-price-right {
+  background: linear-gradient(160deg, #1a0f1c, #12101f 60%, #0e1418);
+  position: relative;
+  overflow: hidden;
+}
+.mk-price-right::after {
+  content: "";
+  position: absolute;
+  width: 340px;
+  height: 340px;
+  border-radius: 999px;
+  right: -140px;
+  top: -140px;
+  background: radial-gradient(circle, rgba(255, 77, 109, 0.3), transparent 65%);
+}
+
+.mk-cta-panel {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(
+      ellipse 70% 70% at 50% 0%,
+      rgba(255, 77, 109, 0.22),
+      transparent 70%
+    ),
+    linear-gradient(180deg, #120e18, #0a0910 60%, #0c1410);
+}
+.mk-cta-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 30%, #000, transparent 75%);
+  -webkit-mask-image: radial-gradient(
+    ellipse 80% 80% at 50% 30%,
+    #000,
+    transparent 75%
+  );
+}
+.mk-cta-panel > * {
+  position: relative;
+}
+
+.mk details > summary {
+  list-style: none;
+}
+.mk details > summary::-webkit-details-marker {
+  display: none;
+}
+.mk-collapse-arrow {
+  transition:
+    transform 0.3s cubic-bezier(0.22, 0.8, 0.32, 1),
+    background 0.3s,
+    border-color 0.3s;
+}
+.mk details[open] .mk-collapse-arrow {
+  transform: rotate(45deg);
+  background: var(--mk-grad);
+  border-color: transparent;
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-floaty-1,
+  .mk-floaty-2 {
+    animation: none;
+  }
+}

@@ -1,0 +1,1154 @@
+<%!-- TableTap marketing home page — dark/bold/gradient system (assets/css/app.css
+".mk" scope), forced dark regardless of the visitor's theme preference, the
+same way KDS forces dark (ui-tokens.md "Two theme modes"). Bold display type
+comes from weight/tracking on the system font stack, not a new webfont — zero
+extra network requests on the launch markets' networks. Any fragment depicting
+real product UI (order tracker, KDS ticket, waiter card, stock bar) uses the
+literal status/semantic hex values from ui-tokens.md via inline style — the
+gradient palette never touches product truth. Logical properties (ps-/pe-/
+ms-/me-/text-start/border-s) throughout per ui-rules.md's RTL rule. --%>
+<div class="mk min-h-screen">
+  <a
+    href="#main"
+    class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-3 focus:start-3 rounded-full bg-white text-black text-sm font-semibold px-4 py-2"
+  >
+    Skip to content
+  </a>
+
+  <%!-- Nav --%>
+  <header class="sticky top-0 z-40 border-b border-white/10 bg-[#08080d]/75 backdrop-blur-xl">
+    <div class="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
+      <a href="/" class="flex items-center gap-2.5">
+        <span
+          class="grid h-9 w-9 place-items-center rounded-xl text-white"
+          style="background: var(--mk-grad)"
+        >
+          <.icon name="hero-qr-code" class="size-5" />
+        </span>
+        <span class="text-lg font-extrabold tracking-tight">TableTap</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-white/60">
+        <a href="#product" class="hover:text-white transition-colors duration-150">Product</a>
+        <a href="#how-it-works" class="hover:text-white transition-colors duration-150">
+          How it works
+        </a>
+        <a href="#pricing" class="hover:text-white transition-colors duration-150">Pricing</a>
+        <a href="#faq" class="hover:text-white transition-colors duration-150">FAQ</a>
+      </nav>
+      <div class="flex items-center gap-2">
+        <.link
+          href={~p"/users/log-in"}
+          class="mk-btn-ghost hidden sm:inline-flex items-center rounded-full px-5 py-2.5 text-sm font-semibold text-white"
+        >
+          Log in
+        </.link>
+        <.link
+          href={~p"/users/register"}
+          class="mk-btn-primary inline-flex items-center rounded-full px-5 py-2.5 text-sm font-semibold text-white"
+        >
+          Start free
+        </.link>
+        <div class="dropdown dropdown-end md:hidden">
+          <div
+            tabindex="0"
+            role="button"
+            class="mk-btn-ghost grid h-11 w-11 place-items-center rounded-full text-white"
+            aria-label="Open menu"
+          >
+            <.icon name="hero-bars-3" class="size-5" />
+          </div>
+          <ul
+            tabindex="0"
+            class="menu dropdown-content z-30 mt-2 w-52 rounded-2xl border border-white/10 bg-[#111018] p-2 shadow-2xl text-white/80"
+          >
+            <li><a href="#product">Product</a></li>
+            <li><a href="#how-it-works">How it works</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#faq">FAQ</a></li>
+            <li class="sm:hidden"><.link href={~p"/users/log-in"}>Log in</.link></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <%!-- Hero --%>
+    <section class="relative overflow-hidden pt-16 pb-24 sm:pt-24 sm:pb-32 text-center">
+      <div class="mk-aurora" aria-hidden="true">
+        <i class="a1"></i><i class="a2"></i><i class="a3"></i>
+      </div>
+      <div class="mk-grid" aria-hidden="true"></div>
+
+      <div class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <span class="mk-glass inline-flex items-center gap-2 rounded-full ps-2 pe-4 py-1.5 text-sm font-semibold text-white/70 mb-7">
+          <span class="mk-pill-dot grid h-5 w-5 place-items-center rounded-full">
+            <.icon name="hero-map-pin" class="size-3" />
+          </span>
+          Launching in Hargeisa · Mogadishu · Jigjiga
+        </span>
+
+        <h1 class="mx-auto max-w-4xl text-4xl sm:text-6xl font-extrabold tracking-tight text-balance">
+          Scan the table. Order. <span class="mk-grad-text">Paid — live.</span>
+        </h1>
+
+        <p class="mt-6 max-w-2xl mx-auto text-lg leading-8 text-white/60 text-balance">
+          Guests scan the QR on their table, customize, and pay by mobile wallet or card —
+          straight into your own merchant account. The kitchen sees the ticket the instant
+          payment clears, the right waiter gets it automatically, and stock counts itself.
+          The menu price is the price. Nothing added at checkout, ever.
+        </p>
+
+        <div class="mt-9 flex flex-wrap items-center justify-center gap-4">
+          <.link
+            href={~p"/users/register"}
+            class="mk-btn-primary inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-semibold text-white"
+          >
+            Start free — 14 days, no card <.icon name="hero-arrow-right" class="size-4" />
+          </.link>
+          <a
+            href="#how-it-works"
+            class="mk-btn-ghost inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-semibold text-white"
+          >
+            See how it works
+          </a>
+        </div>
+
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/45 font-medium">
+          <span class="inline-flex items-center gap-2">
+            <.icon name="hero-check" class="size-4 text-[#4ADE80]" /> No card required
+          </span>
+          <span class="inline-flex items-center gap-2">
+            <.icon name="hero-check" class="size-4 text-[#4ADE80]" /> Full features during trial
+          </span>
+          <span class="inline-flex items-center gap-2">
+            <.icon name="hero-check" class="size-4 text-[#4ADE80]" /> Cancel anytime
+          </span>
+        </div>
+
+        <%!-- Hero stage: a real live-board mockup, not a screenshot — product
+        as proof for a pre-launch page. Column border dots + KPI numbers are
+        decorative gradient; nothing here is a status color (see the bento
+        section below for token-accurate status fragments). --%>
+        <div class="relative mt-16 sm:mt-20" aria-hidden="true">
+          <div class="mk-glass-solid relative z-10 mx-auto max-w-4xl overflow-hidden rounded-3xl text-start shadow-2xl">
+            <div class="flex items-center gap-2 border-b border-white/10 px-5 py-3">
+              <span class="h-2.5 w-2.5 rounded-full bg-white/10"></span>
+              <span class="h-2.5 w-2.5 rounded-full bg-white/10"></span>
+              <span class="h-2.5 w-2.5 rounded-full bg-white/10"></span>
+              <span class="mx-auto text-xs font-medium tracking-wide text-white/40">
+                TableTap — Live orders · Cadaani Coffee
+              </span>
+            </div>
+            <div class="grid grid-cols-2 lg:grid-cols-4 divide-x divide-white/10">
+              <div class="p-4 min-h-52">
+                <b class="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                  <span class="h-1.5 w-1.5 rounded-full" style="background:#2E7DC9"></span>New
+                </b>
+                <div class="mk-tkt mb-2 p-3 text-xs">
+                  <strong class="block text-sm font-semibold text-white">#51 · Table 3</strong>
+                  <span class="text-white/40">2× Suqaar &amp; Canjeero</span>
+                </div>
+                <div class="mk-tkt p-3 text-xs">
+                  <strong class="block text-sm font-semibold text-white">#52 · Table 9</strong>
+                  <span class="text-white/40">Shaah Cadees ×4</span>
+                </div>
+              </div>
+              <div class="p-4 min-h-52">
+                <b class="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                  <span class="h-1.5 w-1.5 rounded-full" style="background:#D9822B"></span>Preparing
+                </b>
+                <div
+                  class="mk-tkt mb-2 p-3 text-xs"
+                  style="border-color:rgba(217,130,43,.55); box-shadow:0 0 18px -6px rgba(217,130,43,.5)"
+                >
+                  <strong class="block text-sm font-semibold text-white">#48 · 14 min</strong>
+                  <span class="text-white/40">Hilib Ari &amp; rice</span>
+                </div>
+                <div class="mk-tkt p-3 text-xs">
+                  <strong class="block text-sm font-semibold text-white">#50 · 4 min</strong>
+                  <span class="text-white/40">Malawah + honey</span>
+                </div>
+              </div>
+              <div class="hidden sm:block p-4 min-h-52">
+                <b class="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                  <span class="h-1.5 w-1.5 rounded-full" style="background:#2FA45C"></span>Ready
+                </b>
+                <div class="mk-tkt p-3 text-xs" style="border-color:rgba(47,164,92,.4)">
+                  <strong class="block text-sm font-semibold" style="color:#4ADE80">
+                    #47 · Table 2
+                  </strong>
+                  <span class="text-white/40">Bariis + salad</span>
+                </div>
+              </div>
+              <div class="hidden lg:block p-4 min-h-52">
+                <b class="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">Today</b>
+                <div class="mk-kpi flex items-baseline justify-between py-2 text-sm text-white/60">
+                  <span>Orders</span>
+                  <strong class="text-base font-extrabold tabular-nums text-white">128</strong>
+                </div>
+                <div class="mk-kpi flex items-baseline justify-between py-2 text-sm text-white/60">
+                  <span>Revenue</span>
+                  <strong class="text-base font-extrabold tabular-nums" style="color:#4ADE80">
+                    $742
+                  </strong>
+                </div>
+                <div class="mk-kpi flex items-baseline justify-between py-2 text-sm text-white/60">
+                  <span>Avg. prep</span>
+                  <strong class="text-base font-extrabold tabular-nums text-white">9 min</strong>
+                </div>
+                <div class="mk-spark mt-3 flex h-11 items-end gap-1">
+                  <i style="height:30%"></i><i style="height:52%"></i><i style="height:40%"></i>
+                  <i class="hi" style="height:66%"></i><i class="hi" style="height:100%"></i>
+                  <i style="height:78%"></i><i style="height:56%"></i><i style="height:44%"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mk-glass mk-float-chip mk-floaty-1 absolute -top-6 end-[6%] z-20 hidden sm:flex items-center gap-3 rounded-2xl px-4 py-3 text-start">
+            <span
+              class="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
+              style="background:rgba(74,222,128,.14); color:#4ADE80"
+            >
+              <.icon name="hero-check-circle" class="size-5" />
+            </span>
+            <span>
+              <strong class="block text-sm font-semibold text-white">Payment confirmed</strong>
+              <span class="text-xs text-white/40">Order #52 · ZAAD</span>
+            </span>
+          </div>
+          <div class="mk-glass mk-float-chip mk-floaty-2 absolute bottom-3 start-[6%] z-20 hidden sm:flex items-center gap-3 rounded-2xl px-4 py-3 text-start">
+            <span
+              class="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[#FF8A3D]"
+              style="background: var(--mk-grad-soft)"
+            >
+              <.icon name="hero-bell-alert" class="size-5" />
+            </span>
+            <span>
+              <strong class="block text-sm font-semibold text-white">New order · Table 7</strong>
+              <span class="text-xs text-white/40">Assigned to Aisha</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <%!-- Wallets --%>
+    <section class="border-y border-white/10 bg-[#0c0c14] py-6">
+      <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-x-10 gap-y-3 px-4 sm:px-6 lg:px-8">
+        <p class="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Guests pay with</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="mk-glass rounded-full px-4 py-1.5 text-sm font-semibold text-white/70">ZAAD</span>
+          <span class="mk-glass rounded-full px-4 py-1.5 text-sm font-semibold text-white/70">EVC Plus</span>
+          <span class="mk-glass rounded-full px-4 py-1.5 text-sm font-semibold text-white/70">eDahab</span>
+          <span class="mk-glass rounded-full px-4 py-1.5 text-sm font-semibold text-white/70">Card</span>
+        </div>
+      </div>
+    </section>
+
+    <%!-- Guarantee strip — engineered promises, not usage stats: there are no
+    customers yet, so nothing here is a fabricated number (research/landing-
+    page-patterns.md). --%>
+    <section class="py-16">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <p class="text-center text-xs font-bold uppercase tracking-[0.2em] text-white/40">
+          Engineered promises — not marketing numbers
+        </p>
+        <div class="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="mk-glass mk-stat relative overflow-hidden rounded-2xl px-6 py-8 text-center">
+            <div class="text-3xl sm:text-4xl font-extrabold tabular-nums mk-grad-text">
+              &lt;90s
+            </div>
+            <div class="mt-2 text-sm text-white/50">from scan to paid order</div>
+          </div>
+          <div class="mk-glass mk-stat relative overflow-hidden rounded-2xl px-6 py-8 text-center">
+            <div class="text-3xl sm:text-4xl font-extrabold tabular-nums mk-grad-text">
+              &lt;2s
+            </div>
+            <div class="mt-2 text-sm text-white/50">order status is never staler</div>
+          </div>
+          <div class="mk-glass mk-stat relative overflow-hidden rounded-2xl px-6 py-8 text-center">
+            <div class="text-3xl sm:text-4xl font-extrabold tabular-nums mk-grad-text">0</div>
+            <div class="mt-2 text-sm text-white/50">paid orders ever lost — by design</div>
+          </div>
+          <div class="mk-glass mk-stat relative overflow-hidden rounded-2xl px-6 py-8 text-center">
+            <div class="text-3xl sm:text-4xl font-extrabold tabular-nums mk-grad-text">0</div>
+            <div class="mt-2 text-sm text-white/50">extra charges at checkout</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <%!-- How it works — the guest's own phone, screen by screen. Every
+    mockup below stays accurate to the real customer surface (ui-tokens.md,
+    ui-rules.md): sticky category tabs on one scrollable menu, a modifier
+    sheet with live price recalculation, the "waiting for your PIN" copy
+    from ui-rules.md's payment-limbo rule, and a status timeline whose dots
+    use the fixed --status-* hex — nothing here is a status color reused
+    for decoration. --%>
+    <section id="how-it-works" class="py-24 scroll-mt-20">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-2xl text-center">
+          <p class="text-xs font-bold uppercase tracking-[0.2em] mk-grad-text">How it works</p>
+          <h2 class="mt-3 text-3xl sm:text-4xl">One scan runs the whole loop</h2>
+          <p class="mt-4 leading-7 text-white/60">
+            From the first scan to "your order's ready" — exactly what the guest sees on their
+            own phone, no app to install, no waiter to flag down until it's time to call one.
+          </p>
+        </div>
+
+        <ol class="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <%!-- 01 — Scan: the QR opens the live menu, nothing to install --%>
+          <li class="mk-glass mk-card-hover rounded-2xl p-5">
+            <div class="mb-4 flex items-center gap-2">
+              <span class="mk-step-num grid h-7 w-7 place-items-center rounded-full text-xs font-extrabold text-white">
+                01
+              </span>
+              <span class="text-xs font-semibold uppercase tracking-wide text-white/40">Scan</span>
+            </div>
+            <div class="mx-auto w-[168px] overflow-hidden rounded-[1.5rem] border-[5px] border-white/15 bg-[#0b0b12] shadow-xl">
+              <div class="flex justify-center pb-1 pt-1.5">
+                <div class="h-1 w-7 rounded-full bg-white/15"></div>
+              </div>
+              <div class="px-2.5 pb-3">
+                <div class="mb-2 flex items-center gap-1.5">
+                  <span
+                    class="grid h-4 w-4 shrink-0 place-items-center rounded-full text-white"
+                    style="background: var(--mk-grad)"
+                  >
+                    <.icon name="hero-qr-code" class="size-2.5" />
+                  </span>
+                  <span class="truncate text-[9px] font-bold text-white">Cadaani Coffee</span>
+                </div>
+                <div class="mb-2 flex gap-1">
+                  <span
+                    class="rounded-full px-2 py-0.5 text-[8px] font-bold text-white"
+                    style="background: var(--mk-grad)"
+                  >
+                    Coffee
+                  </span>
+                  <span class="rounded-full border border-white/10 px-2 py-0.5 text-[8px] font-semibold text-white/40">
+                    Food
+                  </span>
+                </div>
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 p-1.5">
+                    <div class="h-5 w-5 shrink-0 rounded" style="background: var(--mk-grad-soft)">
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <div class="truncate text-[8px] font-semibold text-white">Beef Burger</div>
+                      <div class="text-[7.5px] tabular-nums text-white/40">$6.50</div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 p-1.5">
+                    <div class="h-5 w-5 shrink-0 rounded" style="background: var(--mk-grad-soft)">
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <div class="truncate text-[8px] font-semibold text-white">Shaah Cadees</div>
+                      <div class="text-[7.5px] tabular-nums text-white/40">$1.50</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <h3 class="mt-4 font-semibold">Scan the table QR</h3>
+            <p class="mt-2 text-sm leading-6 text-white/55">
+              The live menu opens straight in the browser — nothing to install, sold-out dishes
+              already marked.
+            </p>
+          </li>
+
+          <%!-- 02 — Order: modifier sheet, live price recalculation --%>
+          <li class="mk-glass mk-card-hover rounded-2xl p-5">
+            <div class="mb-4 flex items-center gap-2">
+              <span class="mk-step-num grid h-7 w-7 place-items-center rounded-full text-xs font-extrabold text-white">
+                02
+              </span>
+              <span class="text-xs font-semibold uppercase tracking-wide text-white/40">Order</span>
+            </div>
+            <div class="mx-auto w-[168px] overflow-hidden rounded-[1.5rem] border-[5px] border-white/15 bg-[#0b0b12] shadow-xl">
+              <div class="flex justify-center pb-1 pt-1.5">
+                <div class="h-1 w-7 rounded-full bg-white/15"></div>
+              </div>
+              <div class="px-2.5 pb-3">
+                <div class="mb-2 text-[9px] font-bold text-white">Beef Burger</div>
+                <div class="mb-1.5 flex items-center justify-between">
+                  <span class="text-[8px] text-white/60">Extra cheese +$1</span>
+                  <span
+                    class="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full text-white"
+                    style="background: var(--mk-grad)"
+                  >
+                    <.icon name="hero-check" class="size-2" />
+                  </span>
+                </div>
+                <div class="mb-1.5 flex items-center justify-between">
+                  <span class="text-[8px] text-white/60">No onions</span>
+                  <span class="h-3.5 w-3.5 shrink-0 rounded-full border border-white/20"></span>
+                </div>
+                <div class="mb-2.5 flex items-center justify-between">
+                  <span class="text-[8px] text-white/60">Size: Large +$1</span>
+                  <span class="h-3.5 w-3.5 shrink-0 rounded-full border border-white/20"></span>
+                </div>
+                <div
+                  class="rounded-lg py-1.5 text-center text-[8.5px] font-bold text-white"
+                  style="background: var(--mk-grad)"
+                >
+                  Add · $7.50
+                </div>
+              </div>
+            </div>
+            <h3 class="mt-4 font-semibold">Browse &amp; customize</h3>
+            <p class="mt-2 text-sm leading-6 text-white/55">
+              Extra cheese, no onions — every price change updates the total instantly, right
+              in the sheet.
+            </p>
+          </li>
+
+          <%!-- 03 — Pay: wallet PIN prompt, never a raw success/error while waiting --%>
+          <li class="mk-glass mk-card-hover rounded-2xl p-5">
+            <div class="mb-4 flex items-center gap-2">
+              <span class="mk-step-num grid h-7 w-7 place-items-center rounded-full text-xs font-extrabold text-white">
+                03
+              </span>
+              <span class="text-xs font-semibold uppercase tracking-wide text-white/40">Pay</span>
+            </div>
+            <div class="mx-auto w-[168px] overflow-hidden rounded-[1.5rem] border-[5px] border-white/15 bg-[#0b0b12] shadow-xl">
+              <div class="flex justify-center pb-1 pt-1.5">
+                <div class="h-1 w-7 rounded-full bg-white/15"></div>
+              </div>
+              <div class="px-2.5 pb-3">
+                <div class="mb-2.5 text-center text-[9px] font-bold text-white">
+                  Pay with wallet
+                </div>
+                <div class="mb-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-center">
+                  <span class="text-[8px] tabular-nums text-white/40">•••• •• 611</span>
+                </div>
+                <div class="mb-2.5 flex justify-center gap-1">
+                  <span class="h-1.5 w-1.5 rounded-full bg-white/60"></span>
+                  <span class="h-1.5 w-1.5 rounded-full bg-white/60"></span>
+                  <span class="h-1.5 w-1.5 rounded-full bg-white/60"></span>
+                  <span class="h-1.5 w-1.5 rounded-full border border-white/30"></span>
+                </div>
+                <div
+                  class="flex items-center justify-center gap-1.5 rounded-lg py-1.5"
+                  style="background: rgba(217,130,43,.14)"
+                >
+                  <span class="relative flex h-1.5 w-1.5 shrink-0">
+                    <span
+                      class="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
+                      style="background:#D9822B"
+                    ></span>
+                    <span
+                      class="relative inline-flex h-1.5 w-1.5 rounded-full"
+                      style="background:#D9822B"
+                    ></span>
+                  </span>
+                  <span class="text-[7.5px] font-semibold" style="color:#D9822B">
+                    Approve on your phone…
+                  </span>
+                </div>
+              </div>
+            </div>
+            <h3 class="mt-4 font-semibold">Pay from their phone</h3>
+            <p class="mt-2 text-sm leading-6 text-white/55">
+              A wallet PIN prompt, not a card form. Money lands in the venue's own account,
+              directly.
+            </p>
+          </li>
+
+          <%!-- 04 — Wait & notify: status timeline + call-waiter, dots are the
+          real --status-* hex from ui-tokens.md, never restyled --%>
+          <li class="mk-glass mk-card-hover rounded-2xl p-5">
+            <div class="mb-4 flex items-center gap-2">
+              <span class="mk-step-num grid h-7 w-7 place-items-center rounded-full text-xs font-extrabold text-white">
+                04
+              </span>
+              <span class="text-xs font-semibold uppercase tracking-wide text-white/40">Track</span>
+            </div>
+            <div class="mx-auto w-[168px] overflow-hidden rounded-[1.5rem] border-[5px] border-white/15 bg-[#0b0b12] shadow-xl">
+              <div class="flex justify-center pb-1 pt-1.5">
+                <div class="h-1 w-7 rounded-full bg-white/15"></div>
+              </div>
+              <div class="px-2.5 pb-3">
+                <div class="mb-2 flex items-center justify-between text-[8px] font-semibold text-white/40">
+                  <span>Table 7</span>
+                  <span class="font-mono">#248</span>
+                </div>
+                <ol class="mb-2.5 space-y-1.5">
+                  <li class="flex items-center gap-1.5">
+                    <span class="h-2 w-2 shrink-0 rounded-full" style="background:#8A63D2"></span>
+                    <span class="text-[8px] text-white/70">Placed</span>
+                  </li>
+                  <li class="flex items-center gap-1.5">
+                    <span class="h-2 w-2 shrink-0 rounded-full" style="background:#2E7DC9"></span>
+                    <span class="text-[8px] text-white/70">Accepted</span>
+                  </li>
+                  <li class="flex items-center gap-1.5">
+                    <span class="relative flex h-2 w-2 shrink-0">
+                      <span
+                        class="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
+                        style="background:#D9822B"
+                      ></span>
+                      <span
+                        class="relative inline-flex h-2 w-2 rounded-full"
+                        style="background:#D9822B"
+                      ></span>
+                    </span>
+                    <span class="text-[8px] font-semibold text-white">Preparing</span>
+                  </li>
+                </ol>
+                <div class="rounded-lg border border-white/15 py-1.5 text-center text-[8px] font-semibold text-white/70">
+                  Call your waiter
+                </div>
+              </div>
+            </div>
+            <h3 class="mt-4 font-semibold">Track it, call if needed</h3>
+            <p class="mt-2 text-sm leading-6 text-white/55">
+              A real ETA that survives refreshes and locked phones — one tap pings "Aisha is
+              coming."
+            </p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <%!-- Bento feature grid — the whole system at a glance. Every mockup
+    fragment below uses the literal ui-tokens.md hex for anything
+    status-bearing; the surrounding card chrome is marketing-dark glass. --%>
+    <section id="product" class="border-y border-white/10 bg-[#0c0c14] py-24 scroll-mt-20">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-2xl text-center">
+          <p class="text-xs font-bold uppercase tracking-[0.2em] mk-grad-text">
+            Everything included
+          </p>
+          <h2 class="mt-3 text-3xl sm:text-4xl">The whole restaurant, in the box</h2>
+          <p class="mt-4 leading-7 text-white/60">
+            The order loop — ordering, kitchen, waiters, POS — ships on every plan. Inventory
+            and full analytics scale in as a venue grows; see exactly what's in each tier <a
+              href="#pricing"
+              class="text-white/80 underline underline-offset-4 hover:text-white"
+            >below</a>.
+          </p>
+        </div>
+
+        <div class="mt-14 grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <%!-- Kitchen display — dark, real KDS spec (surface-raised-dark
+          #2B2730, left border in the live status color, elapsed timer,
+          modifiers never truncated) --%>
+          <div class="mk-glass mk-card-hover rounded-2xl p-6 lg:col-span-7">
+            <div class="mk-icon-tile grid h-11 w-11 place-items-center rounded-xl">
+              <.icon name="hero-tv" class="size-5" />
+            </div>
+            <h3 class="mt-4 font-semibold">Kitchen never misses a modifier</h3>
+            <p class="mt-2 text-sm leading-6 text-white/55">
+              Dark, glanceable tickets built for a meter away. Elapsed timers, and "no onions"
+              is never hidden behind a tap.
+            </p>
+            <div
+              class="mt-5 max-w-sm rounded-xl border-s-[6px] p-4"
+              style="background:#2B2730; border-color:#D9822B"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-extrabold" style="color:#F4F1EC">#248</span>
+                <span
+                  class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                  style="background:#3A3540; color:#A9A19B"
+                >
+                  TABLE 7
+                </span>
+                <span class="font-extrabold tabular-nums" style="color:#D9822B">04:12</span>
+              </div>
+              <div class="mt-3 space-y-2 text-sm" style="color:#F4F1EC">
+                <div>
+                  <div class="font-semibold">1× Beef Burger</div>
+                  <div class="ps-4 text-xs" style="color:#A9A19B">extra cheese · no onions</div>
+                </div>
+                <div class="font-semibold">2× Mango Juice</div>
+              </div>
+              <div
+                class="mt-4 rounded-lg py-2.5 text-center text-sm font-bold"
+                style="background:#D9822B; color:#17151A"
+              >
+                Mark Ready
+              </div>
+            </div>
+          </div>
+
+          <%!-- Guest tracker — status dots use the fixed --status-* hex,
+          exactly as they'd render on the real tracker page. --%>
+          <div class="mk-glass mk-card-hover rounded-2xl p-6 lg:col-span-5">
+            <div class="mk-icon-tile grid h-11 w-11 place-items-center rounded-xl">
+              <.icon name="hero-device-phone-mobile" class="size-5" />
+            </div>
+            <h3 class="mt-4 font-semibold">Guests track it live</h3>
+            <p class="mt-2 text-sm leading-6 text-white/55">
+              A real ETA, surviving refreshes and locked phones — no calling a waiter over just
+              to ask.
+            </p>
+            <ol class="mt-5 space-y-3">
+              <li class="flex items-center gap-3">
+                <span class="h-3 w-3 shrink-0 rounded-full" style="background:#8A63D2"></span>
+                <span class="text-sm font-medium text-white/80">Placed</span>
+                <span class="ms-auto text-xs tabular-nums text-white/35">2:41</span>
+              </li>
+              <li class="flex items-center gap-3">
+                <span class="h-3 w-3 shrink-0 rounded-full" style="background:#2E7DC9"></span>
+                <span class="text-sm font-medium text-white/80">Accepted</span>
+                <span class="ms-auto text-xs tabular-nums text-white/35">2:42</span>
+              </li>
+              <li class="flex items-center gap-3">
+                <span class="relative flex h-3 w-3 shrink-0">
+                  <span
+                    class="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
+                    style="background:#D9822B"
+                  ></span>
+                  <span
+                    class="relative inline-flex h-3 w-3 rounded-full"
+                    style="background:#D9822B"
+                  ></span>
+                </span>
+                <span class="text-sm font-semibold text-white">Preparing</span>
+                <span class="ms-auto text-xs tabular-nums text-white/50">~8 min</span>
+              </li>
+              <li class="flex items-center gap-3 opacity-35">
+                <span class="h-3 w-3 shrink-0 rounded-full border-2 border-white/30"></span>
+                <span class="text-sm font-medium text-white/60">Ready</span>
+              </li>
+            </ol>
+          </div>
+
+          <%!-- Waiter — accent left border is the fixed platform accent
+          (#C96F2E), never a tenant brand color, per ui-tokens.md invariant. --%>
+          <div class="mk-glass mk-card-hover rounded-2xl p-6 lg:col-span-4">
+            <div class="mk-icon-tile grid h-11 w-11 place-items-center rounded-xl">
+              <.icon name="hero-bell-alert" class="size-5" />
+            </div>
+            <h3 class="mt-4 font-semibold">The right hands, automatically</h3>
+            <p class="mt-2 text-sm leading-6 text-white/55">
+              New orders route to the least-busy on-shift waiter. Unclaimed ones escalate to a
+              claim board.
+            </p>
+            <div
+              class="mt-5 rounded-xl border border-white/10 bg-black/25 p-4 border-s-4"
+              style="border-inline-start-color:#C96F2E"
+            >
+              <div class="flex items-center justify-between">
+                <span
+                  class="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                  style="background:rgba(201,111,46,.16); color:#E8935B"
+                >
+                  NEXT UP
+                </span>
+                <span class="text-xs tabular-nums text-white/40">40s ago</span>
+              </div>
+              <div class="mt-2 flex items-baseline justify-between">
+                <span class="text-xl font-bold text-white">Table 7</span>
+                <span class="text-xs text-white/40">#248 · 4 items</span>
+              </div>
+            </div>
+          </div>
+
+          <%!-- Inventory — low-stock uses the fixed --color-warning hex per
+          the Color Usage Guide table, not a decorative gradient. --%>
+          <div class="mk-glass mk-card-hover rounded-2xl p-6 lg:col-span-4">
+            <div class="flex items-center justify-between">
+              <div class="mk-icon-tile grid h-11 w-11 place-items-center rounded-xl">
+                <.icon name="hero-cube" class="size-5" />
+              </div>
+              <span class="rounded-full border border-white/15 px-2 py-0.5 text-[10px] font-bold text-white/50">
+                Growth+
+              </span>
+            </div>
+            <h3 class="mt-4 font-semibold">Stock counts itself</h3>
+            <p class="mt-2 text-sm leading-6 text-white/55">
+              Deducts per recipe as plates go out; low-stock alerts fire before a dish 86es
+              itself.
+            </p>
+            <div class="mt-5 space-y-3 text-sm">
+              <div>
+                <div class="mb-1 flex justify-between font-semibold text-white/60">
+                  <span>Beef patties</span><span>72%</span>
+                </div>
+                <div class="mk-stock-bar"><i style="width:72%; background:#2FA45C"></i></div>
+              </div>
+              <div>
+                <div class="mb-1 flex justify-between font-semibold" style="color:#D9A62B">
+                  <span>Brioche buns</span><span>18% · low</span>
+                </div>
+                <div class="mk-stock-bar"><i style="width:18%; background:#D9A62B"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <%!-- Owner reports — the mini trend bars here are decorative
+          (a generic sales trend, not a status), so the gradient is fine. --%>
+          <div class="mk-glass mk-card-hover rounded-2xl p-6 lg:col-span-4">
+            <div class="flex items-center justify-between">
+              <div class="mk-icon-tile grid h-11 w-11 place-items-center rounded-xl">
+                <.icon name="hero-chart-bar" class="size-5" />
+              </div>
+              <span class="rounded-full border border-white/15 px-2 py-0.5 text-[10px] font-bold text-white/50">
+                Growth+
+              </span>
+            </div>
+            <h3 class="mt-4 font-semibold">Know your numbers, live</h3>
+            <p class="mt-2 text-sm leading-6 text-white/55">
+              13 report types — revenue, inventory, staff work, cashier cash, profit — daily to
+              yearly, exportable.
+            </p>
+            <div class="mt-5 flex items-end gap-1.5" style="height:64px">
+              <i class="w-full rounded-t bg-white/10" style="height:38%"></i>
+              <i class="w-full rounded-t bg-white/10" style="height:56%"></i>
+              <i class="w-full rounded-t bg-white/10" style="height:44%"></i>
+              <i class="w-full rounded-t" style="height:78%; background:var(--mk-grad)"></i>
+              <i class="w-full rounded-t" style="height:100%; background:var(--mk-grad)"></i>
+              <i class="w-full rounded-t bg-white/10" style="height:64%"></i>
+              <i class="w-full rounded-t bg-white/10" style="height:50%"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <%!-- Payments — the wedge no competitor has --%>
+    <section class="py-24">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-2xl">
+          <p class="text-xs font-bold uppercase tracking-[0.2em] mk-grad-text">Payments</p>
+          <h2 class="mt-3 text-3xl sm:text-4xl">Built for how your guests actually pay</h2>
+          <p class="mt-4 leading-7 text-white/60">
+            Guests pay with the mobile wallet already on their SIM — ZAAD, EVC Plus, eDahab —
+            or by card. They approve with their PIN on their own phone, and the money settles <strong class="text-white">directly into the venue's own account</strong>. TableTap never
+            holds your money. Cash customers? The cashier flow covers them, down to the drawer
+            count at close.
+          </p>
+        </div>
+        <div class="mt-10 grid gap-5 sm:grid-cols-3">
+          <div class="mk-glass rounded-2xl p-6">
+            <.icon name="hero-device-phone-mobile" class="size-6 text-[#FF8A3D]" />
+            <h3 class="mt-3 font-semibold">Wallet-first checkout</h3>
+            <p class="mt-2 text-sm leading-6 text-white/55">
+              A PIN prompt on the guest's phone — no card forms, no typing numbers at the
+              table.
+            </p>
+          </div>
+          <div class="mk-glass rounded-2xl p-6">
+            <.icon name="hero-banknotes" class="size-6 text-[#FF8A3D]" />
+            <h3 class="mt-3 font-semibold">Venue-direct settlement</h3>
+            <p class="mt-2 text-sm leading-6 text-white/55">
+              Every payment lands in your merchant account, not ours — your money never waits
+              on a platform payout.
+            </p>
+          </div>
+          <div class="mk-glass rounded-2xl p-6">
+            <.icon name="hero-calculator" class="size-6 text-[#FF8A3D]" />
+            <h3 class="mt-3 font-semibold">Cash still counts</h3>
+            <p class="mt-2 text-sm leading-6 text-white/55">
+              Pay-at-counter codes, cash refunds, and a Z-report that reconciles the drawer to
+              the cent.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <%!-- Built for the Horn — the launch markets, named --%>
+    <section class="border-y border-white/10 bg-[#0c0c14] py-24">
+      <div class="max-w-6xl mx-auto grid items-center gap-14 px-4 sm:px-6 lg:px-8 lg:grid-cols-2">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.2em] mk-grad-text">
+            Built for the Horn
+          </p>
+          <h2 class="mt-3 text-3xl sm:text-4xl">
+            Designed for how this region actually pays and orders
+          </h2>
+          <p class="mt-4 leading-7 text-white/60">
+            Wallet-push payments, not card forms nobody has. A guided WaafiPay merchant
+            checklist for the one step that can't be compressed. And a menu that's ready for
+            more than one language whenever a venue needs it.
+          </p>
+          <div class="mt-7 flex flex-wrap gap-2.5">
+            <span class="mk-glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white/80">
+              <.icon name="hero-map-pin" class="size-4 text-[#FF8A3D]" /> Hargeisa
+            </span>
+            <span class="mk-glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white/80">
+              <.icon name="hero-map-pin" class="size-4 text-[#FF8A3D]" /> Mogadishu
+            </span>
+            <span class="mk-glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white/80">
+              <.icon name="hero-map-pin" class="size-4 text-[#FF8A3D]" /> Jigjiga
+            </span>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2.5">
+            <span class="mk-glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white/80">
+              <.icon name="hero-wallet" class="size-4 text-[#FF8A3D]" /> ZAAD
+            </span>
+            <span class="mk-glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white/80">
+              <.icon name="hero-wallet" class="size-4 text-[#FF8A3D]" /> EVC Plus
+            </span>
+            <span class="mk-glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white/80">
+              <.icon name="hero-wallet" class="size-4 text-[#FF8A3D]" /> eDahab
+            </span>
+            <span class="mk-glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white/80">
+              <.icon name="hero-wallet" class="size-4 text-[#FF8A3D]" /> Sahal
+            </span>
+          </div>
+        </div>
+
+        <div class="mk-glass-solid rounded-2xl p-7">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-bold text-white">Founding-venue onboarding</span>
+            <span class="text-xs font-semibold text-white/40">4 / 5</span>
+          </div>
+          <div class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div class="h-full rounded-full" style="width:80%; background: var(--mk-grad)"></div>
+          </div>
+          <ul class="mt-5 space-y-3.5 text-sm">
+            <li class="flex items-center gap-3 text-white/50 line-through decoration-white/20">
+              <.icon name="hero-check-circle" class="size-5 shrink-0 text-[#4ADE80]" />
+              Venue info, logo &amp; hours
+            </li>
+            <li class="flex items-center gap-3 text-white/50 line-through decoration-white/20">
+              <.icon name="hero-check-circle" class="size-5 shrink-0 text-[#4ADE80]" />
+              WaafiPay merchant setup
+            </li>
+            <li class="flex items-center gap-3 text-white/50 line-through decoration-white/20">
+              <.icon name="hero-check-circle" class="size-5 shrink-0 text-[#4ADE80]" />
+              Subscription plan
+            </li>
+            <li class="flex items-center gap-3 text-white/50 line-through decoration-white/20">
+              <.icon name="hero-check-circle" class="size-5 shrink-0 text-[#4ADE80]" />
+              First menu items
+            </li>
+            <li class="flex items-center gap-3 text-white font-medium">
+              <span class="grid size-5 shrink-0 place-items-center rounded-full border-2 border-white/25"></span>
+              Print table QR codes
+            </li>
+          </ul>
+          <p class="mt-5 text-xs text-white/40">
+            Under an hour, once wallet merchant credentials exist — we hand-hold the paperwork
+            step.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <%!-- Pricing — real numbers (context/pricing.md, design-qa.md Q63,
+    supersedes Q62). Three tiers by FEATURE DEPTH, not just venue count —
+    every tier ships the order loop, Growth adds inventory + the full
+    Report Center, Pro adds cross-venue tools for 2-10 venues. USD at
+    launch (Hargeisa · Mogadishu); Jigjiga/ETB pricing lands with Phase C.
+    The fee applies only to wallet/card orders — cash and comped orders
+    carry none, unchanged from the platform's founding decision. --%>
+    <section id="pricing" class="py-24 scroll-mt-20">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-2xl">
+          <p class="text-xs font-bold uppercase tracking-[0.2em] mk-grad-text">Pricing</p>
+          <h2 class="mt-3 text-3xl sm:text-4xl">Pay for what your venue actually uses</h2>
+          <p class="mt-4 leading-7 text-white/60">
+            Three tiers, sized by feature depth, not fine print. Every tier includes a
+            per-order fee on orders that actually go through the platform — cash orders and
+            comped meals carry <strong class="text-white">no fee at all</strong>. No setup
+            fee, no per-terminal fee, no percentage of tips (we don't even have tips).
+          </p>
+        </div>
+
+        <div class="mt-12 grid gap-5 md:grid-cols-3">
+          <%!-- Essentials --%>
+          <div class="mk-glass-solid flex flex-col rounded-3xl p-7 sm:p-8">
+            <div class="flex items-baseline justify-between">
+              <h3 class="text-xl font-bold text-white">Essentials</h3>
+              <span class="text-xs font-semibold text-white/40">1 venue</span>
+            </div>
+            <p class="mt-1 text-sm text-white/50">
+              Just the order loop — scan, order, pay, serve.
+            </p>
+            <div class="mt-6 flex items-baseline gap-2">
+              <span class="text-4xl font-extrabold tracking-tight text-white">$40</span>
+              <span class="text-sm font-medium text-white/45">/ month</span>
+            </div>
+            <p class="mt-2 text-sm text-white/50">
+              + <span class="font-semibold text-white/80">2.5%</span>
+              per order paid by wallet or card
+            </p>
+            <ul class="mt-7 flex-1 space-y-3 text-sm">
+              <li class="flex items-start gap-3">
+                <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                <span class="text-white/75">QR ordering &amp; live menu</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                <span class="text-white/75">Kitchen display &amp; waiter app</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                <span class="text-white/75">Cashier POS for walk-ins &amp; cash</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                <span class="text-white/75">Order tracker &amp; call-waiter</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                <span class="text-white/75">Today's live dashboard</span>
+              </li>
+            </ul>
+            <.link
+              href={~p"/users/register"}
+              class="mk-btn-ghost mt-8 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white"
+            >
+              Start free — 14 days, no card
+            </.link>
+          </div>
+
+          <%!-- Growth — the recommended tier, gets the visual weight --%>
+          <div class="relative rounded-3xl border border-white/10 md:-my-3">
+            <span class="mk-glass absolute -top-3 start-1/2 z-10 -translate-x-1/2 rounded-full px-4 py-1 text-xs font-bold text-white">
+              Most popular
+            </span>
+            <div class="mk-price-right relative flex h-full flex-col overflow-hidden rounded-3xl p-7 sm:p-8">
+              <div class="flex items-baseline justify-between">
+                <h3 class="text-xl font-bold text-white">Growth</h3>
+                <span class="text-xs font-semibold text-white/40">1 venue</span>
+              </div>
+              <p class="mt-1 text-sm text-white/50">
+                Run the business on the numbers, not guesses.
+              </p>
+              <div class="mt-6 flex items-baseline gap-2">
+                <span class="text-4xl font-extrabold tracking-tight mk-grad-text">$75</span>
+                <span class="text-sm font-medium text-white/45">/ month</span>
+              </div>
+              <p class="mt-2 text-sm text-white/50">
+                + <span class="font-semibold text-white/80">1.5%</span>
+                per order paid by wallet or card
+              </p>
+              <ul class="mt-7 flex-1 space-y-3 text-sm">
+                <li class="flex items-start gap-3">
+                  <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                  <span class="text-white/75">Everything in Essentials</span>
+                </li>
+                <li class="flex items-start gap-3">
+                  <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                  <span class="text-white/75">Inventory, recipes &amp; stock alerts</span>
+                </li>
+                <li class="flex items-start gap-3">
+                  <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                  <span class="text-white/75">Full Report Center — all 13 report types</span>
+                </li>
+                <li class="flex items-start gap-3">
+                  <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                  <span class="text-white/75">Menu engineering &amp; margins</span>
+                </li>
+              </ul>
+              <.link
+                href={~p"/users/register"}
+                class="mk-btn-primary mt-8 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white"
+              >
+                Start free — 14 days, no card
+              </.link>
+            </div>
+          </div>
+
+          <%!-- Pro --%>
+          <div class="mk-glass-solid flex flex-col rounded-3xl p-7 sm:p-8">
+            <div class="flex items-baseline justify-between">
+              <h3 class="text-xl font-bold text-white">Pro</h3>
+              <span class="text-xs font-semibold text-white/40">2–10 venues</span>
+            </div>
+            <p class="mt-1 text-sm text-white/50">Growth depth on every venue, one bill.</p>
+            <div class="mt-6 flex items-baseline gap-2">
+              <span class="text-4xl font-extrabold tracking-tight text-white">$55</span>
+              <span class="text-sm font-medium text-white/45">/ venue / month</span>
+            </div>
+            <p class="mt-2 text-sm text-white/50">
+              + <span class="font-semibold text-white/80">1.0%</span>
+              per order paid by wallet or card
+            </p>
+            <ul class="mt-7 flex-1 space-y-3 text-sm">
+              <li class="flex items-start gap-3">
+                <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                <span class="text-white/75">Everything in Growth, every venue</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                <span class="text-white/75">Cross-venue comparison</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                <span class="text-white/75">Org-level Profit (P&amp;L-lite) rollup</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <.icon name="hero-check" class="size-5 mt-0.5 shrink-0 text-[#4ADE80]" />
+                <span class="text-white/75">Lowest per-venue price, lowest fee</span>
+              </li>
+            </ul>
+            <.link
+              href={~p"/users/register"}
+              class="mk-btn-ghost mt-8 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white"
+            >
+              Start free — 14 days, no card
+            </.link>
+          </div>
+        </div>
+
+        <p class="mt-8 text-center text-sm text-white/40">
+          14-day free trial unlocks every tier's features, so you can see what you need before
+          choosing. More than 10 venues?
+          <a href="#faq" class="text-white/70 underline underline-offset-4 hover:text-white">
+            Talk to us for a custom rate.
+          </a>
+          Billed monthly, no annual lock-in — cancel anytime.
+        </p>
+      </div>
+    </section>
+
+    <%!-- FAQ --%>
+    <section id="faq" class="border-y border-white/10 bg-[#0c0c14] py-24 scroll-mt-20">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h2 class="text-center text-3xl sm:text-4xl">Questions, answered</h2>
+        <div class="mt-12 space-y-3">
+          <details class="mk-glass group rounded-2xl" open>
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-semibold text-white">
+              Do you add tax, tips, or service charges?
+              <span class="mk-collapse-arrow grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/15 text-white/50">
+                <.icon name="hero-plus" class="size-3.5" />
+              </span>
+            </summary>
+            <div class="px-5 pb-5 text-sm leading-6 text-white/60">
+              No. The menu price is exactly what the customer pays — nothing added at
+              checkout, ever. That's a founding decision, not a launch promo.
+            </div>
+          </details>
+          <details class="mk-glass group rounded-2xl">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-semibold text-white">
+              What's the actual difference between the tiers?
+              <span class="mk-collapse-arrow grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/15 text-white/50">
+                <.icon name="hero-plus" class="size-3.5" />
+              </span>
+            </summary>
+            <div class="px-5 pb-5 text-sm leading-6 text-white/60">
+              Essentials is the order loop — ordering, kitchen, waiters, POS. Growth adds
+              inventory with recipe-linked stock deduction and the full 13-report Report
+              Center. Pro brings Growth's depth to every venue in a chain (2–10) plus
+              cross-venue comparison and an org-level Profit rollup. Nothing you configure is
+              ever deleted if you move between tiers — Growth → Essentials just makes
+              inventory and reports inaccessible until you upgrade again, it doesn't erase
+              them.
+            </div>
+          </details>
+          <details class="mk-glass group rounded-2xl">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-semibold text-white">
+              What payment methods do you support?
+              <span class="mk-collapse-arrow grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/15 text-white/50">
+                <.icon name="hero-plus" class="size-3.5" />
+              </span>
+            </summary>
+            <div class="px-5 pb-5 text-sm leading-6 text-white/60">
+              Mobile wallets — ZAAD, EVC Plus, eDahab — plus card where available, and a full
+              cash flow at the counter. Wallet and card payments settle directly into the
+              venue's own merchant account; TableTap never holds customer funds.
+            </div>
+          </details>
+          <details class="mk-glass group rounded-2xl">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-semibold text-white">
+              My café has no waiters — does this still work?
+              <span class="mk-collapse-arrow grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/15 text-white/50">
+                <.icon name="hero-plus" class="size-3.5" />
+              </span>
+            </summary>
+            <div class="px-5 pb-5 text-sm leading-6 text-white/60">
+              Yes — switch the venue to pickup mode: guests get notified the moment their
+              order is ready and collect it at the counter. No waiter loop required.
+            </div>
+          </details>
+          <details class="mk-glass group rounded-2xl">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-semibold text-white">
+              Can other venues on the platform see my numbers?
+              <span class="mk-collapse-arrow grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/15 text-white/50">
+                <.icon name="hero-plus" class="size-3.5" />
+              </span>
+            </summary>
+            <div class="px-5 pb-5 text-sm leading-6 text-white/60">
+              No. Every query is scoped to your organization at the database layer —
+              isolation is enforced by the system's construction, not by a policy someone has
+              to remember.
+            </div>
+          </details>
+          <details class="mk-glass group rounded-2xl">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-semibold text-white">
+              Why is billing monthly only — no annual discount?
+              <span class="mk-collapse-arrow grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/15 text-white/50">
+                <.icon name="hero-plus" class="size-3.5" />
+              </span>
+            </summary>
+            <div class="px-5 pb-5 text-sm leading-6 text-white/60">
+              There's no card on file to run an annual charge against — wallet payments need a
+              fresh PIN approval every cycle. An annual plan would mean asking you to approve
+              one large lump-sum charge up front, which is exactly the friction "no card
+              required" is designed to avoid. So: month to month, cancel anytime.
+            </div>
+          </details>
+          <details class="mk-glass group rounded-2xl">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-semibold text-white">
+              How long does setup take?
+              <span class="mk-collapse-arrow grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/15 text-white/50">
+                <.icon name="hero-plus" class="size-3.5" />
+              </span>
+            </summary>
+            <div class="px-5 pb-5 text-sm leading-6 text-white/60">
+              Once your wallet merchant account exists, under an hour: venue details, menu,
+              print your table QR codes, first live order. We walk you through the merchant
+              paperwork — it's the one step we can't compress, so we help you through it.
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <%!-- Final CTA — founding-venue angle instead of fake testimonials --%>
+    <section class="mk-cta-panel">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
+        <h2 class="text-3xl sm:text-4xl text-balance">Be one of the founding venues</h2>
+        <p class="mx-auto mt-4 max-w-xl text-white/60">
+          We're launching with a small group of cafés and restaurants and working alongside
+          them — hands-on onboarding, direct line to the builder, and a say in what ships
+          next.
+        </p>
+        <div class="mt-8">
+          <.link
+            href={~p"/users/register"}
+            class="mk-btn-primary inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-semibold text-white"
+          >
+            Start free — 14 days, no card <.icon name="hero-arrow-right" class="size-4" />
+          </.link>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <%!-- Footer --%>
+  <footer class="border-t border-white/10 bg-[#08080d] py-12">
+    <div class="max-w-6xl mx-auto flex flex-col items-center justify-between gap-6 px-4 sm:px-6 lg:px-8 sm:flex-row">
+      <div class="flex items-center gap-2.5">
+        <span
+          class="grid h-7 w-7 place-items-center rounded-lg text-xs font-bold text-white"
+          style="background: var(--mk-grad)"
+        >
+          <.icon name="hero-qr-code" class="size-4" />
+        </span>
+        <span class="text-sm font-bold">TableTap</span>
+      </div>
+      <nav class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/45">
+        <a href="#product" class="hover:text-white transition-colors duration-150">Product</a>
+        <a href="#pricing" class="hover:text-white transition-colors duration-150">Pricing</a>
+        <a href="#faq" class="hover:text-white transition-colors duration-150">FAQ</a>
+        <.link href={~p"/users/log-in"} class="hover:text-white transition-colors duration-150">
+          Log in
+        </.link>
+      </nav>
+      <p class="text-xs text-white/35">
+        &copy; {DateTime.utc_now().year} TableTap. Every order, every venue, one place.
+      </p>
+    </div>
+  </footer>
+</div>

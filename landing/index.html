@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="TableTap — QR table ordering for cafés and restaurants in the Somali Horn. Customers scan, order, and pay with ZAAD or EVC Plus straight into your merchant account. 14-day free trial, no card.">
+<meta name="theme-color" content="#08080D">
+<title>TableTap — QR ordering for cafés &amp; restaurants</title>
+<style>
+/* ============ Fonts (self-hosted) ============ */
+@font-face{font-family:'Space Grotesk';src:url('assets/fonts/space-grotesk-latin.woff2') format('woff2');font-weight:400 700;font-style:normal;font-display:swap;}
+@font-face{font-family:'Inter';src:url('assets/fonts/inter-normal-latin.woff2') format('woff2');font-weight:400 700;font-style:normal;font-display:swap;}
+@font-face{font-family:'Inter';src:url('assets/fonts/inter-italic-latin.woff2') format('woff2');font-weight:400 700;font-style:italic;font-display:swap;}
+
+/* ============ Tokens ============ */
+:root{
+  --bg:#08080D;
+  --bg-2:#0C0C14;
+  --panel:#10101A;
+  --panel-2:#151522;
+  --glass:rgba(255,255,255,.04);
+  --glass-2:rgba(255,255,255,.07);
+  --stroke:rgba(255,255,255,.09);
+  --stroke-2:rgba(255,255,255,.17);
+  --text:#F2F3F7;
+  --muted:#A9ADBB;
+  --faint:#767B8C;
+  --o:#FF8A3D;
+  --r:#FF4D6D;
+  --v:#C084FC;
+  --green:#4ADE80;
+  --grad:linear-gradient(92deg,#FF8A3D 0%,#FF4D6D 52%,#C084FC 100%);
+  --grad-soft:linear-gradient(92deg,rgba(255,138,61,.16),rgba(255,77,109,.16) 52%,rgba(192,132,252,.16));
+  --display:'Space Grotesk', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --sans:'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --r-lg:22px;
+  --r-md:15px;
+  --ease:cubic-bezier(.22,.8,.32,1);
+  --glow:0 10px 42px -10px rgba(255,77,109,.55);
+}
+
+/* ============ Base ============ */
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:1.0625rem;line-height:1.7;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+h1,h2,h3,h4{font-family:var(--display);font-weight:640;line-height:1.05;letter-spacing:-.03em;margin:0 0 .5em}
+h1{font-size:clamp(2.9rem,7vw,5.4rem);font-weight:700}
+h2{font-size:clamp(2rem,4.4vw,3.2rem)}
+h3{font-size:1.3rem;line-height:1.25;letter-spacing:-.02em}
+p{margin:0 0 1em}
+img{max-width:100%;display:block}
+a{color:var(--o)}
+button{font-family:inherit}
+::selection{background:#5B2440;color:#fff}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--o);outline-offset:3px;border-radius:8px}
+.skip{position:absolute;left:-999px;top:8px;z-index:200;background:var(--text);color:var(--bg);padding:.6rem 1rem;border-radius:8px}
+.skip:focus{left:8px}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .reveal{opacity:1!important;transform:none!important}
+}
+
+.wrap{max-width:76rem;margin-inline:auto;padding-inline:1.5rem}
+section{padding-block:clamp(4rem,9vw,7.5rem);position:relative}
+.icon{width:1.25em;height:1.25em;stroke-width:2;flex:none;vertical-align:-.22em}
+
+.grad-text{
+  background:var(--grad);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+}
+.kicker{
+  display:inline-flex;align-items:center;gap:.55rem;
+  font-family:var(--display);font-size:.78rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--o);margin-bottom:1.1rem;
+}
+.kicker::before{content:"";width:26px;height:2px;background:var(--grad);border-radius:2px}
+.lead{font-size:1.2rem;line-height:1.65;color:var(--muted);max-width:42rem}
+.center{text-align:center}
+.center .lead{margin-inline:auto}
+.center .kicker::before{display:none}
+
+/* reveal on scroll */
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+.d1{transition-delay:.08s}.d2{transition-delay:.16s}.d3{transition-delay:.24s}.d4{transition-delay:.32s}
+
+/* aurora backdrop */
+.aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1}
+.aurora i{position:absolute;border-radius:999px;filter:blur(110px);opacity:.5}
+.aurora .a1{width:620px;height:620px;background:#3D1428;top:-260px;left:-140px}
+.aurora .a2{width:520px;height:520px;background:#39204E;top:-160px;right:-160px;opacity:.55}
+.aurora .a3{width:460px;height:460px;background:#3A1A0C;bottom:-240px;left:38%;opacity:.4}
+.gridlines{
+  position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:60px 60px;
+  mask-image:radial-gradient(ellipse 92% 62% at 50% 0%,#000 25%,transparent 76%);
+  -webkit-mask-image:radial-gradient(ellipse 92% 62% at 50% 0%,#000 25%,transparent 76%);
+}
+
+/* ============ Buttons ============ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.55rem;
+  padding:.95rem 1.75rem;border-radius:999px;border:1px solid transparent;
+  font-weight:600;font-size:1rem;line-height:1;text-decoration:none;cursor:pointer;
+  transition:transform .2s var(--ease),box-shadow .25s,border-color .2s,background .2s;
+  min-height:48px;white-space:nowrap;color:#fff;
+}
+.btn-primary{background:var(--grad);box-shadow:var(--glow)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 14px 52px -10px rgba(255,77,109,.75)}
+.btn-ghost{background:var(--glass);border-color:var(--stroke-2);color:var(--text)}
+.btn-ghost:hover{border-color:rgba(255,255,255,.4);transform:translateY(-2px)}
+.btn .icon{width:1.1em;height:1.1em}
+
+/* ============ Header ============ */
+header.site{
+  position:sticky;top:0;z-index:80;
+  background:rgba(8,8,13,.72);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid transparent;
+  transition:border-color .3s;
+}
+header.site.scrolled{border-bottom-color:var(--stroke)}
+.nav{display:flex;align-items:center;gap:2rem;min-height:74px}
+.brand{display:flex;align-items:center;gap:.65rem;font-family:var(--display);font-weight:700;font-size:1.3rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.brand-mark{
+  width:36px;height:36px;border-radius:11px;background:var(--grad);color:#fff;
+  display:grid;place-items:center;box-shadow:0 6px 20px -6px rgba(255,77,109,.6);
+}
+.brand-mark .icon{width:20px;height:20px}
+.nav-links{display:flex;gap:1.9rem;margin-inline:auto}
+.nav-links a{color:var(--muted);text-decoration:none;font-weight:500;font-size:.95rem;transition:color .2s}
+.nav-links a:hover{color:var(--text)}
+.nav-cta{display:flex;align-items:center;gap:.9rem}
+.nav-cta .btn{padding:.7rem 1.3rem;min-height:44px;font-size:.95rem}
+.nav-toggle{display:none;background:var(--glass);border:1px solid var(--stroke-2);border-radius:11px;width:44px;height:44px;cursor:pointer;color:var(--text);place-items:center}
+.mobile-menu{display:none}
+
+/* ============ Hero ============ */
+.hero{padding-block:clamp(4rem,8vw,6.5rem) 0;text-align:center}
+.pill{
+  display:inline-flex;align-items:center;gap:.55rem;background:var(--glass);
+  border:1px solid var(--stroke);border-radius:999px;padding:.45rem 1.1rem .45rem .6rem;
+  font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:1.8rem;
+}
+.pill .dot{width:22px;height:22px;border-radius:999px;background:rgba(74,222,128,.14);color:var(--green);display:grid;place-items:center}
+.pill .dot .icon{width:13px;height:13px;stroke-width:2.6}
+.hero h1{max-width:60rem;margin-inline:auto}
+.hero .lead{margin:1.4rem auto 2.2rem;max-width:44rem}
+.cta-row{display:flex;flex-wrap:wrap;gap:.9rem;justify-content:center}
+.trust-row{display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:center;margin-top:1.8rem;font-size:.9rem;color:var(--faint);font-weight:500}
+.trust-row span{display:inline-flex;align-items:center;gap:.45rem}
+.trust-row .icon{width:1.05em;height:1.05em;color:var(--green)}
+
+/* hero product composite */
+.hero-stage{position:relative;margin-top:4.5rem;padding-bottom:clamp(3rem,6vw,5rem)}
+.stage-glow{
+  position:absolute;inset:-8% -6% auto;height:70%;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 55% 60% at 50% 30%,rgba(255,77,109,.18),transparent 70%);
+  filter:blur(10px);
+}
+.app-frame{
+  position:relative;z-index:1;max-width:56rem;margin-inline:auto;
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+  border:1px solid var(--stroke-2);border-radius:var(--r-lg);
+  box-shadow:0 40px 120px -30px rgba(0,0,0,.85),0 0 0 1px rgba(0,0,0,.4);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  overflow:hidden;text-align:left;
+}
+.app-bar{display:flex;align-items:center;gap:.55rem;padding:.85rem 1.2rem;border-bottom:1px solid var(--stroke)}
+.app-bar i{width:11px;height:11px;border-radius:999px;background:var(--glass-2);border:1px solid var(--stroke)}
+.app-bar span{margin-inline:auto;font-size:.78rem;color:var(--faint);font-weight:500;letter-spacing:.02em}
+.app-body{display:grid;grid-template-columns:1fr 1fr 1fr 1.15fr;gap:1px;background:var(--stroke)}
+.app-col{background:var(--panel);padding:1rem 1rem 1.2rem;min-height:15.5rem}
+.app-col b{display:flex;align-items:center;gap:.45rem;font-family:var(--display);font-size:.68rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:.8rem}
+.app-col b i{width:7px;height:7px;border-radius:99px;background:var(--faint)}
+.app-col.c-new b i{background:var(--o)}
+.app-col.c-prep b i{background:var(--r)}
+.app-col.c-ready b i{background:var(--green)}
+.tkt{background:var(--panel-2);border:1px solid var(--stroke);border-radius:11px;padding:.6rem .7rem;margin-bottom:.55rem;font-size:.76rem;line-height:1.45}
+.tkt strong{display:block;color:var(--text);font-size:.8rem;font-weight:600}
+.tkt span{color:var(--faint)}
+.tkt.hot{border-color:rgba(255,77,109,.5);box-shadow:0 0 18px -6px rgba(255,77,109,.5)}
+.tkt.done{border-color:rgba(74,222,128,.35)}
+.tkt.done strong{color:var(--green)}
+.app-side{background:var(--panel);padding:1rem 1.1rem 1.2rem}
+.app-side b{display:block;font-family:var(--display);font-size:.68rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:.8rem}
+.kpi{display:flex;justify-content:space-between;align-items:baseline;padding:.5rem 0;border-bottom:1px solid var(--stroke);font-size:.8rem;color:var(--muted)}
+.kpi:last-of-type{border-bottom:none}
+.kpi strong{font-family:var(--display);font-size:1.05rem;color:var(--text);font-variant-numeric:tabular-nums}
+.kpi strong.up{color:var(--green)}
+.spark{display:flex;align-items:flex-end;gap:4px;height:44px;margin-top:.8rem}
+.spark i{flex:1;border-radius:3px;background:var(--glass-2)}
+.spark i.hi{background:var(--grad)}
+.spark i:nth-child(1){height:30%}.spark i:nth-child(2){height:52%}.spark i:nth-child(3){height:40%}
+.spark i:nth-child(4){height:66%}.spark i:nth-child(5){height:100%}.spark i:nth-child(6){height:78%}
+.spark i:nth-child(7){height:56%}.spark i:nth-child(8){height:44%}
+
+.float-chip{
+  position:absolute;z-index:2;display:flex;gap:.7rem;align-items:center;
+  background:rgba(21,21,34,.88);border:1px solid var(--stroke-2);border-radius:16px;
+  box-shadow:0 24px 60px -18px rgba(0,0,0,.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  padding:.8rem 1rem;font-size:.8rem;line-height:1.35;text-align:left;
+}
+.float-chip .fc-icon{width:34px;height:34px;flex:none;border-radius:11px;display:grid;place-items:center}
+.float-chip strong{display:block;font-size:.84rem;color:var(--text)}
+.float-chip span{color:var(--faint);font-size:.75rem}
+.fc-pay{right:max(1rem,7%);top:-2.2rem;animation:floaty 5.5s ease-in-out infinite}
+.fc-pay .fc-icon{background:rgba(74,222,128,.14);color:var(--green)}
+.fc-order{left:max(1rem,7%);bottom:1.2rem;animation:floaty 6.5s ease-in-out .8s infinite}
+.fc-order .fc-icon{background:var(--grad-soft);color:var(--o)}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+
+/* ============ Wallets ============ */
+.wallets{border-block:1px solid var(--stroke);padding-block:1.6rem;background:var(--bg-2)}
+.wallets .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:1rem 2.4rem;justify-content:center}
+.wallets p{margin:0;font-family:var(--display);font-size:.78rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.wallet-logos{display:flex;flex-wrap:wrap;gap:.7rem}
+.wallet-logos span{
+  font-family:var(--display);font-weight:600;font-size:1rem;color:var(--muted);
+  background:var(--glass);border:1px solid var(--stroke);padding:.45rem 1.15rem;border-radius:999px;
+}
+
+/* ============ Stats ============ */
+.stats{padding-block:clamp(3rem,6vw,4.5rem)}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.1rem}
+.stat{
+  background:var(--glass);border:1px solid var(--stroke);border-radius:var(--r-lg);
+  padding:2rem 1.4rem;text-align:center;position:relative;overflow:hidden;
+}
+.stat::before{content:"";position:absolute;top:0;left:18%;right:18%;height:1px;background:var(--grad);opacity:.7}
+.stat b{display:block;font-family:var(--display);font-weight:700;font-size:clamp(2.1rem,3.6vw,2.9rem);line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat span{font-size:.9rem;color:var(--muted);display:block;margin-top:.55rem}
+
+/* ============ How it works ============ */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1.3rem;margin-top:3rem}
+.step{
+  background:var(--glass);border:1px solid var(--stroke);border-radius:var(--r-lg);overflow:hidden;
+  transition:transform .3s var(--ease),border-color .3s;display:flex;flex-direction:column;
+}
+.step:hover{transform:translateY(-6px);border-color:var(--stroke-2)}
+.step-img{aspect-ratio:16/10;background-size:cover;background-position:center;position:relative;filter:saturate(.85)}
+.step-img::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,13,.12),rgba(8,8,13,.66))}
+.step-num{
+  position:absolute;left:1.1rem;bottom:-1.35rem;width:2.7rem;height:2.7rem;border-radius:999px;z-index:2;
+  background:var(--grad);color:#fff;display:grid;place-items:center;
+  font-family:var(--display);font-weight:700;font-size:1.15rem;border:3px solid var(--bg);
+}
+.step-body{padding:2.1rem 1.5rem 1.6rem}
+.step-body p{margin:0;color:var(--muted);font-size:.96rem}
+
+/* ============ Bento ============ */
+.bento{display:grid;grid-template-columns:repeat(12,1fr);gap:1.2rem;margin-top:3rem}
+.b-card{
+  background:var(--glass);border:1px solid var(--stroke);border-radius:var(--r-lg);padding:1.8rem;
+  position:relative;overflow:hidden;
+  transition:transform .3s var(--ease),border-color .3s,background .3s;
+}
+.b-card:hover{transform:translateY(-5px);border-color:var(--stroke-2);background:var(--glass-2)}
+.b-card h3{margin-bottom:.4rem}
+.b-card>p{color:var(--muted);font-size:.96rem;margin:0}
+.b-icon{
+  width:42px;height:42px;border-radius:13px;background:var(--grad-soft);
+  border:1px solid var(--stroke);color:var(--o);
+  display:grid;place-items:center;margin-bottom:1.1rem;
+}
+.b-icon .icon{width:21px;height:21px}
+.span7{grid-column:span 7}.span5{grid-column:span 5}.span4{grid-column:span 4}
+
+.kds{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-top:1.4rem}
+.kds-col b{display:block;font-family:var(--display);font-size:.64rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:.5rem}
+
+.receipt{margin-top:1.4rem;border:1px dashed var(--stroke-2);border-radius:13px;padding:1rem 1.2rem;background:rgba(0,0,0,.25);font-size:.88rem}
+.receipt .row{display:flex;justify-content:space-between;padding:.34rem 0;border-bottom:1px solid var(--stroke)}
+.receipt .row:last-child{border-bottom:none}
+.receipt .row span{color:var(--faint)}
+.receipt .row b{font-weight:600;color:var(--text)}
+.receipt .ok{color:var(--green)}
+
+.mod-chips{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:1.2rem}
+.mod-chips span{font-size:.78rem;font-weight:600;border:1px solid var(--stroke-2);border-radius:999px;padding:.3rem .8rem;color:var(--muted)}
+.mod-chips .sel{background:var(--grad);border-color:transparent;color:#fff}
+
+.toast-demo{margin-top:1.2rem;display:flex;align-items:center;gap:.7rem;background:rgba(0,0,0,.25);border:1px solid var(--stroke);border-radius:999px;padding:.55rem 1rem;font-size:.85rem;font-weight:600;width:max-content;max-width:100%;color:var(--text)}
+.toast-demo .icon{color:var(--o)}
+
+.mini-chart{display:flex;align-items:flex-end;gap:.5rem;height:96px;margin-top:1.4rem}
+.mini-chart i{flex:1;border-radius:6px 6px 3px 3px;background:var(--glass-2);border:1px solid var(--stroke)}
+.mini-chart i.hi{background:var(--grad);border-color:transparent;box-shadow:0 0 24px -6px rgba(255,77,109,.6)}
+.mini-chart i:nth-child(1){height:38%}.mini-chart i:nth-child(2){height:56%}
+.mini-chart i:nth-child(3){height:44%}.mini-chart i:nth-child(4){height:78%}
+.mini-chart i:nth-child(5){height:100%}.mini-chart i:nth-child(6){height:64%}
+.mini-chart i:nth-child(7){height:50%}
+
+.stock-demo{margin-top:1.3rem;font-size:.82rem}
+.stock-demo .row{display:flex;justify-content:space-between;margin-bottom:.3rem;font-weight:600;color:var(--muted)}
+.stock-demo .bar{height:8px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid var(--stroke);overflow:hidden;margin-bottom:.8rem}
+.stock-demo .bar i{display:block;height:100%;border-radius:999px}
+.stock-demo .ok i{width:72%;background:var(--green)}
+.stock-demo .low i{width:18%;background:var(--grad)}
+.stock-demo .low-label{color:var(--r)}
+
+/* ============ Somali Horn ============ */
+.horn{background:var(--bg-2);border-block:1px solid var(--stroke)}
+.horn-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:3.5rem;align-items:center}
+.horn-chips{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:2rem}
+.horn-chips span{
+  display:inline-flex;align-items:center;gap:.5rem;
+  border:1px solid var(--stroke-2);background:var(--glass);color:var(--text);
+  border-radius:999px;padding:.55rem 1.15rem;font-weight:600;font-size:.92rem;
+}
+.horn-chips .icon{width:1.05em;height:1.05em;color:var(--o)}
+.horn-photo{position:relative}
+.horn-photo::before{
+  content:"";position:absolute;inset:-1px;border-radius:calc(var(--r-lg) + 1px);
+  background:var(--grad);opacity:.55;filter:blur(1px);
+}
+.horn-photo img{position:relative;border-radius:var(--r-lg);aspect-ratio:4/3.4;object-fit:cover;width:100%;filter:saturate(.9)}
+.horn-photo figcaption{
+  position:absolute;left:1.1rem;bottom:1.1rem;background:rgba(8,8,13,.8);backdrop-filter:blur(8px);
+  border:1px solid var(--stroke-2);color:var(--text);border-radius:12px;padding:.6rem 1rem;font-size:.83rem;font-weight:500;
+}
+
+/* ============ Pricing ============ */
+.price-card{
+  display:grid;grid-template-columns:1.15fr .85fr;gap:0;margin-top:3rem;
+  background:var(--glass);border:1px solid var(--stroke-2);border-radius:var(--r-lg);overflow:hidden;
+  box-shadow:0 40px 100px -40px rgba(0,0,0,.8);
+}
+.price-left{padding:clamp(1.8rem,4vw,3.2rem)}
+.price-left h3{font-size:1.6rem;margin-bottom:1.4rem}
+.check-list{list-style:none;margin:0;padding:0;display:grid;gap:1.05rem}
+.check-list li{display:flex;gap:.8rem;align-items:flex-start;color:var(--muted);font-size:1rem}
+.check-list li b{color:var(--text);font-weight:600}
+.check-list .icon{width:22px;height:22px;color:var(--green);margin-top:.15rem}
+.price-right{
+  background:linear-gradient(160deg,#1A0F1C,#12101F 60%,#0E1418);
+  border-left:1px solid var(--stroke);
+  padding:clamp(1.8rem,4vw,3.2rem);
+  display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden;
+}
+.price-right::after{
+  content:"";position:absolute;width:340px;height:340px;border-radius:999px;right:-140px;top:-140px;
+  background:radial-gradient(circle,rgba(255,77,109,.3),transparent 65%);
+}
+.price-num{font-family:var(--display);font-weight:700;font-size:clamp(3.2rem,6vw,4.4rem);line-height:1;letter-spacing:-.03em}
+.price-right p{color:var(--muted);margin-block:.9rem 1.6rem;position:relative;z-index:1}
+.price-right .btn{align-self:flex-start;position:relative;z-index:1}
+.price-note{margin-top:1.2rem;font-size:.85rem;color:var(--faint)}
+
+/* ============ FAQ ============ */
+.faq-list{max-width:50rem;margin:3rem auto 0;display:grid;gap:.9rem}
+details{
+  background:var(--glass);border:1px solid var(--stroke);border-radius:var(--r-md);
+  transition:border-color .3s,background .3s;overflow:hidden;
+}
+details[open]{border-color:var(--stroke-2);background:var(--glass-2)}
+summary{
+  cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  padding:1.15rem 1.5rem;font-weight:600;font-size:1.02rem;font-family:var(--display);letter-spacing:-.01em;
+}
+summary::-webkit-details-marker{display:none}
+summary .sum-icon{
+  width:30px;height:30px;flex:none;border-radius:999px;border:1px solid var(--stroke-2);
+  display:grid;place-items:center;color:var(--muted);transition:transform .3s var(--ease),background .3s;
+}
+summary .sum-icon .icon{width:15px;height:15px}
+details[open] summary .sum-icon{transform:rotate(45deg);background:var(--grad);color:#fff;border-color:transparent}
+details .faq-body{padding:0 1.5rem 1.4rem;color:var(--muted);font-size:.97rem}
+
+/* ============ Final CTA ============ */
+.cta-final{padding-block:0 clamp(4rem,9vw,7.5rem)}
+.cta-panel{
+  position:relative;border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--stroke-2);
+  background:url('assets/img/cafe-interior.webp') center/cover no-repeat;
+  padding:clamp(4rem,9vw,7rem) clamp(1.6rem,5vw,4.5rem);text-align:center;color:#fff;
+}
+.cta-panel::before{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(8,8,13,.72),rgba(8,8,13,.88)),
+             radial-gradient(ellipse 60% 60% at 50% 0%,rgba(255,77,109,.28),transparent 70%);
+}
+.cta-panel>*{position:relative}
+.cta-panel h2{font-size:clamp(2.3rem,5vw,3.8rem)}
+.cta-panel p{color:var(--muted);max-width:36rem;margin:0 auto 2rem;font-size:1.15rem}
+.cta-cities{margin-top:1.6rem;font-family:var(--display);font-size:.85rem;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);font-weight:600}
+
+/* ============ Footer ============ */
+footer.site{padding-block:3.2rem 2.5rem;border-top:1px solid var(--stroke);background:var(--bg-2)}
+.foot{display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:space-between;align-items:center}
+.foot small{color:var(--faint);font-size:.88rem;max-width:34rem}
+.foot-links{display:flex;gap:1.6rem}
+.foot-links a{color:var(--muted);text-decoration:none;font-size:.92rem;font-weight:500}
+.foot-links a:hover{color:var(--text)}
+
+/* ============ Responsive ============ */
+@media (max-width:1024px){
+  .steps{grid-template-columns:1fr 1fr}
+  .span7,.span5,.span4{grid-column:span 6}
+  .horn-grid{grid-template-columns:1fr;gap:2.5rem}
+  .price-card{grid-template-columns:1fr}
+  .price-right{border-left:none;border-top:1px solid var(--stroke)}
+  .app-body{grid-template-columns:1fr 1fr 1fr}
+  .app-side{display:none}
+}
+@media (max-width:768px){
+  .nav-links,.nav-cta .btn-ghost{display:none}
+  .nav-toggle{display:grid}
+  .mobile-menu{
+    display:none;flex-direction:column;padding:1rem 1.5rem 1.5rem;
+    border-top:1px solid var(--stroke);background:var(--bg);
+  }
+  .mobile-menu.open{display:flex}
+  .mobile-menu a{padding:.8rem 0;text-decoration:none;color:var(--text);font-weight:600;font-size:1.1rem;border-bottom:1px solid var(--stroke)}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .steps{grid-template-columns:1fr}
+  .span7,.span5,.span4{grid-column:span 12}
+  .app-body{grid-template-columns:1fr 1fr}
+  .app-col.c-ready{display:none}
+  .kds{grid-template-columns:1fr 1fr}
+  .kds-col:nth-child(3){display:none}
+  .fc-pay{top:-1.6rem;right:2%}
+  .fc-order{left:2%;bottom:-.6rem}
+}
+@media (max-width:480px){
+  body{font-size:1rem}
+  .float-chip{padding:.6rem .8rem;font-size:.72rem}
+  .float-chip strong{font-size:.76rem}
+  .cta-row .btn{width:100%}
+  .wallets .wrap{justify-content:flex-start}
+}
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" />
+  <path d="m12 5 7 7-7 7" /></symbol><symbol id="i-banknote" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2" />
+  <circle cx="12" cy="12" r="2" />
+  <path d="M6 12h.01M18 12h.01" /></symbol><symbol id="i-bell-ring" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0" />
+  <path d="M22 8c0-2.3-.8-4.3-2-6" />
+  <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
+  <path d="M4 2C2.8 3.7 2 5.7 2 8" /></symbol><symbol id="i-boxes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" />
+  <path d="m7 16.5-4.74-2.85" />
+  <path d="m7 16.5 5-3" />
+  <path d="M7 16.5v5.17" />
+  <path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" />
+  <path d="m17 16.5-5-3" />
+  <path d="m17 16.5 4.74-2.85" />
+  <path d="M17 16.5v5.17" />
+  <path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" />
+  <path d="M12 8 7.26 5.15" />
+  <path d="m12 8 4.74-2.85" />
+  <path d="M12 13.5V8" /></symbol><symbol id="i-chart-column" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16" />
+  <path d="M18 17V9" />
+  <path d="M13 17V5" />
+  <path d="M8 17v-3" /></symbol><symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></symbol><symbol id="i-chef-hat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z" />
+  <path d="M6 17h12" /></symbol><symbol id="i-circle-check-big" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335" />
+  <path d="m9 11 3 3L22 4" /></symbol><symbol id="i-concierge-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20a1 1 0 0 1-1-1v-1a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1Z" />
+  <path d="M20 16a8 8 0 1 0-16 0" />
+  <path d="M12 4v4" />
+  <path d="M10 4h4" /></symbol><symbol id="i-hand-platter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3V2" />
+  <path d="m15.4 17.4 3.2-2.8a2 2 0 1 1 2.8 2.9l-3.6 3.3c-.7.8-1.7 1.2-2.8 1.2h-4c-1.1 0-2.1-.4-2.8-1.2l-1.302-1.464A1 1 0 0 0 6.151 19H5" />
+  <path d="M2 14h12a2 2 0 0 1 0 4h-2" />
+  <path d="M4 10h16" />
+  <path d="M5 10a7 7 0 0 1 14 0" />
+  <path d="M5 14v6a1 1 0 0 1-1 1H2" /></symbol><symbol id="i-languages" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6" />
+  <path d="m4 14 6-6 2-3" />
+  <path d="M2 5h12" />
+  <path d="M7 2h1" />
+  <path d="m22 22-5-10-5 10" />
+  <path d="M14 18h6" /></symbol><symbol id="i-map-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+  <circle cx="12" cy="10" r="3" /></symbol><symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12" />
+  <line x1="4" x2="20" y1="6" y2="6" />
+  <line x1="4" x2="20" y1="18" y2="18" /></symbol><symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" />
+  <path d="M12 5v14" /></symbol><symbol id="i-qr-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1" />
+  <rect width="5" height="5" x="16" y="3" rx="1" />
+  <rect width="5" height="5" x="3" y="16" rx="1" />
+  <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
+  <path d="M21 21v.01" />
+  <path d="M12 7v3a2 2 0 0 1-2 2H7" />
+  <path d="M3 12h.01" />
+  <path d="M12 3h.01" />
+  <path d="M12 16v.01" />
+  <path d="M16 12h1" />
+  <path d="M21 12v.01" />
+  <path d="M12 21v-1" /></symbol><symbol id="i-store" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+  <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+  <path d="M2 7h20" />
+  <path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7" /></symbol><symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+  <circle cx="9" cy="7" r="4" />
+  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+  <path d="M16 3.13a4 4 0 0 1 0 7.75" /></symbol><symbol id="i-utensils-crossed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8" />
+  <path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7" />
+  <path d="m2.1 21.8 6.4-6.3" />
+  <path d="m19 5-7 7" /></symbol><symbol id="i-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
+  <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" /></symbol><symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" />
+  <path d="m6 6 12 12" /></symbol></svg>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site" id="top">
+  <div class="wrap nav">
+    <a class="brand" href="#top" aria-label="TableTap home">
+      <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-qr-code"/></svg></span>
+      TableTap
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="#pricing">See pricing</a>
+      <a class="btn btn-primary" href="#pricing">Start free trial</a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="mobileMenu" aria-label="Open menu">
+        <svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg>
+      </button>
+    </div>
+  </div>
+  <nav class="mobile-menu" id="mobileMenu" aria-label="Mobile">
+    <a href="#how">How it works</a>
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+</header>
+
+<main id="main">
+
+<!-- ============ HERO ============ -->
+<section class="hero" aria-labelledby="hero-h">
+  <div class="aurora" aria-hidden="true"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
+  <div class="gridlines" aria-hidden="true"></div>
+  <div class="wrap">
+    <span class="pill reveal"><span class="dot"><svg class="icon" aria-hidden="true"><use href="#i-map-pin"/></svg></span>Launching in Hargeisa · Mogadishu · Jigjiga</span>
+    <h1 id="hero-h" class="reveal d1">Scan. Order. <span class="grad-text">Paid.</span></h1>
+    <p class="lead reveal d2">Your menu on every table — no app, no waiting. Customers scan the table QR, order, and pay with ZAAD or EVC&nbsp;Plus straight into your own merchant account. Kitchen, waiters, and stock stay in sync, live.</p>
+    <div class="cta-row reveal d3">
+      <a class="btn btn-primary" href="#pricing">Start 14-day free trial <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+      <a class="btn btn-ghost" href="#how">See how it works</a>
+    </div>
+    <div class="trust-row reveal d4">
+      <span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>No card required</span>
+      <span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Full features during trial</span>
+      <span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Cancel anytime</span>
+    </div>
+
+    <div class="hero-stage reveal d3" aria-hidden="true">
+      <div class="stage-glow"></div>
+      <div class="app-frame">
+        <div class="app-bar"><i></i><i></i><i></i><span>TableTap — Live orders · Cadaani Coffee</span></div>
+        <div class="app-body">
+          <div class="app-col c-new"><b><i></i>New</b>
+            <div class="tkt"><strong>#51 · Table 3</strong><span>2× Suqaar &amp; Canjeero</span></div>
+            <div class="tkt"><strong>#52 · Table 9</strong><span>Shaah Cadeys ×4</span></div>
+          </div>
+          <div class="app-col c-prep"><b><i></i>Preparing</b>
+            <div class="tkt hot"><strong>#48 · 14 min</strong><span>Hilib Ari Rice</span></div>
+            <div class="tkt"><strong>#50 · 4 min</strong><span>Malawah + honey</span></div>
+          </div>
+          <div class="app-col c-ready"><b><i></i>Ready</b>
+            <div class="tkt done"><strong>#47 · Table 2</strong><span>Bariis + salad</span></div>
+          </div>
+          <div class="app-side"><b>Today</b>
+            <div class="kpi"><span>Orders</span><strong>128</strong></div>
+            <div class="kpi"><span>Revenue</span><strong class="up">$742</strong></div>
+            <div class="kpi"><span>Avg. prep</span><strong>9 min</strong></div>
+            <div class="spark"><i></i><i></i><i></i><i></i><i class="hi"></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+      </div>
+      <div class="float-chip fc-pay">
+        <span class="fc-icon"><svg class="icon" aria-hidden="true"><use href="#i-circle-check-big"/></svg></span>
+        <div><strong>$5.30 paid · ZAAD</strong><span>straight to your merchant account</span></div>
+      </div>
+      <div class="float-chip fc-order">
+        <span class="fc-icon"><svg class="icon" aria-hidden="true"><use href="#i-qr-code"/></svg></span>
+        <div><strong>New order · Table 7</strong><span>Suqaar &amp; Canjeero, Shaah Cadeys</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WALLETS ============ -->
+<div class="wallets reveal">
+  <div class="wrap">
+    <p>Customers pay with the wallets they already use</p>
+    <div class="wallet-logos">
+      <span>ZAAD</span><span>EVC Plus</span><span>Sahal</span><span>eDahab</span><span>Cash at counter</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STATS ============ -->
+<section class="stats" aria-label="Key numbers">
+  <div class="wrap">
+    <div class="stats-grid">
+      <div class="stat reveal"><b class="grad-text">&lt;90s</b><span>QR scan to paid order</span></div>
+      <div class="stat reveal d1"><b class="grad-text">&lt;1hr</b><span>signup to first live order</span></div>
+      <div class="stat reveal d2"><b class="grad-text">0</b><span>apps your customers must install</span></div>
+      <div class="stat reveal d3"><b class="grad-text">14 days</b><span>free trial, no card required</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section id="how" aria-labelledby="how-h">
+  <div class="wrap">
+    <div class="center">
+      <span class="kicker reveal">How it works</span>
+      <h2 id="how-h" class="reveal d1">QR scan to <span class="grad-text">paid order</span><br>in under 90 seconds</h2>
+      <p class="lead reveal d2">No app to install, no signup wall. The QR opens the live menu straight in the phone's browser.</p>
+    </div>
+    <div class="steps">
+      <article class="step reveal">
+        <div class="step-img" style="background-image:url('assets/img/phone-order.webp')" role="img" aria-label="A customer ordering from their phone">
+          <span class="step-num">1</span>
+        </div>
+        <div class="step-body">
+          <h3>Scan the table QR</h3>
+          <p>The venue's live menu opens instantly — only today's available items, sold-out dishes clearly marked.</p>
+        </div>
+      </article>
+      <article class="step reveal d1">
+        <div class="step-img" style="background-image:url('assets/img/food-plate.webp')" role="img" aria-label="Plates of freshly prepared food">
+          <span class="step-num">2</span>
+        </div>
+        <div class="step-body">
+          <h3>Order &amp; customize</h3>
+          <p>Extra cheese, no onions, large size — the price updates live. Dine-in or takeaway, same flow.</p>
+        </div>
+      </article>
+      <article class="step reveal d2">
+        <div class="step-img" style="background-image:url('assets/img/cafe-owner.webp')" role="img" aria-label="A payment terminal at a café counter">
+          <span class="step-num">3</span>
+        </div>
+        <div class="step-body">
+          <h3>Approve with a PIN</h3>
+          <p>The customer approves on their phone and the money lands in <em>your</em> merchant account — then they watch a live status with an ETA.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES BENTO ============ -->
+<section id="features" aria-labelledby="features-h" style="padding-top:0">
+  <div class="wrap">
+    <div class="center">
+      <span class="kicker reveal">One system for the whole floor</span>
+      <h2 id="features-h" class="reveal d1">Everything between the<br><span class="grad-text">QR code</span> and the <span class="grad-text">kitchen</span></h2>
+      <p class="lead reveal d2">Orders, waiters, kitchen, stock, and numbers — live, in one place, on the devices you already own.</p>
+    </div>
+
+    <div class="bento">
+      <article class="b-card span7 reveal">
+        <span class="b-icon"><svg class="icon" aria-hidden="true"><use href="#i-chef-hat"/></svg></span>
+        <h3>Live kitchen display</h3>
+        <p>Tickets flow new → preparing → ready on a dark tablet board. Per-ticket timers, and late tickets pulse before anyone has to ask.</p>
+        <div class="kds" aria-hidden="true">
+          <div class="kds-col"><b>New</b>
+            <div class="tkt"><strong>#51 · T3</strong><span>2× Suqaar</span></div>
+            <div class="tkt"><strong>#52 · T9</strong><span>Shaah ×4</span></div>
+          </div>
+          <div class="kds-col"><b>Preparing</b>
+            <div class="tkt hot"><strong>#48 · 14 min</strong><span>Hilib Ari</span></div>
+            <div class="tkt"><strong>#50 · 4 min</strong><span>Malawah</span></div>
+          </div>
+          <div class="kds-col"><b>Ready</b>
+            <div class="tkt done"><strong>#47 · T2</strong><span>Bariis + salad</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="b-card span5 reveal d1">
+        <span class="b-icon"><svg class="icon" aria-hidden="true"><use href="#i-wallet"/></svg></span>
+        <h3>Your money, your account</h3>
+        <p>Every wallet payment goes directly to your merchant account — TableTap never holds your revenue. Our small per-order fee is billed monthly, never deducted. Cash orders cost nothing.</p>
+        <div class="receipt" aria-hidden="true">
+          <div class="row"><span>Order #48</span><b>$12.50</b></div>
+          <div class="row"><span>Paid via</span><b>ZAAD · PIN</b></div>
+          <div class="row"><span>Lands in</span><b class="ok">Your account</b></div>
+          <div class="row"><span>When</span><b class="ok">Instantly</b></div>
+        </div>
+      </article>
+
+      <article class="b-card span4 reveal">
+        <span class="b-icon"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg></span>
+        <h3>Smart waiter queue</h3>
+        <p>New orders auto-assign to the least-busy waiter on shift; unclaimed ones escalate to a claim board. Delivery is confirmed by scanning the table's QR.</p>
+      </article>
+
+      <article class="b-card span4 reveal d1">
+        <span class="b-icon"><svg class="icon" aria-hidden="true"><use href="#i-utensils-crossed"/></svg></span>
+        <h3>Menu with modifiers</h3>
+        <p>Photos, modifier groups, allergen tags, daily limits — edits go live on every table instantly.</p>
+        <div class="mod-chips" aria-hidden="true">
+          <span>cheese: normal</span><span class="sel">extra +$1</span><span>none</span>
+        </div>
+      </article>
+
+      <article class="b-card span4 reveal d2">
+        <span class="b-icon"><svg class="icon" aria-hidden="true"><use href="#i-boxes"/></svg></span>
+        <h3>Ingredient-level stock</h3>
+        <p>Every served dish deducts its recipe automatically. Low-stock alerts and a restock report — before you run out mid-service.</p>
+        <div class="stock-demo" aria-hidden="true">
+          <div class="row"><span>Rice</span><span>36 kg</span></div>
+          <div class="bar ok"><i></i></div>
+          <div class="row"><span>Goat meat</span><span class="low-label">2.1 kg — low</span></div>
+          <div class="bar low"><i></i></div>
+        </div>
+      </article>
+
+      <article class="b-card span7 reveal">
+        <span class="b-icon"><svg class="icon" aria-hidden="true"><use href="#i-chart-column"/></svg></span>
+        <h3>Numbers an owner can read</h3>
+        <p>Top sellers, peak hours, food cost %, discounts given, fastest waiters — live today, history by day, week, or season. CSV export included.</p>
+        <div class="mini-chart" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i class="hi"></i><i></i><i></i>
+        </div>
+      </article>
+
+      <article class="b-card span5 reveal d1">
+        <span class="b-icon"><svg class="icon" aria-hidden="true"><use href="#i-bell-ring"/></svg></span>
+        <h3>Call waiter, one tap</h3>
+        <p>The tracker pings the customer's assigned waiter by name — instead of hand-waving across the room.</p>
+        <div class="toast-demo" aria-hidden="true">
+          <svg class="icon" aria-hidden="true"><use href="#i-hand-platter"/></svg>
+          "Aisha is coming" · Table 7
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SOMALI HORN ============ -->
+<section class="horn" aria-labelledby="horn-h">
+  <div class="wrap horn-grid">
+    <div>
+      <span class="kicker reveal">Built for home</span>
+      <h2 id="horn-h" class="reveal d1">Made for the <span class="grad-text">Somali Horn</span>,<br>not adapted to it</h2>
+      <p class="lead reveal d2">Somali, Arabic (full right-to-left), and English. USD &amp; Ethiopian Birr. Wallet-native checkout, cash still welcome at the counter, and a customer flow light enough for real café Wi-Fi. Counter-service café with no waiters? Pickup mode notifies customers when their order is ready.</p>
+      <div class="horn-chips reveal d3">
+        <span><svg class="icon" aria-hidden="true"><use href="#i-languages"/></svg>Soomaali</span>
+        <span><svg class="icon" aria-hidden="true"><use href="#i-languages"/></svg>العربية · RTL</span>
+        <span><svg class="icon" aria-hidden="true"><use href="#i-languages"/></svg>English</span>
+        <span><svg class="icon" aria-hidden="true"><use href="#i-banknote"/></svg>USD &amp; ETB</span>
+        <span><svg class="icon" aria-hidden="true"><use href="#i-concierge-bell"/></svg>Pickup mode</span>
+        <span><svg class="icon" aria-hidden="true"><use href="#i-store"/></svg>Multi-venue chains</span>
+      </div>
+    </div>
+    <figure class="horn-photo reveal d2" style="margin:0">
+      <img src="assets/img/tea.webp" alt="A cup of spiced tea with loose tea leaves on a linen cloth" loading="lazy" width="1100" height="729">
+      <figcaption>Shaah-first. Wallet-native. Yours.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ PRICING ============ -->
+<section id="pricing" aria-labelledby="pricing-h">
+  <div class="wrap">
+    <div class="center">
+      <span class="kicker reveal">Pricing</span>
+      <h2 id="pricing-h" class="reveal d1">A subscription plus a<br><span class="grad-text">small per-order fee</span></h2>
+      <p class="lead reveal d2">No hardware to buy, no setup cost, no cut of your cash sales. Try everything free for 14 days — live orders included.</p>
+    </div>
+    <div class="price-card reveal">
+      <div class="price-left">
+        <h3>What you pay — and what you never pay</h3>
+        <ul class="check-list">
+          <li><svg class="icon" aria-hidden="true"><use href="#i-circle-check-big"/></svg><span><b>One monthly subscription per venue</b> — plans sized from a single café to a small chain</span></li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-circle-check-big"/></svg><span><b>A small fee per online order</b> — accrued and billed monthly, never deducted from your payout</span></li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-circle-check-big"/></svg><span><b>Cash and counter orders: no per-order fee at all</b></span></li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-circle-check-big"/></svg><span><b>Unlimited menu items, tables, staff accounts, and orders</b> on every plan</span></li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-circle-check-big"/></svg><span><b>No hardware to buy</b> — runs on the tablets and phones you already own</span></li>
+        </ul>
+      </div>
+      <div class="price-right">
+        <div class="price-num">14 <span class="grad-text">days</span></div>
+        <p>Full platform, real orders, real payments — no card needed to start.</p>
+        <a class="btn btn-primary" href="mailto:codesavvylabs@gmail.com?subject=TableTap%20early%20access">Start your free trial <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+        <p class="price-note">Launching soon in Hargeisa, Mogadishu &amp; Jigjiga — join the early list.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section id="faq" aria-labelledby="faq-h" style="padding-top:0">
+  <div class="wrap">
+    <div class="center">
+      <span class="kicker reveal">FAQ</span>
+      <h2 id="faq-h" class="reveal d1">Questions <span class="grad-text">owners</span> ask us</h2>
+    </div>
+    <div class="faq-list reveal d1">
+      <details>
+        <summary>Do my customers need to install an app?<span class="sum-icon"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></span></summary>
+        <div class="faq-body">No. The table QR opens the menu directly in their phone's browser — any phone, no install, no signup. Ordering takes under 90 seconds. Repeat diners can optionally create an account to keep their history, and native apps are on our roadmap.</div>
+      </details>
+      <details>
+        <summary>Where does the money go when a customer pays?<span class="sum-icon"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></span></summary>
+        <div class="faq-body">Directly into your own wallet merchant account (ZAAD, EVC Plus, or Sahal). TableTap never touches or holds your revenue — our per-order fee is tallied separately and billed monthly with your subscription.</div>
+      </details>
+      <details>
+        <summary>What do I need to get started?<span class="sum-icon"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></span></summary>
+        <div class="faq-body">A wallet merchant account (we walk you through the paperwork during onboarding), any tablet or phone for staff, and a printer for your table QR codes. From signup to your first live paid order typically takes under an hour once your merchant credentials are in hand.</div>
+      </details>
+      <details>
+        <summary>I run a counter-service café with no waiters — does this work for me?<span class="sum-icon"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></span></summary>
+        <div class="faq-body">Yes. Switch your venue to pickup mode: customers order and pay from the QR, and get notified on their phone when the order is ready to collect at the counter. No waiter accounts needed.</div>
+      </details>
+      <details>
+        <summary>Does it handle cash?<span class="sum-icon"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></span></summary>
+        <div class="faq-body">Fully. The cashier POS takes cash orders with a change calculator, and cash and wallet sales sit side by side in your shift totals and reports. Cash orders carry no per-order fee.</div>
+      </details>
+      <details>
+        <summary>Which languages does it support?<span class="sum-icon"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></span></summary>
+        <div class="faq-body">Somali, Arabic, and English across the platform, with correct right-to-left layout for Arabic — your customer menu follows your venue's language. USD and Ethiopian Birr are both supported.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FINAL CTA ============ -->
+<section class="cta-final" aria-labelledby="cta-h">
+  <div class="wrap">
+    <div class="cta-panel reveal">
+      <h2 id="cta-h">Put your menu on <span class="grad-text">every table</span> this week</h2>
+      <p>14 days free, no card, full features. Print your QR codes and take your first live order today.</p>
+      <a class="btn btn-primary" href="#pricing">Start free trial <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+      <div class="cta-cities">Hargeisa · Mogadishu · Jigjiga</div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site">
+  <div class="wrap foot">
+    <a class="brand" href="#top" aria-label="TableTap home">
+      <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-qr-code"/></svg></span>
+      TableTap
+    </a>
+    <nav class="foot-links" aria-label="Footer">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <small>© 2026 TableTap. Menu prices are final — no taxes, tips, or service charges added.</small>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // header border
+  var header = document.querySelector('header.site');
+  var onScroll = function(){ header.classList.toggle('scrolled', window.scrollY > 8); };
+  window.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+
+  // mobile menu
+  var toggle = document.querySelector('.nav-toggle');
+  var menu = document.getElementById('mobileMenu');
+  if (toggle && menu){
+    toggle.addEventListener('click', function(){
+      var open = menu.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', open);
+      toggle.querySelector('use').setAttribute('href', open ? '#i-x' : '#i-menu');
+    });
+    menu.addEventListener('click', function(e){
+      if (e.target.tagName === 'A'){
+        menu.classList.remove('open');
+        toggle.setAttribute('aria-expanded','false');
+        toggle.querySelector('use').setAttribute('href','#i-menu');
+      }
+    });
+  }
+
+  // reveal on scroll
+  var els = document.querySelectorAll('.reveal');
+  if (reduce || !('IntersectionObserver' in window)){
+    els.forEach(function(el){ el.classList.add('in'); });
+    return;
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if (entry.isIntersecting){
+        entry.target.classList.add('in');
+        io.unobserve(entry.target);
+      }
+    });
+  }, {threshold:.12, rootMargin:'0px 0px -6% 0px'});
+  els.forEach(function(el){ io.observe(el); });
+})();
+</script>
+</body>
+</html>

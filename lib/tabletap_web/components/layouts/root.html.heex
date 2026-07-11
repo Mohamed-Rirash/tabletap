@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title
+      default="TableTap — QR Ordering for Cafés & Restaurants"
+      suffix=" · TableTap"
+      phx-no-format
+    >{assigns[:page_title]}</.live_title>
+    <meta
+      name="description"
+      content="Scan, order, pay, and track — live. TableTap runs the whole floor: menu, kitchen, waiters, inventory, and mobile-money or card payments, in one system."
+    />
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+    <script>
+      (() => {
+        const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+
+        const setTheme = (theme) => {
+          if (theme === "system") {
+            localStorage.removeItem("phx:theme");
+            document.documentElement.setAttribute("data-theme", systemTheme());
+            document.documentElement.setAttribute("data-theme-source", "system");
+          } else {
+            localStorage.setItem("phx:theme", theme);
+            document.documentElement.setAttribute("data-theme", theme);
+            document.documentElement.setAttribute("data-theme-source", "user");
+          }
+        };
+        if (!document.documentElement.hasAttribute("data-theme")) {
+          setTheme(localStorage.getItem("phx:theme") || "system");
+        }
+        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
+        
+        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
+
+        matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+          if (document.documentElement.getAttribute("data-theme-source") === "system") {
+            document.documentElement.setAttribute("data-theme", systemTheme());
+          }
+        });
+      })();
+    </script>
+  </head>
+  <body>
+    <%!-- Slim, sitewide utility bar: account access from anywhere (settings/
+    log-out) that isn't otherwise reachable. The marketing home page carries
+    its own dark nav with the same links (it forces a dark look regardless
+    of theme preference, like KDS does — see app.css ".mk"), so this stays
+    suppressed there via @hide_utility_bar to avoid two competing bars. --%>
+    <%= unless assigns[:hide_utility_bar] do %>
+      <div class="w-full border-b border-base-300/60 bg-base-100/80 backdrop-blur">
+        <ul class="menu menu-horizontal w-full max-w-6xl mx-auto flex items-center gap-1 px-4 sm:px-6 lg:px-8 py-1 justify-end text-sm">
+          <%= if @current_scope do %>
+            <li class="text-base-content/60">{@current_scope.user.email}</li>
+            <li><.link href={~p"/users/settings"} class="link link-hover">Settings</.link></li>
+            <li>
+              <.link href={~p"/users/log-out"} method="delete" class="link link-hover">
+                Log out
+              </.link>
+            </li>
+          <% else %>
+            <li><.link href={~p"/users/log-in"} class="link link-hover">Log in</.link></li>
+            <li>
+              <.link href={~p"/users/register"} class="link link-hover font-semibold">
+                Start free trial
+              </.link>
+            </li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+    {@inner_content}
+  </body>
+</html>
