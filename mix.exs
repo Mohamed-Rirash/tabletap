@@ -88,9 +88,18 @@ defmodule Tabletap.MixProject do
       {:ex_aws, "~> 2.7"},
       {:ex_aws_s3, "~> 2.5"},
 
+      # IANA time zone database — DateTime.shift_zone!/2 needs one for any
+      # zone besides Etc/UTC; Tenants.business_date/2 is the first caller
+      # (code-standards.md, CONTEXT.md "Business day / cutoff"). `tz`, not
+      # `tzdata`: tzdata's hackney ~> 1.17 requirement conflicts with
+      # ex_aws's hackney ~> 4.0, and `tz` needs no HTTP client at all —
+      # it reads tzdata straight from the OS (or a bundled release).
+      {:tz, "~> 0.28"},
+
       # Dev/test
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:mox, "~> 1.2", only: :test}
+      {:mox, "~> 1.2", only: :test},
+      {:dotenvy, "~> 1.1", only: [:dev, :test], runtime: true}
     ]
   end
 

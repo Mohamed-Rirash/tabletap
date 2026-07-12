@@ -453,6 +453,43 @@ defmodule TabletapWeb.CoreComponents do
     """
   end
 
+  @doc """
+  Renders a `Money` amount — the only way to render money anywhere
+  (context/ui-registry.md "Money rendering"). Formats in the given
+  locale; when CLDR has no localized currency data for that locale
+  (e.g. :ETB under :so), falls back to the app default locale
+  instead of raising `Localize.CurrencyNotLocalizedError`.
+
+  ## Examples
+
+      <.money amount={@item.price} />
+      <.money amount={@item.price} locale={@venue.locale} />
+  """
+  attr :amount, Money, required: true
+  attr :locale, :any, default: nil, doc: "locale identifier; nil uses the process locale"
+  attr :class, :any, default: nil
+
+  def money(assigns) do
+    ~H"""
+    <span class={["tabular-nums", @class]}>{format_money(@amount, @locale)}</span>
+    """
+  end
+
+  @doc """
+  Formats a `Money` struct for display, falling back to the app
+  default locale when the requested locale has no localized data
+  for the currency. Prefer `<.money>` in templates; use this where
+  a bare string is needed (e.g. `title` attributes, flash text).
+  """
+  def format_money(%Money{} = amount, locale \\ nil) do
+    locale = locale || Localize.get_locale()
+
+    case Money.to_string(amount, locale: locale) do
+      {:ok, formatted} -> formatted
+      {:error, _} -> Money.to_string!(amount, locale: Localize.default_locale())
+    end
+  end
+
   ## JS Commands
 
   def show(js \\ %JS{}, selector) do

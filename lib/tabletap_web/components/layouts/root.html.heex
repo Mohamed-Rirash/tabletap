@@ -55,7 +55,7 @@
     <%= unless assigns[:hide_utility_bar] do %>
       <div class="w-full border-b border-base-300/60 bg-base-100/80 backdrop-blur">
         <ul class="menu menu-horizontal w-full max-w-6xl mx-auto flex items-center gap-1 px-4 sm:px-6 lg:px-8 py-1 justify-end text-sm">
-          <%= if @current_scope do %>
+          <%= if @current_scope && @current_scope.user do %>
             <li class="text-base-content/60">{@current_scope.user.email}</li>
             <li><.link href={~p"/users/settings"} class="link link-hover">Settings</.link></li>
             <li>

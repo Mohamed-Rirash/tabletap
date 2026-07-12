@@ -31,6 +31,26 @@ defmodule Tabletap.Tenants do
   def city_options, do: @city_options
 
   @doc """
+  Resolves `datetime` (default now) to the venue's current business date —
+  the one shared implementation every "today" concept uses (daily limits,
+  Z-report, rollups, order numbers), never ad-hoc date math
+  (code-standards.md; design-qa.md Q20/Q39).
+
+  Business days run cutoff-to-cutoff in the venue's own timezone: before
+  `business_day_cutoff` (default 04:00), `datetime` still belongs to
+  yesterday's business day.
+  """
+  def business_date(%Venue{} = venue, %DateTime{} = datetime \\ DateTime.utc_now()) do
+    local = DateTime.shift_zone!(datetime, venue.timezone)
+
+    if Time.compare(DateTime.to_time(local), venue.business_day_cutoff) == :lt do
+      Date.add(DateTime.to_date(local), -1)
+    else
+      DateTime.to_date(local)
+    end
+  end
+
+  @doc """
   Resolves a picked city name to `{:ok, {currency, timezone}}`, or `:error`
   if `city_name` isn't one of `city_options/0`'s names. Never silently
   defaults — currency locks permanently after a venue's first order
@@ -165,6 +185,24 @@ defmodule Tabletap.Tenants do
 
   defp pick_by_id(_list, nil), do: nil
   defp pick_by_id(list, id), do: Enum.find(list, &(&1.id == id))
+
+  ## Public/customer resolution — no tenant scope exists yet (skip_org_id
+  ## is allowed here, same as build_scope/2 above); the caller is
+  ## responsible for calling Repo.put_org_id/1 with the returned venue's
+  ## org_id afterwards, exactly like UserAuth does for staff requests
+  ## (library-docs.md "Customer/public paths build an unauthenticated
+  ## scope from the QR-resolved venue").
+
+  @doc """
+  Looks up an active venue by its slug, org preloaded. Returns `nil` for
+  an archived or unknown slug — never a raw crash on a bad/rotated link.
+  """
+  def get_venue_by_slug(slug) do
+    Repo.one(
+      from(v in Venue, where: v.slug == ^slug and is_nil(v.archived_at), preload: [:org]),
+      skip_org_id: true
+    )
+  end
 
   ## Venues (tenant-scoped — relies on Repo.put_org_id already being set)
 

@@ -39,6 +39,10 @@ config :tabletap,
   ecto_repos: [Tabletap.Repo],
   generators: [timestamp_type: :utc_datetime, binary_id: true]
 
+# Real IANA time zone database — needed by DateTime.shift_zone!/2
+# (Tenants.business_date/2) for any venue timezone besides Etc/UTC.
+config :elixir, :time_zone_database, Tz.TimeZoneDatabase
+
 # Configure the endpoint
 config :tabletap, TabletapWeb.Endpoint,
   url: [host: "localhost"],

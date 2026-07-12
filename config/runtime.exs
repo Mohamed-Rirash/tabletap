@@ -23,6 +23,64 @@ end
 config :tabletap, TabletapWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# Object storage (Feature 04 — Catalog photos). Supabase Storage is
+# S3-compatible, so this just points ex_aws at Supabase's endpoint
+# instead of AWS's (library-docs.md "ex_aws_s3 (photos)"). Test always
+# uses the local adapter — network-free, deterministic. Dev falls back
+# to it too when `.env` isn't populated (see .env.example), so building
+# this feature never requires a provisioned Supabase project. `dotenvy`
+# is dev/test only; prod reads real environment variables directly.
+env =
+  case config_env() do
+    :prod -> System.get_env()
+    _ -> Dotenvy.source!([".env", System.get_env()])
+  end
+
+supabase_bucket = Map.get(env, "SUPABASE_S3_BUCKET")
+supabase_endpoint = Map.get(env, "SUPABASE_S3_ENDPOINT")
+supabase_region = Map.get(env, "SUPABASE_S3_REGION", "us-east-1")
+supabase_access_key_id = Map.get(env, "SUPABASE_S3_ACCESS_KEY_ID")
+supabase_secret_access_key = Map.get(env, "SUPABASE_S3_SECRET_ACCESS_KEY")
+
+supabase_configured? =
+  is_binary(supabase_bucket) && supabase_bucket != "" &&
+    is_binary(supabase_endpoint) && supabase_endpoint != "" &&
+    is_binary(supabase_access_key_id) && supabase_access_key_id != "" &&
+    is_binary(supabase_secret_access_key) && supabase_secret_access_key != ""
+
+cond do
+  config_env() == :test ->
+    config :tabletap, Tabletap.Storage, adapter: Tabletap.Storage.Local
+
+  supabase_configured? ->
+    uri = URI.parse(supabase_endpoint)
+
+    config :ex_aws,
+      access_key_id: supabase_access_key_id,
+      secret_access_key: supabase_secret_access_key,
+      region: supabase_region,
+      s3: [
+        scheme: "#{uri.scheme}://",
+        host: uri.host,
+        port: uri.port || 443,
+        region: supabase_region
+      ]
+
+    config :tabletap, Tabletap.Storage,
+      adapter: Tabletap.Storage.S3,
+      bucket: supabase_bucket,
+      public_url_base: "#{uri.scheme}://#{uri.host}/storage/v1/object/public/#{supabase_bucket}"
+
+  config_env() == :prod ->
+    raise """
+    Supabase Storage is not configured. Set SUPABASE_S3_ENDPOINT, SUPABASE_S3_REGION,
+    SUPABASE_S3_ACCESS_KEY_ID, SUPABASE_S3_SECRET_ACCESS_KEY, and SUPABASE_S3_BUCKET.
+    """
+
+  true ->
+    config :tabletap, Tabletap.Storage, adapter: Tabletap.Storage.Local
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

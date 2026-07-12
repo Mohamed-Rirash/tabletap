@@ -60,6 +60,183 @@ defmodule TabletapWeb.Layouts do
   end
 
   @doc """
+  Sidebar shell for manager/owner pages (`/dashboard`, `/menu`, ...) —
+  venue switcher, primary nav, user/log-out, in place of `Layouts.app`'s
+  plain header (never both: the caller must also `assign(:hide_utility_bar,
+  true)` so root.html.heex's sitewide utility bar doesn't render a second,
+  competing set of Settings/Log out links).
+
+  Nav entries for surfaces that don't exist yet (Orders, Tables, Kitchen,
+  Analytics) render disabled with a "Soon" badge rather than linking
+  anywhere — no dead links.
+
+  ## Examples
+
+      <Layouts.manager flash={@flash} current_scope={@current_scope} active_nav={:menu} venues={@venues}>
+        <h1>Content</h1>
+      </Layouts.manager>
+
+  """
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :current_scope, :map, required: true
+  attr :active_nav, :atom, required: true, doc: ":dashboard or :menu"
+  attr :venues, :list, default: []
+
+  slot :inner_block, required: true
+
+  def manager(assigns) do
+    ~H"""
+    <div class="flex min-h-screen">
+      <aside class="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col border-r border-base-300 bg-base-100">
+        <div class="p-4 border-b border-base-300">
+          <a href="/" class="flex items-center gap-2">
+            <span class="grid h-8 w-8 place-items-center rounded-field bg-primary text-primary-content text-sm font-bold">
+              T
+            </span>
+            <span class="text-sm font-semibold">TableTap</span>
+          </a>
+        </div>
+
+        <div class="p-4 border-b border-base-300">
+          <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">
+            {gettext("Venue")}
+          </p>
+          <.form
+            :if={length(@venues) > 1}
+            for={%{}}
+            as={:venue}
+            method="post"
+            action={~p"/venues/switch"}
+          >
+            <select
+              name="venue_id"
+              class="select select-sm w-full"
+              onchange="this.form.requestSubmit()"
+            >
+              <option
+                :for={venue <- @venues}
+                value={venue.id}
+                selected={venue.id == @current_scope.venue.id}
+              >
+                {venue.name}
+              </option>
+            </select>
+          </.form>
+          <p :if={length(@venues) <= 1} class="text-sm font-medium truncate">
+            {@current_scope.venue.name}
+          </p>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto p-3 space-y-1">
+          <p class="px-2 text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">
+            {gettext("Menu")}
+          </p>
+          <.manager_nav_link
+            navigate={~p"/dashboard"}
+            icon="hero-squares-2x2"
+            active={@active_nav == :dashboard}
+          >
+            {gettext("Dashboard")}
+          </.manager_nav_link>
+          <.manager_nav_soon icon="hero-clipboard-document-list">
+            {gettext("Orders")}
+          </.manager_nav_soon>
+          <.manager_nav_soon icon="hero-table-cells">{gettext("Tables")}</.manager_nav_soon>
+          <.manager_nav_soon icon="hero-fire">{gettext("Kitchen")}</.manager_nav_soon>
+          <.manager_nav_link navigate={~p"/menu"} icon="hero-book-open" active={@active_nav == :menu}>
+            {gettext("Menu")}
+          </.manager_nav_link>
+          <.manager_nav_soon icon="hero-chart-bar">{gettext("Analytics")}</.manager_nav_soon>
+
+          <p class="px-2 text-xs font-semibold uppercase tracking-wide text-base-content/50 mt-4 mb-1">
+            {gettext("Others")}
+          </p>
+          <.manager_nav_link navigate={~p"/users/settings"} icon="hero-cog-6-tooth" active={false}>
+            {gettext("Settings")}
+          </.manager_nav_link>
+        </nav>
+
+        <div class="p-3 border-t border-base-300 flex items-center gap-2">
+          <span class="grid h-8 w-8 place-items-center rounded-full bg-base-300 text-xs font-semibold shrink-0">
+            {@current_scope.user.email |> String.first() |> String.upcase()}
+          </span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium truncate">{@current_scope.user.email}</p>
+            <p class="text-xs text-base-content/50">{manager_role_label(@current_scope.role)}</p>
+          </div>
+          <.link
+            href={~p"/users/log-out"}
+            method="delete"
+            class="text-base-content/50 hover:text-base-content shrink-0"
+            title={gettext("Log out")}
+          >
+            <.icon name="hero-arrow-right-start-on-rectangle" class="size-4" />
+          </.link>
+        </div>
+      </aside>
+
+      <div class="flex-1 min-w-0 flex flex-col">
+        <div class="flex-none flex items-center justify-between gap-3 border-b border-base-300/60 px-4 py-2 lg:justify-end">
+          <div class="flex items-center gap-3 lg:hidden">
+            <.link navigate={~p"/dashboard"} class={@active_nav == :dashboard && "font-semibold"}>
+              {gettext("Dashboard")}
+            </.link>
+            <.link navigate={~p"/menu"} class={@active_nav == :menu && "font-semibold"}>
+              {gettext("Menu")}
+            </.link>
+          </div>
+          <.theme_toggle />
+        </div>
+        <main class="flex-1 overflow-y-auto bg-base-200 px-4 py-6 sm:px-6 lg:px-8">
+          <div class="mx-auto max-w-5xl">
+            {render_slot(@inner_block)}
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <.flash_group flash={@flash} />
+    """
+  end
+
+  attr :navigate, :string, required: true
+  attr :icon, :string, required: true
+  attr :active, :boolean, default: false
+  slot :inner_block, required: true
+
+  defp manager_nav_link(assigns) do
+    ~H"""
+    <.link
+      navigate={@navigate}
+      class={[
+        "flex items-center gap-2 rounded-field px-3 py-2 text-sm font-medium transition-colors",
+        @active && "bg-primary text-primary-content",
+        !@active && "text-base-content/70 hover:bg-base-200"
+      ]}
+    >
+      <.icon name={@icon} class="size-4 shrink-0" /> {render_slot(@inner_block)}
+    </.link>
+    """
+  end
+
+  attr :icon, :string, required: true
+  slot :inner_block, required: true
+
+  defp manager_nav_soon(assigns) do
+    ~H"""
+    <div class="flex items-center gap-2 rounded-field px-3 py-2 text-sm font-medium text-base-content/30">
+      <.icon name={@icon} class="size-4 shrink-0" />
+      <span class="flex-1">{render_slot(@inner_block)}</span>
+      <span class="badge badge-ghost badge-xs">{gettext("Soon")}</span>
+    </div>
+    """
+  end
+
+  defp manager_role_label(:owner), do: gettext("Owner")
+  defp manager_role_label(:manager), do: gettext("Manager")
+  defp manager_role_label(role), do: to_string(role)
+
+  @doc """
   Shows the flash group with standard titles and content.
 
   ## Examples

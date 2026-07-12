@@ -39,3 +39,10 @@ npm-debug.log
 # Local Claude Code settings and installed plugin skills (not app code)
 /.claude/settings.local.json
 /.claude/skills/
+
+# Local secrets (Supabase Storage keys, etc) — see .env.example
+/.env
+
+# Storage.Local's dev-only file writes (Feature 04) — real uploads live
+# in Supabase Storage, not the repo.
+/priv/static/uploads/

@@ -1,10 +1,11 @@
 defmodule TabletapWeb.Manager.DashboardLive do
   @moduledoc """
-  The empty venue dashboard a fresh signup lands on (build-plan.md Feature
-  03 Verify step). Deliberately minimal — the real back office (nav shell,
-  live order feed, alerts) is owner-dashboard.md's job in Feature 18; this
-  just proves the tenancy loop end-to-end: a signed-in owner/manager sees
-  their own venue, and only their own venue.
+  The venue dashboard a fresh signup lands on (build-plan.md Feature 03
+  Verify step), now inside the manager sidebar shell (`Layouts.manager/1`).
+  Content itself is still deliberately minimal — the real back office
+  (live order feed, alerts, analytics) is owner-dashboard.md's job in
+  Feature 18; this proves the tenancy loop end-to-end: a signed-in
+  owner/manager sees their own venue, and only their own venue.
   """
   use TabletapWeb, :live_view
 
@@ -13,7 +14,12 @@ defmodule TabletapWeb.Manager.DashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.manager
+      flash={@flash}
+      current_scope={@current_scope}
+      active_nav={:dashboard}
+      venues={@venues}
+    >
       <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
           <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
@@ -27,37 +33,16 @@ defmodule TabletapWeb.Manager.DashboardLive do
         </div>
       </div>
 
-      <div :if={length(@venues) > 1} class="mt-6">
-        <.form for={%{}} as={:venue} method="post" action={~p"/venues/switch"}>
-          <label class="fieldset">
-            <span class="label mb-1">{gettext("Venue")}</span>
-            <select
-              name="venue_id"
-              class="select select-bordered"
-              onchange="this.form.requestSubmit()"
-            >
-              <option
-                :for={venue <- @venues}
-                value={venue.id}
-                selected={venue.id == @current_scope.venue.id}
-              >
-                {venue.name}
-              </option>
-            </select>
-          </label>
-        </.form>
-      </div>
-
       <div class="mt-10 rounded-box border border-base-300 bg-base-100 p-8 text-center">
         <.icon name="hero-check-circle" class="size-10 text-success mx-auto" />
         <h2 class="mt-3 font-semibold text-lg">{gettext("Your venue is set up")}</h2>
         <p class="mt-2 text-base-content/60 max-w-md mx-auto">
           {gettext(
-            "Menu, tables, staff, and live orders land as the next build phases ship. Your trial is active — no card needed to keep exploring."
+            "Live orders and alerts land as the next build phases ship. Your trial is active — no card needed to keep exploring."
           )}
         </p>
       </div>
-    </Layouts.app>
+    </Layouts.manager>
     """
   end
 
@@ -67,6 +52,7 @@ defmodule TabletapWeb.Manager.DashboardLive do
 
     {:ok,
      socket
+     |> assign(:hide_utility_bar, true)
      |> assign(:venues, Tenants.list_venues(scope))
      |> assign(:trial_days_left, trial_days_left(scope.org))}
   end

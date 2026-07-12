@@ -429,5 +429,53 @@ defmodule Tabletap.TenantsTest do
     end
   end
 
+  describe "business_date/2 (design-qa.md Q20)" do
+    test "before the cutoff belongs to yesterday's business day" do
+      venue = %Venue{timezone: "Africa/Mogadishu", business_day_cutoff: ~T[04:00:00]}
+      # 01:00 in Africa/Mogadishu (UTC+3) == 22:00 UTC the day before.
+      datetime = DateTime.new!(~D[2026-03-05], ~T[22:00:00], "Etc/UTC")
+
+      assert Tenants.business_date(venue, datetime) == ~D[2026-03-05]
+    end
+
+    test "at or after the cutoff belongs to today" do
+      venue = %Venue{timezone: "Africa/Mogadishu", business_day_cutoff: ~T[04:00:00]}
+      # 10:00 in Africa/Mogadishu (UTC+3) == 07:00 UTC.
+      datetime = DateTime.new!(~D[2026-03-06], ~T[07:00:00], "Etc/UTC")
+
+      assert Tenants.business_date(venue, datetime) == ~D[2026-03-06]
+    end
+
+    test "defaults to now when no datetime is given" do
+      venue = %Venue{timezone: "Etc/UTC", business_day_cutoff: ~T[00:00:00]}
+
+      assert Tenants.business_date(venue) == Date.utc_today()
+    end
+  end
+
+  describe "get_venue_by_slug/1" do
+    test "finds an active venue by slug, org preloaded" do
+      %{org: org, venue: venue} = org_fixture()
+
+      found = Tenants.get_venue_by_slug(venue.slug)
+
+      assert found.id == venue.id
+      assert found.org.id == org.id
+    end
+
+    test "returns nil for an archived venue" do
+      %{venue: venue} = org_fixture()
+
+      {:ok, venue} =
+        venue |> Ecto.Changeset.change(archived_at: DateTime.utc_now(:second)) |> Repo.update()
+
+      assert Tenants.get_venue_by_slug(venue.slug) == nil
+    end
+
+    test "returns nil for an unknown slug" do
+      assert Tenants.get_venue_by_slug("does-not-exist") == nil
+    end
+  end
+
   defp login_url_fun, do: fn token -> "https://example.com/log-in/#{token}" end
 end

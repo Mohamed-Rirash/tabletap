@@ -22,11 +22,13 @@ Shared components live in `lib/tabletap_web/components/` — one module per comp
 
 ## Components
 
-_Empty. Components will be added here as they are built._
-
 | Component | Module / function | Used on | Notes |
 |---|---|---|---|
-| | | | |
+| `<.money>` | `TabletapWeb.CoreComponents.money/1` (+ `format_money/2` for bare strings) | Manager `/menu`, public menu | The ONLY way to render money. `tabular-nums` span; takes `amount` (Money) and optional `locale`. Falls back to the app default locale when CLDR lacks currency data for the requested locale (e.g. :ETB under :so) instead of raising `Localize.CurrencyNotLocalizedError`. |
+| Menu item preview card | `TabletapWeb.Manager.MenuLive.preview_grid/1` (private) | Manager `/menu` Preview tab | POS-style card: `rounded-box bg-base-100 shadow-sm p-4 text-center`, circular photo (`size-28 sm:size-32 rounded-full object-cover`), name `font-semibold`, price `font-bold text-primary`, availability line `text-xs text-base-content/50` ("Off today" / "N Available" from daily limits). Promote into `menu_components.ex` as `<.menu_item_card>` when the customer/POS surfaces need it. |
+| Category filter chip | inline in `TabletapWeb.Manager.MenuLive.render/1` | Manager `/menu` | Pill buttons: active `btn btn-sm rounded-full btn-soft btn-primary border-primary/20`, inactive `bg-base-100 border-base-300 font-medium`. |
+| Search pill | inline in `TabletapWeb.Manager.MenuLive.render/1` | Manager `/menu` | daisyUI `label.input` with `rounded-full bg-base-100`, hero-magnifying-glass prefix, `phx-debounce="300"`. Out-of-stock counter sits beside it: `text-sm font-semibold text-primary`. |
+| Manager content canvas | `TabletapWeb.Layouts.manager/1` | All manager pages | `<main>` uses `bg-base-200` so `bg-base-100` cards read as raised surfaces (screenshot-style warm canvas). Cards on manager pages should prefer `shadow-sm` over borders. |
 
 ---
 

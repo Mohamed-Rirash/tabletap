@@ -20,6 +20,11 @@ defmodule TabletapWeb.Router do
   # No pipeline: probes hit this before any session/CSRF machinery exists.
   get "/healthz", TabletapWeb.HealthController, :show
 
+  # No pipeline: stands in for a real S3 presigned PUT (Storage.Local),
+  # which has no session/CSRF token either. Only reachable when
+  # Storage.Local is the active adapter (dev without Supabase, or test).
+  put "/uploads/local/*path", TabletapWeb.LocalUploadController, :put
+
   scope "/", TabletapWeb do
     pipe_through :browser
 
@@ -67,6 +72,7 @@ defmodule TabletapWeb.Router do
         {TabletapWeb.ScopeHooks, :require_manager}
       ] do
       live "/dashboard", Manager.DashboardLive, :show
+      live "/menu", Manager.MenuLive, :index
     end
 
     post "/venues/switch", VenueController, :switch
@@ -84,5 +90,17 @@ defmodule TabletapWeb.Router do
 
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
+  end
+
+  # Public/customer routes — no auth. Temporary entry point for Feature
+  # 04's verify step (build-plan.md); Feature 06 replaces the venue-slug
+  # lookup with real `/t/:qr_token` → table resolution in front of the
+  # same LiveView.
+  scope "/", TabletapWeb do
+    pipe_through [:browser]
+
+    live_session :public_menu do
+      live "/venues/:slug/menu", Public.MenuLive, :show
+    end
   end
 end
