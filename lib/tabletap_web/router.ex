@@ -73,6 +73,7 @@ defmodule TabletapWeb.Router do
       ] do
       live "/dashboard", Manager.DashboardLive, :show
       live "/menu", Manager.MenuLive, :index
+      live "/menu/modifiers", Manager.ModifiersLive, :index
     end
 
     post "/venues/switch", VenueController, :switch

@@ -235,6 +235,8 @@ defmodule TabletapWeb.Manager.MenuLive do
         mode={elem(@item_form_target, 0)}
         item={modal_item || nil}
         daily_limit={modal_item && Map.get(@daily_limits, modal_item.id)}
+        item_groups={@item_groups}
+        available_groups={available_groups(@modifier_groups, @item_groups)}
       />
 
       <% preview_item = @preview_item_id && find_item_in_menu(@menu, @preview_item_id) %>
@@ -523,6 +525,8 @@ defmodule TabletapWeb.Manager.MenuLive do
   attr :mode, :atom, required: true
   attr :item, MenuItem, default: nil
   attr :daily_limit, DailyItemLimit, default: nil
+  attr :item_groups, :list, default: []
+  attr :available_groups, :list, default: []
 
   defp item_edit_modal(assigns) do
     ~H"""
@@ -668,6 +672,69 @@ defmodule TabletapWeb.Manager.MenuLive do
 
           <div :if={@item} class="border-t border-base-300 p-5">
             <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">
+              {gettext("Modifier groups")}
+            </p>
+
+            <div class="divide-y divide-base-300">
+              <div
+                :for={group <- @item_groups}
+                class="py-2 flex items-center justify-between gap-3"
+              >
+                <div class="flex items-center gap-2 flex-wrap min-w-0">
+                  <span class="font-medium">{group.name}</span>
+                  <span class="badge badge-ghost badge-xs">{group_rules_label(group)}</span>
+                  <span :if={group.required} class="badge badge-primary badge-soft badge-xs">
+                    {gettext("Required")}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  phx-click="detach_group"
+                  phx-value-group-id={group.id}
+                  class="btn btn-xs btn-ghost text-error"
+                >
+                  {gettext("Detach")}
+                </button>
+              </div>
+            </div>
+
+            <p :if={@item_groups == []} class="text-sm text-base-content/50 mb-2">
+              {gettext("No modifier groups attached.")}
+            </p>
+
+            <form
+              :if={@available_groups != []}
+              id={"attach-group-form-#{@item.id}"}
+              phx-submit="attach_group"
+              class="mt-2 flex items-center gap-2"
+            >
+              <select name="group_id" class="select select-sm flex-1">
+                <option :for={group <- @available_groups} value={group.id}>
+                  {group.name} ({group_rules_label(group)})
+                </option>
+              </select>
+              <button type="submit" class="btn btn-sm btn-outline">{gettext("Attach")}</button>
+            </form>
+            <p
+              :if={@available_groups == [] && @item_groups == []}
+              class="text-xs text-base-content/50"
+            >
+              {gettext("Create groups on the Modifiers page first.")}
+            </p>
+
+            <% {min_price, max_price} = Catalog.price_range(@item, @item_groups) %>
+            <p :if={@item_groups != []} class="mt-3 text-sm text-base-content/70">
+              {gettext("Price with options:")}
+              <span class="font-semibold">
+                <.money amount={min_price} /><span :if={min_price != max_price}>
+                  – <.money amount={max_price} />
+                </span>
+              </span>
+            </p>
+          </div>
+
+          <div :if={@item} class="border-t border-base-300 p-5">
+            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">
               {gettext("Quantity available today")}
             </p>
             <form
@@ -725,6 +792,8 @@ defmodule TabletapWeb.Manager.MenuLive do
      |> assign(:category_form_mode, :new)
      |> assign(:item_form, nil)
      |> assign(:item_form_target, nil)
+     |> assign(:item_groups, [])
+     |> assign(:modifier_groups, [])
      |> allow_upload(:photo,
        accept: ~w(.jpg .jpeg .png .webp),
        max_entries: 1,
@@ -854,10 +923,14 @@ defmodule TabletapWeb.Manager.MenuLive do
         "price_amount" => item.price |> Money.to_decimal() |> Decimal.to_string()
       })
 
+    scope = socket.assigns.current_scope
+
     {:noreply,
      socket
      |> assign(:item_form, to_form(changeset, as: :item))
-     |> assign(:item_form_target, {:edit, item})}
+     |> assign(:item_form_target, {:edit, item})
+     |> assign(:item_groups, Catalog.list_item_modifier_groups(scope, item))
+     |> assign(:modifier_groups, Catalog.list_modifier_groups(scope))}
   end
 
   def handle_event("cancel_item_form", _params, socket) do
@@ -865,7 +938,29 @@ defmodule TabletapWeb.Manager.MenuLive do
      socket
      |> cancel_all_uploads()
      |> assign(:item_form, nil)
-     |> assign(:item_form_target, nil)}
+     |> assign(:item_form_target, nil)
+     |> assign(:item_groups, [])}
+  end
+
+  def handle_event("attach_group", %{"group_id" => group_id}, socket) do
+    {:edit, item} = socket.assigns.item_form_target
+    group = Enum.find(socket.assigns.modifier_groups, &(&1.id == group_id))
+
+    case Catalog.attach_group_to_item(socket.assigns.current_scope, item, group) do
+      {:ok, _} ->
+        {:noreply, reload_item_groups(socket, item)}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, gettext("Couldn't attach that group."))}
+    end
+  end
+
+  def handle_event("detach_group", %{"group-id" => group_id}, socket) do
+    {:edit, item} = socket.assigns.item_form_target
+    group = Enum.find(socket.assigns.item_groups, &(&1.id == group_id))
+
+    :ok = Catalog.detach_group_from_item(socket.assigns.current_scope, item, group)
+    {:noreply, reload_item_groups(socket, item)}
   end
 
   def handle_event("validate_item", %{"item" => params}, socket) do
@@ -964,6 +1059,7 @@ defmodule TabletapWeb.Manager.MenuLive do
          |> broadcast_menu_updated()
          |> assign(:item_form, nil)
          |> assign(:item_form_target, nil)
+         |> assign(:item_groups, [])
          |> put_flash(:info, gettext("Item saved."))}
 
       {:error, changeset} ->
@@ -995,6 +1091,22 @@ defmodule TabletapWeb.Manager.MenuLive do
       {:new, _category_id} -> MenuItem.creation_changeset(%MenuItem{}, params)
     end
   end
+
+  defp reload_item_groups(socket, item) do
+    scope = socket.assigns.current_scope
+    assign(socket, :item_groups, Catalog.list_item_modifier_groups(scope, item))
+  end
+
+  defp available_groups(all_groups, item_groups) do
+    attached_ids = MapSet.new(item_groups, & &1.id)
+    Enum.reject(all_groups, &MapSet.member?(attached_ids, &1.id))
+  end
+
+  defp group_rules_label(%{min_selections: same, max_selections: same}),
+    do: gettext("Pick %{count}", count: same)
+
+  defp group_rules_label(group),
+    do: gettext("Pick %{min}–%{max}", min: group.min_selections, max: group.max_selections)
 
   defp find_category(socket, id),
     do: Enum.find_value(socket.assigns.menu, fn {c, _} -> if c.id == id, do: c end)

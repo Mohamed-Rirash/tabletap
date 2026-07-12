@@ -3,7 +3,7 @@ defmodule Tabletap.CatalogTest do
 
   alias Tabletap.Accounts.Scope
   alias Tabletap.Catalog
-  alias Tabletap.Catalog.{Category, DailyItemLimit}
+  alias Tabletap.Catalog.{Category, DailyItemLimit, ModifierGroup}
   alias Tabletap.Repo
 
   import Tabletap.TenantsFixtures
@@ -28,6 +28,27 @@ defmodule Tabletap.CatalogTest do
       )
 
     item
+  end
+
+  defp group_fixture(scope, attrs \\ %{}) do
+    {:ok, group} =
+      Catalog.create_modifier_group(
+        scope,
+        Enum.into(attrs, %{"name" => "Extras", "min_selections" => 0, "max_selections" => 3})
+      )
+
+    group
+  end
+
+  defp option_fixture(scope, group, attrs \\ %{}) do
+    {:ok, option} =
+      Catalog.create_modifier_option(
+        scope,
+        group,
+        Enum.into(attrs, %{"name" => "Extra cheese", "price_delta" => Money.new!(:USD, "1.00")})
+      )
+
+    option
   end
 
   describe "categories" do
@@ -234,6 +255,252 @@ defmodule Tabletap.CatalogTest do
     end
   end
 
+  describe "modifier groups" do
+    test "create_modifier_group/2 saves selection rules", %{scope: scope} do
+      group =
+        group_fixture(scope, %{
+          "name" => "Size",
+          "min_selections" => 1,
+          "max_selections" => 1,
+          "required" => true
+        })
+
+      assert group.name == "Size"
+      assert group.min_selections == 1
+      assert group.max_selections == 1
+      assert group.required
+    end
+
+    test "create_modifier_group/2 rejects max below min", %{scope: scope} do
+      assert {:error, changeset} =
+               Catalog.create_modifier_group(scope, %{
+                 "name" => "Broken",
+                 "min_selections" => 3,
+                 "max_selections" => 1
+               })
+
+      assert "must be greater than or equal to min selections" in errors_on(changeset).max_selections
+    end
+
+    test "create_modifier_group/2 rejects required with zero min selections", %{scope: scope} do
+      assert {:error, changeset} =
+               Catalog.create_modifier_group(scope, %{
+                 "name" => "Broken",
+                 "min_selections" => 0,
+                 "max_selections" => 2,
+                 "required" => true
+               })
+
+      assert "must be at least 1 when the group is required" in errors_on(changeset).min_selections
+    end
+
+    test "update_modifier_group/3 applies the same rule validations", %{scope: scope} do
+      group = group_fixture(scope)
+
+      assert {:error, changeset} =
+               Catalog.update_modifier_group(scope, group, %{"max_selections" => -1})
+
+      assert errors_on(changeset).max_selections != []
+    end
+
+    test "archive_modifier_group/2 hides it and detaches it from items", %{scope: scope} do
+      category = category_fixture(scope)
+      item = item_fixture(scope, category)
+      group = group_fixture(scope)
+      {:ok, _} = Catalog.attach_group_to_item(scope, item, group)
+
+      assert {:ok, archived} = Catalog.archive_modifier_group(scope, group)
+      assert archived.archived_at != nil
+
+      assert Catalog.list_modifier_groups(scope) == []
+      assert Catalog.list_item_modifier_groups(scope, item) == []
+      assert Repo.get(ModifierGroup, group.id, skip_org_id: true)
+    end
+  end
+
+  describe "modifier options" do
+    test "create_modifier_option/3 casts a Money delta and appends position", %{scope: scope} do
+      group = group_fixture(scope)
+      first = option_fixture(scope, group, %{"name" => "Extra cheese"})
+      second = option_fixture(scope, group, %{"name" => "Bacon"})
+
+      assert first.price_delta == Money.new!(:USD, "1.00")
+      assert first.position == 0
+      assert second.position == 1
+    end
+
+    test "zero and negative deltas are legal", %{scope: scope} do
+      group = group_fixture(scope)
+
+      free =
+        option_fixture(scope, group, %{
+          "name" => "No onions",
+          "price_delta" => Money.new!(:USD, 0)
+        })
+
+      discount =
+        option_fixture(scope, group, %{
+          "name" => "No meat",
+          "price_delta" => Money.new!(:USD, "-1.00")
+        })
+
+      assert free.price_delta == Money.new!(:USD, 0)
+      assert discount.price_delta == Money.new!(:USD, "-1.00")
+    end
+
+    test "archive_modifier_option/2 hides it from the group's preloaded options", %{scope: scope} do
+      group = group_fixture(scope)
+      option = option_fixture(scope, group)
+
+      assert {:ok, _} = Catalog.archive_modifier_option(scope, option)
+      assert %ModifierGroup{options: []} = Catalog.get_modifier_group(scope, group.id)
+    end
+  end
+
+  describe "item modifier attachments" do
+    test "attach_group_to_item/3 appends in attachment order", %{scope: scope} do
+      category = category_fixture(scope)
+      item = item_fixture(scope, category)
+      extras = group_fixture(scope, %{"name" => "Extras"})
+      size = group_fixture(scope, %{"name" => "Size"})
+
+      {:ok, _} = Catalog.attach_group_to_item(scope, item, size)
+      {:ok, _} = Catalog.attach_group_to_item(scope, item, extras)
+
+      assert Catalog.list_item_modifier_groups(scope, item) |> Enum.map(& &1.name) ==
+               ["Size", "Extras"]
+    end
+
+    test "attaching the same group twice returns a changeset error", %{scope: scope} do
+      category = category_fixture(scope)
+      item = item_fixture(scope, category)
+      group = group_fixture(scope)
+
+      {:ok, _} = Catalog.attach_group_to_item(scope, item, group)
+      assert {:error, changeset} = Catalog.attach_group_to_item(scope, item, group)
+      assert "is already attached to this item" in errors_on(changeset).item_id
+    end
+
+    test "detach_group_from_item/3 removes the attachment", %{scope: scope} do
+      category = category_fixture(scope)
+      item = item_fixture(scope, category)
+      group = group_fixture(scope)
+
+      {:ok, _} = Catalog.attach_group_to_item(scope, item, group)
+      assert :ok = Catalog.detach_group_from_item(scope, item, group)
+      assert Catalog.list_item_modifier_groups(scope, item) == []
+    end
+
+    test "attach refuses a group from another venue of the same org", %{scope: scope, org: org} do
+      other_venue = venue_fixture(org)
+      other_scope = %Scope{org: org, venue: other_venue}
+
+      category = category_fixture(scope)
+      item = item_fixture(scope, category)
+      other_group = group_fixture(other_scope)
+
+      assert {:error, :not_found} = Catalog.attach_group_to_item(scope, item, other_group)
+    end
+  end
+
+  describe "price_range/2" do
+    setup %{scope: scope} do
+      category = category_fixture(scope)
+
+      burger =
+        item_fixture(scope, category, %{
+          "name" => "Hamburger",
+          "price" => Money.new!(:USD, "5.00")
+        })
+
+      %{burger: burger}
+    end
+
+    test "no groups: range collapses to the base price", %{burger: burger} do
+      assert Catalog.price_range(burger, []) ==
+               {Money.new!(:USD, "5.00"), Money.new!(:USD, "5.00")}
+    end
+
+    test "optional extras only raise the maximum", %{scope: scope, burger: burger} do
+      cheese =
+        group_fixture(scope, %{"name" => "Cheese", "min_selections" => 0, "max_selections" => 3})
+
+      option_fixture(scope, cheese, %{
+        "name" => "Extra cheese",
+        "price_delta" => Money.new!(:USD, "1.00")
+      })
+
+      option_fixture(scope, cheese, %{
+        "name" => "Bacon",
+        "price_delta" => Money.new!(:USD, "2.00")
+      })
+
+      {:ok, _} = Catalog.attach_group_to_item(scope, burger, cheese)
+
+      groups = Catalog.list_item_modifier_groups(scope, burger)
+
+      assert Catalog.price_range(burger, groups) ==
+               {Money.new!(:USD, "5.00"), Money.new!(:USD, "8.00")}
+    end
+
+    test "a required pick moves both bounds", %{scope: scope, burger: burger} do
+      size =
+        group_fixture(scope, %{
+          "name" => "Size",
+          "min_selections" => 1,
+          "max_selections" => 1,
+          "required" => true
+        })
+
+      option_fixture(scope, size, %{"name" => "Regular", "price_delta" => Money.new!(:USD, 0)})
+      option_fixture(scope, size, %{"name" => "Large", "price_delta" => Money.new!(:USD, "2.00")})
+      {:ok, _} = Catalog.attach_group_to_item(scope, burger, size)
+
+      groups = Catalog.list_item_modifier_groups(scope, burger)
+
+      assert Catalog.price_range(burger, groups) ==
+               {Money.new!(:USD, "5.00"), Money.new!(:USD, "7.00")}
+    end
+
+    test "optional negative deltas lower the minimum", %{scope: scope, burger: burger} do
+      remove =
+        group_fixture(scope, %{"name" => "Remove", "min_selections" => 0, "max_selections" => 2})
+
+      option_fixture(scope, remove, %{
+        "name" => "No meat",
+        "price_delta" => Money.new!(:USD, "-1.00")
+      })
+
+      option_fixture(scope, remove, %{"name" => "No onions", "price_delta" => Money.new!(:USD, 0)})
+
+      {:ok, _} = Catalog.attach_group_to_item(scope, burger, remove)
+
+      groups = Catalog.list_item_modifier_groups(scope, burger)
+
+      assert Catalog.price_range(burger, groups) ==
+               {Money.new!(:USD, "4.00"), Money.new!(:USD, "5.00")}
+    end
+
+    test "inactive options are ignored", %{scope: scope, burger: burger} do
+      extras =
+        group_fixture(scope, %{"name" => "Extras", "min_selections" => 0, "max_selections" => 3})
+
+      option =
+        option_fixture(scope, extras, %{
+          "name" => "Truffle",
+          "price_delta" => Money.new!(:USD, "9.00")
+        })
+
+      {:ok, _} = Catalog.update_modifier_option(scope, option, %{"active" => false})
+      {:ok, _} = Catalog.attach_group_to_item(scope, burger, extras)
+
+      groups = Catalog.list_item_modifier_groups(scope, burger)
+
+      assert Catalog.price_range(burger, groups) ==
+               {Money.new!(:USD, "5.00"), Money.new!(:USD, "5.00")}
+    end
+  end
+
   describe "tenant isolation" do
     test "a second org cannot see the first org's categories or items" do
       %{org_a: org_a, venue_a: venue_a, org_b: org_b, venue_b: venue_b} = two_orgs()
@@ -249,6 +516,23 @@ defmodule Tabletap.CatalogTest do
       assert Catalog.list_categories(scope_b) == []
       assert Catalog.list_menu(scope_b) == []
       assert Catalog.get_item(scope_b, item_fixture(scope_a, category_a).id) == nil
+    end
+
+    test "a second org cannot see or attach the first org's modifier groups" do
+      %{org_a: org_a, venue_a: venue_a, org_b: org_b, venue_b: venue_b} = two_orgs()
+      scope_a = %Scope{org: org_a, venue: venue_a}
+      scope_b = %Scope{org: org_b, venue: venue_b}
+
+      Repo.put_org_id(org_a.id)
+      group_a = group_fixture(scope_a)
+
+      Repo.put_org_id(org_b.id)
+      category_b = category_fixture(scope_b)
+      item_b = item_fixture(scope_b, category_b)
+
+      assert Catalog.list_modifier_groups(scope_b) == []
+      assert Catalog.get_modifier_group(scope_b, group_a.id) == nil
+      assert {:error, :not_found} = Catalog.attach_group_to_item(scope_b, item_b, group_a)
     end
 
     test "move_item_to_category/3 refuses a category belonging to a different org's venue" do

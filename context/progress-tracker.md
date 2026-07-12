@@ -6,8 +6,17 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** Phase 2 — Catalog & Floor, in progress (1 of 3 features done)
-**Last completed:** Feature 04 (2026-07-11) — Menu Builder. `Tabletap.Catalog` context: `menu_categories`/`menu_items`/`daily_item_limits` schemas + migrations (composite `(id, org_id)` FK pattern, same as venues/memberships), scope- and venue-scoped throughout (org_id alone isn't enough — an org can have >1 venue). `menu_items` carries two independent booleans — `active` (persistent on/off, survives archiving-adjacent edits) and `available_today` (daily-reset 86-style toggle) — plus `dietary_tags`/`allergen_tags` array columns and a `Money.Ecto.Composite.Type` price. Archive-not-delete (Q41) on categories/items via `archived_at`; hard delete not built (not needed yet). Drag-to-reorder via plain integer `position` + full resequence in one `Ecto.Multi` transaction, driven by a colocated JS hook doing native HTML5 drag-and-drop (no new JS dependency). Photo upload via a `Tabletap.Storage` behaviour — `Storage.S3` (Supabase Storage's S3-compatible API, reusing the already-pinned `ex_aws_s3` presigned-PUT pattern) and `Storage.Local` (dev fallback with no Supabase project configured, and always in test) — both hand out a same-shaped presigned-PUT URL so the LiveView upload flow (`allow_upload external:`) doesn't care which is active. `dotenvy` (dev/test only) loads `.env` for Supabase credentials; `.env.example` documents the keys.
+**Phase:** Phase 2 — Catalog & Floor, in progress (2 of 3 features done)
+**Last completed:** Feature 05 (2026-07-12) — Modifier Groups. Three new tables on the same composite `(id, org_id)` FK pattern: `modifier_groups` (venue-scoped; `min_selections`/`max_selections`/`required`), `modifier_options` (group-scoped; `Money.Ecto.Composite.Type` `price_delta` — zero and negative deltas legal; `default` pre-select flag, `active` temporary-hide toggle, `position`), and `item_modifier_groups` (pure join with per-item `position`, unique `(item_id, group_id)`; hard-deleted freely — order snapshots copy names/deltas, so attachments carry no history). Groups **and** options get `archived_at` per Q41's general rule even though architecture.md's data model lists only `active` on options — Feature 08's `order_item_modifiers.option_id` will FK-reference options, so they must never hard-delete; the `(id, org_id)` unique index on `modifier_options` is already in place as that FK's target. Architecture's `ingredient_id`/`ingredient_qty_delta` option columns are **deferred to Feature 12** (no `ingredients` table exists to reference yet — same deferral as menu-item recipes). Validations per the build-plan verify step: `max >= min` and required→`min >= 1` (a required group you can pick zero of is a contradiction), plus `min >= 0`/`max >= 1`. Semantics decision: `max_selections` counts *distinct* options, each pickable once (the "extra cheese ×3" reading would need per-option quantities — not built, revisit only if a real venue asks). `Catalog.archive_modifier_group/2` archives and detaches from all items in one `Ecto.Multi`. `Catalog.price_range/2` (the Feature-05 "price-delta preview") is a pure function over an item + its attached groups: forced picks = the `min_selections` cheapest/dearest active options per bound, then optional picks only while they still move that bound (negative deltas lower the minimum, positive raise the maximum), clamped to the option count. UI: new `TabletapWeb.Manager.ModifiersLive` at `/menu/modifiers` (group library — groups are reusable across items, so they get their own screen, not a per-item editor) + attach/detach select and live price-range line inside MenuLive's item-edit modal; "Modifiers" nav link added to the manager sidebar/mobile nav. Zero new dependencies.
+
+**242/242 tests green** (was 208), `credo --strict`/`format --check-formatted` clean. Full build-plan verify scenario run against a real dev server via Playwright at 390px: signup → create "Cheese" (min 0 max 3, Extra cheese +$1.00 rendering as "+$1.00") and "Remove" (No onions/No pickles, $0) → both invalid configs (max<min, required-with-min-0) rejected inline with field errors → "Hamburger" $5.00 created → both groups attached from the item modal → "Price with options: $5.00 – $6.00" shown → detach works. Screenshots checked for phone-width layout regressions (none).
+
+---
+
+<details>
+<summary>Feature 04 — Menu Builder (2026-07-11)</summary>
+
+`Tabletap.Catalog` context: `menu_categories`/`menu_items`/`daily_item_limits` schemas + migrations (composite `(id, org_id)` FK pattern, same as venues/memberships), scope- and venue-scoped throughout (org_id alone isn't enough — an org can have >1 venue). `menu_items` carries two independent booleans — `active` (persistent on/off, survives archiving-adjacent edits) and `available_today` (daily-reset 86-style toggle) — plus `dietary_tags`/`allergen_tags` array columns and a `Money.Ecto.Composite.Type` price. Archive-not-delete (Q41) on categories/items via `archived_at`; hard delete not built (not needed yet). Drag-to-reorder via plain integer `position` + full resequence in one `Ecto.Multi` transaction, driven by a colocated JS hook doing native HTML5 drag-and-drop (no new JS dependency). Photo upload via a `Tabletap.Storage` behaviour — `Storage.S3` (Supabase Storage's S3-compatible API, reusing the already-pinned `ex_aws_s3` presigned-PUT pattern) and `Storage.Local` (dev fallback with no Supabase project configured, and always in test) — both hand out a same-shaped presigned-PUT URL so the LiveView upload flow (`allow_upload external:`) doesn't care which is active. `dotenvy` (dev/test only) loads `.env` for Supabase credentials; `.env.example` documents the keys.
 
 **New shared primitives added because Feature 04 needed them, not previously built:** `Tenants.business_date/2` (business-day-cutoff-aware "today," referenced by CONTEXT.md/code-standards.md since Feature 03 but never implemented until a real caller — daily limits — needed it) required adding a real IANA timezone database (`tz`, not `tzdata` — the latter's `hackney ~> 1.17` requirement conflicts with `ex_aws`'s `hackney ~> 4.0`). `Tenants.get_venue_by_slug/1` (skip_org_id, public/pre-scope, mirrors `get_valid_staff_invite_by_token/1`'s shape) is the entry point for `TabletapWeb.Public.MenuLive` (`/venues/:slug/menu`, temporary — Feature 06 fronts this same LiveView with real `/t/:qr_token` resolution instead of building a second one) — the caller calls `Repo.put_org_id/1` itself afterward, exactly like `UserAuth` does for staff requests, so `Tabletap.Catalog` never needs `skip_org_id: true` anywhere (code-standards.md's zero-tolerance list stays just `Accounts`/`Tenants`/platform-admin).
 
@@ -18,6 +27,8 @@ Update this file after every completed feature. Any AI agent reading this should
 208/208 tests green (was 148), `credo --strict`/`format --check-formatted` clean. Full flow verified on a real running dev server via Playwright (phone-width viewport): signup → create category → create item with a real photo upload (`Storage.Local`, confirmed served back from `/uploads/...`) → public menu shows it → manager toggles `available_today` off → public menu (already open, no reload) hides the item instantly via the `"venue:<id>:menu"` PubSub broadcast. A real layout bug (item row overflowing/overlapping on a 390px-wide screen) was caught by this and fixed.
 
 **Known gap, not blocking, flagged for a fast-follow:** `venue.locale` defaults to `"so"` (Somali), but the CLDR/`:localize` backend has no data for it — `Money.to_string!/2` silently falls back to locale `:und`, producing `"US$ 3.50"` instead of `"$3.50"` on the public menu. Pre-existing gap (not introduced by Feature 04), surfaced by this being the first real customer-facing price display. Needs a decision: add proper Somali CLDR data, or pick a different fallback locale for money formatting specifically.
+
+</details>
 
 ---
 
@@ -36,7 +47,7 @@ Also fixed in passing (surfaced by turning on tenant enforcement, not new bugs):
 
 </details>
 
-**Next:** Phase 2 — Feature 05, Modifier Groups (min/max/required, price deltas, attach to items).
+**Next:** Phase 2 — Feature 06, Tables & QR Codes (CRUD, token rotation, print sheet, public `/t/:qr_token` route).
 
 ---
 
@@ -49,7 +60,7 @@ Also fixed in passing (surfaced by turning on tenant enforcement, not new bugs):
 
 ### Phase 2 — Catalog & Floor
 - [x] 04 Menu Builder (categories, items, photos, availability, daily limits)
-- [ ] 05 Modifier Groups (min/max/required, price deltas, attach to items)
+- [x] 05 Modifier Groups (min/max/required, price deltas, attach to items)
 - [ ] 06 Tables & QR Codes (CRUD, token rotation, print sheet, public `/t/:qr_token` route)
 
 ### Phase 3 — Ordering Loop ← make-or-break

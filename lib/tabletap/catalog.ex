@@ -16,7 +16,16 @@ defmodule Tabletap.Catalog do
   import Ecto.Query, warn: false
 
   alias Tabletap.Accounts.Scope
-  alias Tabletap.Catalog.{Category, DailyItemLimit, MenuItem}
+
+  alias Tabletap.Catalog.{
+    Category,
+    DailyItemLimit,
+    ItemModifierGroup,
+    MenuItem,
+    ModifierGroup,
+    ModifierOption
+  }
+
   alias Tabletap.Repo
   alias Tabletap.Tenants
 
@@ -208,6 +217,185 @@ defmodule Tabletap.Catalog do
       %DailyItemLimit{} = existing -> Repo.delete(existing)
     end
   end
+
+  ## Modifier groups — reusable per venue, attached to items via
+  ## item_modifier_groups (architecture.md; build-plan.md Feature 05).
+
+  @doc "A venue's non-archived modifier groups, options preloaded, ordered by name."
+  def list_modifier_groups(%Scope{venue: venue}) do
+    Repo.all(
+      from(g in ModifierGroup,
+        where: g.venue_id == ^venue.id and is_nil(g.archived_at),
+        order_by: g.name,
+        preload: [options: ^options_preload_query()]
+      )
+    )
+  end
+
+  def get_modifier_group(%Scope{venue: venue}, id) do
+    Repo.one(
+      from(g in ModifierGroup,
+        where: g.id == ^id and g.venue_id == ^venue.id and is_nil(g.archived_at),
+        preload: [options: ^options_preload_query()]
+      )
+    )
+  end
+
+  def create_modifier_group(%Scope{org: org, venue: venue}, attrs) do
+    %ModifierGroup{org_id: org.id, venue_id: venue.id}
+    |> ModifierGroup.creation_changeset(attrs)
+    |> Repo.insert()
+    |> preload_options()
+  end
+
+  def update_modifier_group(%Scope{}, %ModifierGroup{} = group, attrs) do
+    group |> ModifierGroup.update_changeset(attrs) |> Repo.update() |> preload_options()
+  end
+
+  @doc """
+  Archives a group (design-qa.md Q41) and detaches it from every item —
+  the join rows are pure config with no history value (order snapshots
+  copy names/deltas), so an archived group simply stops appearing
+  anywhere.
+  """
+  def archive_modifier_group(%Scope{}, %ModifierGroup{} = group) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.update(:group, ModifierGroup.archive_changeset(group))
+    |> Ecto.Multi.delete_all(
+      :attachments,
+      from(a in ItemModifierGroup, where: a.group_id == ^group.id)
+    )
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{group: group}} -> {:ok, group}
+      {:error, _step, changeset, _changes} -> {:error, changeset}
+    end
+  end
+
+  ## Modifier options
+
+  @doc "Creates an option in `group`, appended to the end of that group's list."
+  def create_modifier_option(%Scope{org: org}, %ModifierGroup{} = group, attrs) do
+    %ModifierOption{
+      org_id: org.id,
+      group_id: group.id,
+      position: next_position(ModifierOption, dynamic([o], o.group_id == ^group.id))
+    }
+    |> ModifierOption.creation_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_modifier_option(%Scope{}, %ModifierOption{} = option, attrs) do
+    option |> ModifierOption.update_changeset(attrs) |> Repo.update()
+  end
+
+  @doc "Archives an option — hidden from menus/pickers, intact in history (design-qa.md Q41)."
+  def archive_modifier_option(%Scope{}, %ModifierOption{} = option) do
+    option |> ModifierOption.archive_changeset() |> Repo.update()
+  end
+
+  ## Item ↔ group attachments
+
+  @doc """
+  Attaches a group to an item (appended to the item's list). Both must
+  belong to the scope's venue — like `move_item_to_category/3`, this is
+  the cross-entity op where a stale/foreign id could slip through.
+  Attaching the same group twice returns `{:error, changeset}` via the
+  unique constraint.
+  """
+  def attach_group_to_item(
+        %Scope{org: org, venue: venue},
+        %MenuItem{} = item,
+        %ModifierGroup{} = group
+      ) do
+    if item.venue_id == venue.id && group.venue_id == venue.id do
+      %ItemModifierGroup{
+        org_id: org.id,
+        item_id: item.id,
+        group_id: group.id,
+        position: next_position(ItemModifierGroup, dynamic([a], a.item_id == ^item.id))
+      }
+      |> ItemModifierGroup.creation_changeset()
+      |> Repo.insert()
+    else
+      {:error, :not_found}
+    end
+  end
+
+  def detach_group_from_item(%Scope{venue: venue}, %MenuItem{} = item, %ModifierGroup{} = group) do
+    if item.venue_id == venue.id do
+      Repo.delete_all(
+        from(a in ItemModifierGroup, where: a.item_id == ^item.id and a.group_id == ^group.id)
+      )
+
+      :ok
+    else
+      {:error, :not_found}
+    end
+  end
+
+  @doc """
+  An item's attached, non-archived groups in attachment order, options
+  preloaded — what the customer's modifier sheet (Feature 07) and the
+  manager's price-range preview both read.
+  """
+  def list_item_modifier_groups(%Scope{venue: venue}, %MenuItem{} = item) do
+    Repo.all(
+      from(g in ModifierGroup,
+        join: a in ItemModifierGroup,
+        on: a.group_id == g.id,
+        where: a.item_id == ^item.id and g.venue_id == ^venue.id and is_nil(g.archived_at),
+        order_by: a.position,
+        preload: [options: ^options_preload_query()]
+      )
+    )
+  end
+
+  @doc """
+  The computed `{min, max}` total price of `item` given its attached
+  `groups` (options preloaded) — the price-delta preview on the item
+  detail (build-plan.md Feature 05). Pure: assumes each group's
+  min/max/required rules are obeyed, counts only active, non-archived
+  options, and picks optional extras only when they move the bound
+  (negative deltas lower the minimum, positive ones raise the maximum).
+  """
+  def price_range(%MenuItem{price: base}, groups) do
+    zero = Money.new!(base.currency, 0)
+
+    Enum.reduce(groups, {base, base}, fn group, {min_acc, max_acc} ->
+      deltas = group.options |> Enum.filter(& &1.active) |> Enum.map(& &1.price_delta)
+      asc = Enum.sort(deltas, Money)
+
+      must = min(group.min_selections, length(deltas))
+      cap = min(group.max_selections, length(deltas))
+
+      min_delta = bound_contribution(asc, must, cap, :lt, zero)
+      max_delta = bound_contribution(Enum.reverse(asc), must, cap, :gt, zero)
+
+      {Money.add!(min_acc, min_delta), Money.add!(max_acc, max_delta)}
+    end)
+  end
+
+  # Sum of the first `must` deltas (forced picks), then keep taking while
+  # the next delta still moves this bound in `direction`, up to `cap`.
+  defp bound_contribution(sorted_deltas, must, cap, direction, zero) do
+    {forced, optional} = Enum.split(sorted_deltas, must)
+
+    optional
+    |> Enum.take(cap - must)
+    |> Enum.take_while(&(Money.compare!(&1, zero) == direction))
+    |> Enum.concat(forced)
+    |> Enum.reduce(zero, &Money.add!(&2, &1))
+  end
+
+  defp options_preload_query do
+    from(o in ModifierOption, where: is_nil(o.archived_at), order_by: o.position)
+  end
+
+  defp preload_options({:ok, %ModifierGroup{} = group}),
+    do: {:ok, Repo.preload(group, [options: options_preload_query()], force: true)}
+
+  defp preload_options({:error, changeset}), do: {:error, changeset}
 
   ## Public read — guest scope, org/venue resolved from a QR/slug lookup
   ## (Tenants.get_venue_by_slug/1) rather than an authenticated session.
