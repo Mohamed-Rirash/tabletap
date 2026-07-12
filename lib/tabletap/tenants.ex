@@ -1,7 +1,11 @@
 defmodule Tabletap.Tenants do
   @moduledoc """
-  Organizations, venues, memberships, staff invites — the tenancy core
-  (architecture.md "Multi-Tenancy", build-plan.md Feature 03).
+  Organizations, venues, tables, memberships, staff invites — the tenancy
+  core (architecture.md "Multi-Tenancy", build-plan.md Feature 03/06).
+  Tables live here (rather than in `Catalog` or a separate context)
+  because their public `/t/:qr_token` resolution needs `skip_org_id: true`,
+  which is allowed only in this context — and they're venue child-entities
+  like memberships.
 
   Bootstrapping/resolution functions (`create_org_with_owner/1`,
   `build_scope/2`, invite lookup/acceptance) run before a tenant scope
@@ -16,7 +20,7 @@ defmodule Tabletap.Tenants do
   alias Tabletap.Accounts
   alias Tabletap.Accounts.{Scope, User}
   alias Tabletap.Repo
-  alias Tabletap.Tenants.{Membership, Org, StaffInvite, Venue}
+  alias Tabletap.Tenants.{Membership, Org, StaffInvite, Table, Venue}
 
   ## Launch markets (design-qa.md Q57/Q60/Q61) — the signup form offers a
   ## city picker instead of raw currency/timezone entry.
@@ -204,6 +208,27 @@ defmodule Tabletap.Tenants do
     )
   end
 
+  @doc """
+  Resolves a scanned `/t/:qr_token` to its table, venue + org preloaded —
+  the public QR entry point (build-plan.md Feature 06). Same pre-auth,
+  skip_org_id shape as `get_venue_by_slug/1`: no tenant scope exists yet,
+  so the caller calls `Repo.put_org_id/1` with the returned table's
+  `org_id` afterwards.
+
+  Returns `nil` for an unknown, rotated (old token), archived, or
+  deactivated table — a stale or forged QR gets an honest "not found",
+  never a crash or a leak (design-qa.md Q7).
+  """
+  def get_table_by_qr_token(qr_token) do
+    Repo.one(
+      from(t in Table,
+        where: t.qr_token == ^qr_token and t.active == true and is_nil(t.archived_at),
+        preload: [venue: :org]
+      ),
+      skip_org_id: true
+    )
+  end
+
   ## Venues (tenant-scoped — relies on Repo.put_org_id already being set)
 
   @doc "Lists the current org's active venues, for the venue switcher."
@@ -250,6 +275,51 @@ defmodule Tabletap.Tenants do
   # which /dashboard has but this action doesn't) — a bare user hitting it
   # gets the same "not found" any other invalid venue_id would, not a crash.
   def switch_venue(%Scope{org: nil}, _venue_id), do: {:error, :not_found}
+
+  ## Tables (venue floor — build-plan.md Feature 06). Venue-scoped like
+  ## Catalog: `Repo`'s org filter isn't enough on its own since an org can
+  ## have more than one venue. The public scan path resolves through
+  ## `get_table_by_qr_token/1` above instead.
+
+  @doc "A venue's non-archived tables, in creation order."
+  def list_tables(%Scope{venue: venue}) do
+    Repo.all(
+      from(t in Table,
+        where: t.venue_id == ^venue.id and is_nil(t.archived_at),
+        order_by: t.inserted_at
+      )
+    )
+  end
+
+  @doc "A single non-archived table in the scope's venue, or nil (no cross-tenant leak via a guessed id)."
+  def get_table(%Scope{venue: venue}, id) do
+    Repo.one(
+      from(t in Table,
+        where: t.id == ^id and t.venue_id == ^venue.id and is_nil(t.archived_at)
+      )
+    )
+  end
+
+  @doc "Creates a table in the scope's venue with a fresh opaque QR token."
+  def create_table(%Scope{org: org, venue: venue}, attrs) do
+    %Table{org_id: org.id, venue_id: venue.id, qr_token: Table.generate_qr_token()}
+    |> Table.creation_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_table(%Scope{}, %Table{} = table, attrs) do
+    table |> Table.update_changeset(attrs) |> Repo.update()
+  end
+
+  @doc "Rotates a table's QR token — the old printed code stops resolving (design-qa.md Q7)."
+  def rotate_qr_token(%Scope{}, %Table{} = table) do
+    table |> Table.rotate_changeset() |> Repo.update()
+  end
+
+  @doc "Archives a table — hidden from the floor/pickers, intact in every order and FK (design-qa.md Q41)."
+  def archive_table(%Scope{}, %Table{} = table) do
+    table |> Table.archive_changeset() |> Repo.update()
+  end
 
   ## Staff invites (tenant-scoped creation; token lookup/acceptance are
   ## public — skip_org_id, since no scope exists yet for a brand-new hire)

@@ -82,6 +82,25 @@ defmodule TabletapWeb.Public.MenuLiveTest do
     refute render(lv) =~ item.name
   end
 
+  test "shows the table number when reached via a scanned QR", %{
+    conn: conn,
+    scope: scope
+  } do
+    table = table_fixture(scope, %{"number" => "12"})
+
+    # Walk the real path: the /t/:qr_token controller stashes the table in
+    # the session, then redirects here.
+    conn = get(conn, ~p"/t/#{table.qr_token}")
+    {:ok, _lv, html} = live(conn, redirected_to(conn))
+
+    assert html =~ "Table 12"
+  end
+
+  test "shows no table caption when opened directly (no scan)", %{conn: conn, venue: venue} do
+    {:ok, _lv, html} = live(conn, ~p"/venues/#{venue.slug}/menu")
+    refute html =~ "Table "
+  end
+
   test "an archived venue's slug behaves like an unknown one", %{conn: conn, venue: venue} do
     {:ok, _} =
       venue |> Ecto.Changeset.change(archived_at: DateTime.utc_now(:second)) |> Repo.update()

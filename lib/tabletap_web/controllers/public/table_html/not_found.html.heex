@@ -1,0 +1,14 @@
+<div class="min-h-screen grid place-items-center px-4">
+  <div class="max-w-sm w-full text-center space-y-3">
+    <span class="grid h-12 w-12 mx-auto place-items-center rounded-full bg-base-200">
+      <.icon name="hero-qr-code" class="size-6 opacity-60" />
+    </span>
+    <h1 class="text-lg font-semibold">{gettext("This QR code isn't active")}</h1>
+    <p class="text-sm text-base-content/60">
+      {gettext("Please ask a staff member for help, or check if the code was recently reprinted.")}
+    </p>
+    <.link navigate={~p"/"} class="btn btn-outline btn-sm mt-2">
+      {gettext("Go to tabletap.app")}
+    </.link>
+  </div>
+</div>

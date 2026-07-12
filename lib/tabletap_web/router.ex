@@ -74,6 +74,8 @@ defmodule TabletapWeb.Router do
       live "/dashboard", Manager.DashboardLive, :show
       live "/menu", Manager.MenuLive, :index
       live "/menu/modifiers", Manager.ModifiersLive, :index
+      live "/tables", Manager.TablesLive, :index
+      live "/tables/print", Manager.TablePrintLive, :index
     end
 
     post "/venues/switch", VenueController, :switch
@@ -93,12 +95,15 @@ defmodule TabletapWeb.Router do
     delete "/users/log-out", UserSessionController, :delete
   end
 
-  # Public/customer routes — no auth. Temporary entry point for Feature
-  # 04's verify step (build-plan.md); Feature 06 replaces the venue-slug
-  # lookup with real `/t/:qr_token` → table resolution in front of the
-  # same LiveView.
+  # Public/customer routes — no auth. `/t/:qr_token` is the real scanned
+  # entry point (Feature 06): it resolves the table into the session and
+  # redirects to the venue menu LiveView. `/venues/:slug/menu` remains the
+  # direct menu surface both the QR redirect and Feature 04's verify step
+  # land on.
   scope "/", TabletapWeb do
     pipe_through [:browser]
+
+    get "/t/:qr_token", Public.TableController, :show
 
     live_session :public_menu do
       live "/venues/:slug/menu", Public.MenuLive, :show

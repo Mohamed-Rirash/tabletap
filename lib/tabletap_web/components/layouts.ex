@@ -79,7 +79,7 @@ defmodule TabletapWeb.Layouts do
   """
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_scope, :map, required: true
-  attr :active_nav, :atom, required: true, doc: ":dashboard, :menu, or :modifiers"
+  attr :active_nav, :atom, required: true, doc: ":dashboard, :menu, :modifiers, or :tables"
   attr :venues, :list, default: []
 
   slot :inner_block, required: true
@@ -141,7 +141,13 @@ defmodule TabletapWeb.Layouts do
           <.manager_nav_soon icon="hero-clipboard-document-list">
             {gettext("Orders")}
           </.manager_nav_soon>
-          <.manager_nav_soon icon="hero-table-cells">{gettext("Tables")}</.manager_nav_soon>
+          <.manager_nav_link
+            navigate={~p"/tables"}
+            icon="hero-table-cells"
+            active={@active_nav == :tables}
+          >
+            {gettext("Tables")}
+          </.manager_nav_link>
           <.manager_nav_soon icon="hero-fire">{gettext("Kitchen")}</.manager_nav_soon>
           <.manager_nav_link navigate={~p"/menu"} icon="hero-book-open" active={@active_nav == :menu}>
             {gettext("Menu")}
@@ -193,6 +199,9 @@ defmodule TabletapWeb.Layouts do
             </.link>
             <.link navigate={~p"/menu/modifiers"} class={@active_nav == :modifiers && "font-semibold"}>
               {gettext("Modifiers")}
+            </.link>
+            <.link navigate={~p"/tables"} class={@active_nav == :tables && "font-semibold"}>
+              {gettext("Tables")}
             </.link>
           </div>
           <.theme_toggle />

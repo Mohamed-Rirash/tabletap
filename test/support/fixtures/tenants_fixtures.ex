@@ -5,6 +5,7 @@ defmodule Tabletap.TenantsFixtures do
   "Phoenix 1.8 Scopes").
   """
 
+  alias Tabletap.Accounts.Scope
   alias Tabletap.Repo
   alias Tabletap.Tenants
   alias Tabletap.Tenants.{Org, Venue}
@@ -55,6 +56,17 @@ defmodule Tabletap.TenantsFixtures do
       |> Repo.insert()
 
     venue
+  end
+
+  @doc "Creates a table in a scope's venue via `Tenants.create_table/2`."
+  def table_fixture(%Scope{} = scope, attrs \\ %{}) do
+    {:ok, table} =
+      Tenants.create_table(
+        scope,
+        Enum.into(attrs, %{"number" => "#{System.unique_integer([:positive])}"})
+      )
+
+    table
   end
 
   @doc """
