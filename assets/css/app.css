@@ -154,6 +154,14 @@
 
 @theme {
   --font-display: "Calistoga", ui-serif, Georgia, serif;
+
+  /* Registers --brand (defined above) as real bg-brand/text-brand/
+     border-brand Tailwind utilities — a bare :root custom property alone
+     doesn't generate utilities in Tailwind v4, only --color-* names under
+     @theme do. Customer-surface accents use these, never bg-primary/
+     text-primary (that's --color-accent, platform/staff-only). */
+  --color-brand: var(--brand);
+  --color-brand-content: white;
 }
 
 /* Smooth in-page anchor scrolling (marketing nav) — guarded so users with
@@ -161,6 +169,20 @@
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
+  }
+}
+
+/* Sticky Cart Bar entrance (ui-tokens.md: "appears with 200ms slide-up
+   when cart is non-empty"). Referenced via motion-safe:animate-[...] so
+   reduced-motion users get an instant appearance instead. */
+@keyframes cart-bar-slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 

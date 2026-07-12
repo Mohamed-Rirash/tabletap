@@ -110,12 +110,17 @@ config :tabletap, Oban,
   repo: Tabletap.ObanRepo,
   queues: [default: 10, webhooks: 20, notifications: 10, rollups: 2, escalations: 10],
   plugins: [
-    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7}
+    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
     # Oban.Plugins.Cron entries are added as the workers they reference
     # land — Cron validates the module exists at boot, so an entry here
     # for a not-yet-written worker (e.g. Tabletap.Analytics.Workers.DailyRollup,
     # Feature 18) would crash the server. Add each cron line in the same
     # commit as its worker.
+    {Oban.Plugins.Cron,
+     crontab: [
+       # Hourly is plenty for a 24h staleness threshold (design-qa.md Q50).
+       {"0 * * * *", Tabletap.Ordering.Workers.SweepAbandonedCarts}
+     ]}
   ]
 
 # ex_money v6+ dropped the compile-time Cldr backend module in favor of

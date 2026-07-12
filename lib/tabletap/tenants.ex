@@ -229,6 +229,21 @@ defmodule Tabletap.Tenants do
     )
   end
 
+  @doc """
+  Every org id — the enumeration entry point for background jobs that
+  must sweep across every tenant (e.g.
+  `Ordering.Workers.SweepAbandonedCarts`, build-plan.md Feature 07).
+  `skip_org_id: true` is allowed here (Tenants is on the exception list);
+  the caller loops this list and calls `Repo.put_org_id/1` once per org
+  before running its own normal tenant-scoped query — a raw cross-tenant
+  query anywhere else in the codebase is still forbidden
+  (code-standards.md "Tenancy Rules"). Not paginated: orgs are small in
+  count relative to their child rows even at real scale.
+  """
+  def list_org_ids do
+    Repo.all(from(o in Org, select: o.id), skip_org_id: true)
+  end
+
   ## Venues (tenant-scoped — relies on Repo.put_org_id already being set)
 
   @doc "Lists the current org's active venues, for the venue switcher."

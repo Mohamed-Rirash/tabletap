@@ -2,6 +2,7 @@ defmodule TabletapWeb.Router do
   use TabletapWeb, :router
 
   import TabletapWeb.UserAuth
+  import TabletapWeb.GuestToken
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -11,10 +12,20 @@ defmodule TabletapWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :fetch_current_scope_for_user
+    # Read-only for guest_token (build-plan.md Feature 07) — restoring an
+    # existing cookie into the session; minting a fresh one happens in the
+    # LiveView, not here. Harmless on every route, not just public ones.
+    plug :fetch_cookies
   end
 
   pipeline :api do
     plug :accepts, ["json"]
+  end
+
+  # Restores an existing guest_token cookie into the session (build-plan.md
+  # Feature 07) — scoped to public customer routes only, not staff pages.
+  pipeline :guest_token do
+    plug :fetch_guest_token
   end
 
   # No pipeline: probes hit this before any session/CSRF machinery exists.
@@ -101,7 +112,7 @@ defmodule TabletapWeb.Router do
   # direct menu surface both the QR redirect and Feature 04's verify step
   # land on.
   scope "/", TabletapWeb do
-    pipe_through [:browser]
+    pipe_through [:browser, :guest_token]
 
     get "/t/:qr_token", Public.TableController, :show
 
