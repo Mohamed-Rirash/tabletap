@@ -244,6 +244,41 @@ defmodule Tabletap.Tenants do
     Repo.all(from(o in Org, select: o.id), skip_org_id: true)
   end
 
+  @doc """
+  Resolves a bare `/orders/:guest_token` to its most recent order across
+  every venue/org — the public, pre-scope entry point for the order
+  tracker (build-plan.md Feature 08). Same shape as `get_venue_by_slug/1`/
+  `get_table_by_qr_token/1`: no tenant scope exists yet, so the caller
+  calls `Repo.put_org_id/1` with the returned order's `org_id` afterwards.
+
+  A deliberate, narrow exception to "contexts own their tables" —
+  `orders` otherwise belongs entirely to `Ordering`. The alternative
+  (looping every org via `list_org_ids/0`, `Ordering`'s own sanctioned
+  cross-tenant pattern for background jobs) would turn every tracker
+  page load into an O(orgs) scan; that's an acceptable cost for an
+  hourly sweep, not for a latency-sensitive customer-facing page.
+  Tenants is this codebase's established home for resolving an opaque
+  public token before any scope exists, so the same shape is extended
+  here rather than inventing a second mechanism.
+
+  A `guest_token` is a bare cookie value with no venue scoping of its
+  own — the same browser could in principle hold orders at more than
+  one venue under one token, so "most recent by `inserted_at`" is a
+  pragmatic, not a strict, guarantee. Returns `nil` if no order has ever
+  used this token.
+  """
+  def get_order_by_guest_token(guest_token) do
+    Repo.one(
+      from(o in Tabletap.Ordering.Order,
+        where: o.guest_token == ^guest_token,
+        order_by: [desc: o.inserted_at],
+        limit: 1,
+        preload: [venue: :org]
+      ),
+      skip_org_id: true
+    )
+  end
+
   ## Venues (tenant-scoped — relies on Repo.put_org_id already being set)
 
   @doc "Lists the current org's active venues, for the venue switcher."
@@ -334,6 +369,61 @@ defmodule Tabletap.Tenants do
   @doc "Archives a table — hidden from the floor/pickers, intact in every order and FK (design-qa.md Q41)."
   def archive_table(%Scope{}, %Table{} = table) do
     table |> Table.archive_changeset() |> Repo.update()
+  end
+
+  ## Busy Mode (build-plan.md Feature 08, design-qa.md Q2) — venue-level
+  ## checkout throttle. `venues` is this context's table; `Ordering`'s
+  ## checkout gate reads `scope.venue.ordering_paused_until`/
+  ## `eta_inflation_factor` directly off the already-loaded struct rather
+  ## than calling back into Tenants for a read.
+
+  @doc "Pause: snoozes new checkout for 20/40 minutes, or `:indefinite` (\"until reopened\")."
+  def pause_ordering(%Scope{}, %Venue{} = venue, minutes_or_indefinite) do
+    venue |> Venue.pause_changeset(minutes_or_indefinite) |> Repo.update()
+  end
+
+  def resume_ordering(%Scope{}, %Venue{} = venue) do
+    venue |> Venue.resume_changeset() |> Repo.update()
+  end
+
+  @doc "Slow: inflates the displayed ETA by `factor` (>= 1) without pausing orders outright."
+  def set_eta_inflation(%Scope{}, %Venue{} = venue, factor) do
+    venue |> Venue.eta_inflation_changeset(factor) |> Repo.update()
+  end
+
+  @doc """
+  Whether `venue` is open at `datetime` (default now), per its
+  `opening_hours`. `nil` (no hours ever configured — no editor UI ships
+  in this feature) means always open, a safe default so this gate can
+  never accidentally lock a venue out of ordering.
+  """
+  def venue_open?(venue, datetime \\ DateTime.utc_now())
+  def venue_open?(%Venue{opening_hours: nil}, _datetime), do: true
+
+  def venue_open?(%Venue{opening_hours: hours} = venue, datetime) do
+    local = DateTime.shift_zone!(datetime, venue.timezone)
+    date_key = local |> DateTime.to_date() |> Date.to_iso8601()
+    ranges = get_in(hours, ["overrides", date_key]) || Map.get(hours, weekday_key(local))
+    time = DateTime.to_time(local)
+
+    Enum.any?(ranges || [], fn %{"open" => open, "close" => close} ->
+      Time.compare(time, parse_hours_time!(open)) != :lt and
+        Time.compare(time, parse_hours_time!(close)) == :lt
+    end)
+  end
+
+  @weekday_keys {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
+  defp weekday_key(%DateTime{} = local), do: elem(@weekday_keys, Date.day_of_week(local) - 1)
+
+  # `opening_hours` stores "HH:MM" (architecture.md's own documented
+  # shape) — `Time.from_iso8601!/1` alone rejects that (strict ISO 8601
+  # requires seconds), so a real venue's configured hours would raise
+  # here. Padding to "HH:MM:SS" before parsing accepts both forms.
+  defp parse_hours_time!(time_string) do
+    case String.split(time_string, ":") do
+      [_hour, _minute] -> Time.from_iso8601!(time_string <> ":00")
+      _full -> Time.from_iso8601!(time_string)
+    end
   end
 
   ## Staff invites (tenant-scoped creation; token lookup/acceptance are

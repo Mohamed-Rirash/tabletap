@@ -4,8 +4,8 @@ defmodule Tabletap.OrderingTest do
   import Ecto.Query
 
   alias Tabletap.Accounts.Scope
-  alias Tabletap.{Catalog, Ordering, Repo}
-  alias Tabletap.Ordering.Cart
+  alias Tabletap.{Catalog, Ordering, Repo, Tenants}
+  alias Tabletap.Ordering.{Cart, OrderStateMachine}
 
   import Tabletap.TenantsFixtures
 
@@ -287,6 +287,72 @@ defmodule Tabletap.OrderingTest do
       cart = %{cart | items: Ordering.get_active_cart(scope, token).items}
 
       assert Money.equal?(Ordering.cart_total(scope, cart), Money.new!(:USD, "0.00"))
+    end
+  end
+
+  defp checked_out_order(scope, item_or_items) do
+    token = guest_token()
+
+    item_or_items
+    |> List.wrap()
+    |> Enum.each(fn item ->
+      {:ok, _cart} = Ordering.add_to_cart(scope, token, nil, item, [], 1, nil)
+    end)
+
+    cart = Ordering.get_active_cart(scope, token)
+    {:ok, order} = Ordering.checkout(scope, cart)
+    Ordering.get_order(scope, order.id)
+  end
+
+  describe "estimated_minutes/2 (build-plan.md Feature 08 ETA)" do
+    test "a single item's prep_minutes, alone in the kitchen queue", %{scope: scope} do
+      item = item_fixture(scope, %{"prep_minutes" => 8})
+      order = checked_out_order(scope, item)
+
+      assert Ordering.estimated_minutes(scope, order) == 8
+    end
+
+    test "takes the slowest line's prep_minutes, not the sum (items prepare in parallel)", %{
+      scope: scope
+    } do
+      fast = item_fixture(scope, %{"name" => "Coffee", "prep_minutes" => 3})
+      slow = item_fixture(scope, %{"name" => "Steak", "prep_minutes" => 20})
+      order = checked_out_order(scope, [fast, slow])
+
+      assert Ordering.estimated_minutes(scope, order) == 20
+    end
+
+    test "falls back to a static 10 minutes when no line has prep_minutes set", %{scope: scope} do
+      item = item_fixture(scope)
+      order = checked_out_order(scope, item)
+
+      assert Ordering.estimated_minutes(scope, order) == 10
+    end
+
+    test "multiplies by how many orders are already in the kitchen queue", %{scope: scope} do
+      item = item_fixture(scope, %{"prep_minutes" => 5})
+
+      # Two other orders already in the kitchen pipeline occupy the queue
+      # — a fresh pending_payment order isn't counted until it's placed.
+      for _ <- 1..2 do
+        other = checked_out_order(scope, item)
+        {:ok, _} = OrderStateMachine.transition(scope, other, :placed)
+      end
+
+      order = checked_out_order(scope, item)
+      assert Ordering.estimated_minutes(scope, order) == 5 * 2
+    end
+
+    test "Busy Mode's eta_inflation_factor inflates the estimate, rounded up (design-qa.md Q2)",
+         %{scope: scope, venue: venue} do
+      item = item_fixture(scope, %{"prep_minutes" => 10})
+      order = checked_out_order(scope, item)
+
+      {:ok, venue} = Tenants.set_eta_inflation(scope, venue, Decimal.new("1.5"))
+      scope = %{scope | venue: venue}
+
+      # 10 (prep) * 1 (queue depth) * 1.5 (inflation) = 15.
+      assert Ordering.estimated_minutes(scope, order) == 15
     end
   end
 

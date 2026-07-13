@@ -162,6 +162,13 @@
      text-primary (that's --color-accent, platform/staff-only). */
   --color-brand: var(--brand);
   --color-brand-content: white;
+
+  /* Order status timeline (ui-tokens.md) — only the three colors with no
+     existing daisyUI equivalent (accepted=info, ready=success,
+     cancelled=error already match exactly, reused as-is). */
+  --color-status-placed: var(--status-placed);
+  --color-status-preparing: var(--status-preparing);
+  --color-status-served: var(--status-served);
 }
 
 /* Smooth in-page anchor scrolling (marketing nav) — guarded so users with

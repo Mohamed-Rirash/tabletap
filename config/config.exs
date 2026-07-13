@@ -119,7 +119,10 @@ config :tabletap, Oban,
     {Oban.Plugins.Cron,
      crontab: [
        # Hourly is plenty for a 24h staleness threshold (design-qa.md Q50).
-       {"0 * * * *", Tabletap.Ordering.Workers.SweepAbandonedCarts}
+       {"0 * * * *", Tabletap.Ordering.Workers.SweepAbandonedCarts},
+       # Every 2 minutes keeps the worst-case "falsely sold out" window
+       # close to the nominal 12-minute hold TTL (design-qa.md Q1).
+       {"*/2 * * * *", Tabletap.Ordering.Workers.SweepExpiredHolds}
      ]}
   ]
 

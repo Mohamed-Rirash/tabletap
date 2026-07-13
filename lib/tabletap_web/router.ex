@@ -118,6 +118,7 @@ defmodule TabletapWeb.Router do
 
     live_session :public_menu do
       live "/venues/:slug/menu", Public.MenuLive, :show
+      live "/orders/:guest_token", Public.OrderTrackerLive, :show
     end
   end
 end

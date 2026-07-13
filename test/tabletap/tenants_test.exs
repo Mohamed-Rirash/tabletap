@@ -477,5 +477,135 @@ defmodule Tabletap.TenantsTest do
     end
   end
 
+  describe "Busy Mode (design-qa.md Q2)" do
+    setup do
+      %{org: org, venue: venue} = org_fixture()
+      Repo.put_org_id(org.id)
+      %{scope: %Scope{org: org, venue: venue}, venue: venue}
+    end
+
+    test "pause_ordering/3 pauses checkout for N minutes", %{scope: scope, venue: venue} do
+      {:ok, venue} = Tenants.pause_ordering(scope, venue, 20)
+
+      assert Venue.paused?(venue)
+      assert DateTime.compare(venue.ordering_paused_until, DateTime.utc_now()) == :gt
+    end
+
+    test "pause_ordering/3 with :indefinite uses the far-future sentinel (\"until reopened\")", %{
+      scope: scope,
+      venue: venue
+    } do
+      {:ok, venue} = Tenants.pause_ordering(scope, venue, :indefinite)
+
+      assert venue.ordering_paused_until == Venue.indefinite_pause_sentinel()
+      assert Venue.paused?(venue)
+    end
+
+    test "resume_ordering/2 clears the pause", %{scope: scope, venue: venue} do
+      {:ok, venue} = Tenants.pause_ordering(scope, venue, 20)
+      {:ok, venue} = Tenants.resume_ordering(scope, venue)
+
+      refute Venue.paused?(venue)
+      assert venue.ordering_paused_until == nil
+    end
+
+    test "set_eta_inflation/3 sets the ETA multiplier", %{scope: scope, venue: venue} do
+      {:ok, venue} = Tenants.set_eta_inflation(scope, venue, Decimal.new("1.5"))
+
+      assert Decimal.equal?(venue.eta_inflation_factor, Decimal.new("1.5"))
+    end
+
+    test "set_eta_inflation/3 rejects a factor below 1", %{scope: scope, venue: venue} do
+      assert {:error, changeset} = Tenants.set_eta_inflation(scope, venue, Decimal.new("0.5"))
+      assert "must be greater than or equal to 1" in errors_on(changeset).eta_inflation_factor
+    end
+  end
+
+  describe "venue_open?/2 (design-qa.md Q2 opening-hours gate)" do
+    test "nil opening_hours means always open (no manager-facing editor ships in this feature)" do
+      assert Tenants.venue_open?(%Venue{opening_hours: nil, timezone: "Etc/UTC"})
+    end
+
+    test "open during a configured range on the matching weekday" do
+      hours = %{"monday" => [%{"open" => "08:00", "close" => "22:00"}]}
+      venue = %Venue{opening_hours: hours, timezone: "Etc/UTC"}
+      # 2026-03-02 is a Monday.
+      datetime = DateTime.new!(~D[2026-03-02], ~T[10:00:00], "Etc/UTC")
+
+      assert Tenants.venue_open?(venue, datetime)
+    end
+
+    test "closed outside the configured range on the matching weekday" do
+      hours = %{"monday" => [%{"open" => "08:00", "close" => "22:00"}]}
+      venue = %Venue{opening_hours: hours, timezone: "Etc/UTC"}
+      datetime = DateTime.new!(~D[2026-03-02], ~T[23:00:00], "Etc/UTC")
+
+      refute Tenants.venue_open?(venue, datetime)
+    end
+
+    test "closed on a day with no configured ranges at all" do
+      hours = %{"monday" => [%{"open" => "08:00", "close" => "22:00"}]}
+      venue = %Venue{opening_hours: hours, timezone: "Etc/UTC"}
+      # 2026-03-03 is a Tuesday — no entry for it.
+      datetime = DateTime.new!(~D[2026-03-03], ~T[10:00:00], "Etc/UTC")
+
+      refute Tenants.venue_open?(venue, datetime)
+    end
+
+    test "the open boundary itself counts as open" do
+      hours = %{"monday" => [%{"open" => "08:00", "close" => "22:00"}]}
+      venue = %Venue{opening_hours: hours, timezone: "Etc/UTC"}
+      datetime = DateTime.new!(~D[2026-03-02], ~T[08:00:00], "Etc/UTC")
+
+      assert Tenants.venue_open?(venue, datetime)
+    end
+
+    test "the close boundary itself counts as closed" do
+      hours = %{"monday" => [%{"open" => "08:00", "close" => "22:00"}]}
+      venue = %Venue{opening_hours: hours, timezone: "Etc/UTC"}
+      datetime = DateTime.new!(~D[2026-03-02], ~T[22:00:00], "Etc/UTC")
+
+      refute Tenants.venue_open?(venue, datetime)
+    end
+
+    test "a split-hours day (lunch/dinner) is closed in the gap between ranges" do
+      hours = %{
+        "monday" => [
+          %{"open" => "08:00", "close" => "14:00"},
+          %{"open" => "18:00", "close" => "22:00"}
+        ]
+      }
+
+      venue = %Venue{opening_hours: hours, timezone: "Etc/UTC"}
+
+      assert Tenants.venue_open?(venue, DateTime.new!(~D[2026-03-02], ~T[12:00:00], "Etc/UTC"))
+      refute Tenants.venue_open?(venue, DateTime.new!(~D[2026-03-02], ~T[16:00:00], "Etc/UTC"))
+      assert Tenants.venue_open?(venue, DateTime.new!(~D[2026-03-02], ~T[20:00:00], "Etc/UTC"))
+    end
+
+    test "a date-specific override takes precedence over the weekday's normal hours" do
+      hours = %{
+        "monday" => [%{"open" => "08:00", "close" => "22:00"}],
+        "overrides" => %{"2026-03-02" => []}
+      }
+
+      venue = %Venue{opening_hours: hours, timezone: "Etc/UTC"}
+      datetime = DateTime.new!(~D[2026-03-02], ~T[10:00:00], "Etc/UTC")
+
+      refute Tenants.venue_open?(venue, datetime)
+    end
+
+    test "weekday resolution uses the venue's local date, not UTC's" do
+      # 23:30 UTC on Sunday 2026-03-01 is already 02:30 Monday in
+      # Mogadishu (UTC+3) — the Monday-only range should apply, not
+      # Sunday's absence from the schedule.
+      hours = %{"monday" => [%{"open" => "00:00", "close" => "23:59:59"}]}
+      venue = %Venue{opening_hours: hours, timezone: "Africa/Mogadishu"}
+      datetime = DateTime.new!(~D[2026-03-01], ~T[23:30:00], "Etc/UTC")
+
+      assert Tenants.venue_open?(venue, datetime)
+    end
+  end
+
   defp login_url_fun, do: fn token -> "https://example.com/log-in/#{token}" end
 end

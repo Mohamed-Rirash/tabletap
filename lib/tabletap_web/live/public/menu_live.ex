@@ -46,6 +46,14 @@ defmodule TabletapWeb.Public.MenuLive do
         </p>
       </div>
 
+      <.link
+        :if={@active_order}
+        navigate={~p"/orders/#{@active_order.guest_token}"}
+        class="mb-4 flex items-center justify-between gap-2 rounded-box bg-brand/10 border border-brand/30 px-4 py-3 text-brand font-medium"
+      >
+        {gettext("You have an active order →")}
+      </.link>
+
       <.category_tabs menu={@menu} />
 
       <div class="space-y-8 pb-28">
@@ -89,6 +97,7 @@ defmodule TabletapWeb.Public.MenuLive do
         cart={@cart}
         scope={@current_scope}
         locale={@venue.locale}
+        checkout_error={@checkout_error}
       />
 
       <script :type={Phoenix.LiveView.ColocatedHook} name=".GuestToken">
@@ -303,6 +312,7 @@ defmodule TabletapWeb.Public.MenuLive do
   attr :cart, Cart, required: true
   attr :scope, Scope, required: true
   attr :locale, :string, required: true
+  attr :checkout_error, :string, default: nil
 
   defp cart_sheet(assigns) do
     ~H"""
@@ -359,14 +369,24 @@ defmodule TabletapWeb.Public.MenuLive do
 
           <div
             :if={@cart.items != []}
-            class="sticky bottom-0 bg-base-100 border-t border-base-300 p-4 flex items-center justify-between"
+            class="sticky bottom-0 bg-base-100 border-t border-base-300 p-4 space-y-3"
           >
-            <span class="font-semibold">{gettext("Total")}</span>
-            <.money
-              amount={Ordering.cart_total(@scope, @cart)}
-              locale={@locale}
-              class="font-bold text-lg text-brand"
-            />
+            <div class="flex items-center justify-between">
+              <span class="font-semibold">{gettext("Total")}</span>
+              <.money
+                amount={Ordering.cart_total(@scope, @cart)}
+                locale={@locale}
+                class="font-bold text-lg text-brand"
+              />
+            </div>
+            <p :if={@checkout_error} class="text-sm text-error">{@checkout_error}</p>
+            <button
+              type="button"
+              phx-click="place_order"
+              class="btn w-full h-14 bg-brand hover:bg-brand/90 text-brand-content border-brand"
+            >
+              {gettext("Place order")}
+            </button>
           </div>
         </div>
       </div>
@@ -494,10 +514,15 @@ defmodule TabletapWeb.Public.MenuLive do
          |> assign(:daily_limits, Catalog.list_daily_limits(scope))
          |> assign(:guest_token, guest_token)
          |> assign(:cart, guest_token && Ordering.get_active_cart(scope, guest_token))
+         |> assign(
+           :active_order,
+           guest_token && Ordering.get_active_order_for_guest(scope, guest_token)
+         )
          |> assign(:overlay, :none)
          |> assign(:selected_option_ids, MapSet.new())
          |> assign(:detail_qty, 1)
-         |> assign(:detail_submit_attempted, false)}
+         |> assign(:detail_submit_attempted, false)
+         |> assign(:checkout_error, nil)}
     end
   end
 
@@ -600,7 +625,55 @@ defmodule TabletapWeb.Public.MenuLive do
   ## Cart sheet
 
   def handle_event("open_cart", _params, socket) do
-    {:noreply, assign(socket, :overlay, :cart)}
+    {:noreply, socket |> assign(:overlay, :cart) |> assign(:checkout_error, nil)}
+  end
+
+  def handle_event("place_order", _params, socket) do
+    scope = socket.assigns.current_scope
+
+    case Ordering.checkout(scope, socket.assigns.cart) do
+      {:ok, order} ->
+        {:noreply, push_navigate(socket, to: ~p"/orders/#{order.guest_token}")}
+
+      {:error, :venue_closed} ->
+        {:noreply, checkout_failed(socket, gettext("Sorry, we're closed right now."))}
+
+      {:error, :ordering_paused} ->
+        {:noreply,
+         checkout_failed(
+           socket,
+           gettext("Ordering is paused right now — please check back shortly.")
+         )}
+
+      {:error, :empty_cart} ->
+        {:noreply, checkout_failed(socket, gettext("Your cart is empty."))}
+
+      {:error, :too_many_active_orders} ->
+        {:noreply,
+         checkout_failed(
+           socket,
+           gettext("You already have several active orders — please wait for one to finish.")
+         )}
+
+      {:error, :items_changed} ->
+        {:noreply,
+         socket
+         |> reload_cart()
+         |> checkout_failed(
+           gettext("Some items changed — please review your cart and try again.")
+         )}
+
+      {:error, :sold_out} ->
+        {:noreply,
+         socket
+         |> reload_cart()
+         |> assign(:menu, Catalog.list_public_menu(scope))
+         |> assign(:daily_limits, Catalog.list_daily_limits(scope))
+         |> checkout_failed(gettext("Sorry, an item just sold out — please review your cart."))}
+
+      {:error, %Ecto.Changeset{}} ->
+        {:noreply, checkout_failed(socket, gettext("Something went wrong — please try again."))}
+    end
   end
 
   def handle_event("set_kind", %{"kind" => kind}, socket) do
@@ -741,6 +814,8 @@ defmodule TabletapWeb.Public.MenuLive do
   defp normalize_notes(notes), do: notes
 
   ## Cart sheet — private helpers
+
+  defp checkout_failed(socket, message), do: assign(socket, :checkout_error, message)
 
   # Graceful no-op on a stale/forged line id (never in the guest's own
   # already-scoped cart) rather than a crash.
