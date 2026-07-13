@@ -122,7 +122,11 @@ config :tabletap, Oban,
        {"0 * * * *", Tabletap.Ordering.Workers.SweepAbandonedCarts},
        # Every 2 minutes keeps the worst-case "falsely sold out" window
        # close to the nominal 12-minute hold TTL (design-qa.md Q1).
-       {"*/2 * * * *", Tabletap.Ordering.Workers.SweepExpiredHolds}
+       {"*/2 * * * *", Tabletap.Ordering.Workers.SweepExpiredHolds},
+       # Every minute — closest practical granularity to the ~30s target
+       # (build-plan.md Feature 09); WaafiPay callbacks aren't retried, so
+       # this poll is the guaranteed confirmation path, not a fallback.
+       {"* * * * *", Tabletap.Payments.Workers.ReconcilePendingPayments}
      ]}
   ]
 
@@ -147,6 +151,12 @@ config :tabletap, Tabletap.Vault,
   ciphers: [
     default: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: nil}
   ]
+
+# Payments.Provider adapter selection (mirrors Tabletap.Storage's
+# adapter-swap pattern) — real WaafiPay adapter everywhere except test,
+# where test.exs swaps in Tabletap.Payments.ProviderMock (Mox;
+# code-standards.md: no test ever hits a real provider API).
+config :tabletap, Tabletap.Payments, provider: Tabletap.Payments.Adapters.WaafiPay
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

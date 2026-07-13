@@ -209,7 +209,12 @@ if config_env() == :prod do
     api_url: System.fetch_env!("WAAFIPAY_API_URL"),
     platform_merchant_uid: System.fetch_env!("WAAFIPAY_PLATFORM_MERCHANT_UID"),
     platform_api_user_id: System.fetch_env!("WAAFIPAY_PLATFORM_API_USER_ID"),
-    platform_api_key: System.fetch_env!("WAAFIPAY_PLATFORM_API_KEY")
+    platform_api_key: System.fetch_env!("WAAFIPAY_PLATFORM_API_KEY"),
+    # Signs every venue's inbound `authorization`/`refund` callback
+    # (library-docs.md) — forced via env, same reasoning as api_url:
+    # never trust a guessed/shared default for something that
+    # authenticates money-moving webhooks.
+    webhook_secret: System.fetch_env!("WAAFIPAY_WEBHOOK_SECRET")
 
   # Real transactional email provider — magic-link auth depends on
   # deliverability (design-qa.md Q47). Swap the adapter below for

@@ -58,6 +58,27 @@ defmodule Tabletap.TenantsFixtures do
     venue
   end
 
+  @doc """
+  Marks a venue as payment-ready — bypasses the real onboarding flow
+  (Manager.PaymentSettingsLive + a real `Payments.verify_credentials/2`
+  round-trip) for tests that only care about what happens once a venue
+  *is* live, not how it got there.
+  """
+  def charges_enabled_venue_fixture(%Venue{} = venue) do
+    {:ok, venue} =
+      venue
+      |> Ecto.Changeset.change(
+        payment_provider: :waafipay,
+        charges_enabled: true,
+        waafipay_merchant_uid: "test-merchant-uid",
+        waafipay_api_user_id: "test-api-user-id",
+        waafipay_api_key: "test-api-key"
+      )
+      |> Repo.update()
+
+    venue
+  end
+
   @doc "Creates a table in a scope's venue via `Tenants.create_table/2`."
   def table_fixture(%Scope{} = scope, attrs \\ %{}) do
     {:ok, table} =

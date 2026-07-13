@@ -21,7 +21,7 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
   use TabletapWeb, :live_view
 
   alias Tabletap.Accounts.Scope
-  alias Tabletap.{Ordering, Repo, Tenants}
+  alias Tabletap.{Ordering, Payments, Repo, Tenants}
   alias Tabletap.Ordering.Order
 
   @step_order [:placed, :accepted, :preparing, :ready, :served]
@@ -54,7 +54,7 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
         class="rounded-box bg-base-100 border border-base-300 p-6 text-center space-y-2"
       >
         <.icon name="hero-x-circle" class="size-8 mx-auto text-error" />
-        <p class="font-medium">{terminal_message(@order.status)}</p>
+        <p class="font-medium">{terminal_message(@order, @latest_payment)}</p>
       </div>
 
       <.status_timeline
@@ -174,6 +174,7 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
          |> assign(:current_scope, scope)
          |> assign(:order, order)
          |> assign(:eta_minutes, Ordering.estimated_minutes(scope, order))
+         |> assign(:latest_payment, Payments.get_latest_payment_for_order(scope, order.id))
          |> assign(:terminal_non_timeline_status, @terminal_non_timeline)}
     end
   end
@@ -186,7 +187,8 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
     {:noreply,
      socket
      |> assign(:order, order)
-     |> assign(:eta_minutes, Ordering.estimated_minutes(scope, order))}
+     |> assign(:eta_minutes, Ordering.estimated_minutes(scope, order))
+     |> assign(:latest_payment, Payments.get_latest_payment_for_order(scope, order.id))}
   end
 
   defp step_state(step, current_status) do
@@ -218,7 +220,20 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
   defp step_bg_class(:ready), do: "bg-success"
   defp step_bg_class(:served), do: "bg-status-served"
 
-  defp terminal_message(:cancelled), do: gettext("This order was cancelled.")
-  defp terminal_message(:expired), do: gettext("This order expired before payment was confirmed.")
-  defp terminal_message(:refunded), do: gettext("This order was refunded.")
+  # Q21 late-success resurrection: the order expired, but a payment for
+  # it still ended up refunded — meaning it *was* briefly charged before
+  # the sold-out re-reservation failed. That's a materially different
+  # story for the customer than a plain never-charged expiry.
+  defp terminal_message(%Order{status: :expired}, %{status: :refunded}) do
+    gettext("Sorry — this item sold out while your payment was confirming. You've been refunded.")
+  end
+
+  defp terminal_message(%Order{status: :cancelled}, _payment),
+    do: gettext("This order was cancelled.")
+
+  defp terminal_message(%Order{status: :expired}, _payment),
+    do: gettext("This order expired before payment was confirmed.")
+
+  defp terminal_message(%Order{status: :refunded}, _payment),
+    do: gettext("This order was refunded.")
 end

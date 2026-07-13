@@ -42,6 +42,16 @@ defmodule TabletapWeb.Router do
     get "/", PageController, :home
   end
 
+  # WaafiPay's server posts here directly (build-plan.md Feature 09) — no
+  # CSRF token, no session, no cookies exist on that request, so this
+  # deliberately uses :api (`:accepts, ["json"]` only), never :browser
+  # (whose `protect_from_forgery` would reject every real callback).
+  scope "/webhooks", TabletapWeb do
+    pipe_through :api
+
+    post "/waafipay", Public.WaafiPayWebhookController, :create
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", TabletapWeb do
   #   pipe_through :api
@@ -87,6 +97,18 @@ defmodule TabletapWeb.Router do
       live "/menu/modifiers", Manager.ModifiersLive, :index
       live "/tables", Manager.TablesLive, :index
       live "/tables/print", Manager.TablePrintLive, :index
+    end
+
+    # role-features.md: "Payment account" is Owner back-office, not
+    # Manager — a separate live_session so a manager (no :owner role)
+    # gets the same deny-by-default redirect ScopeHooks already gives
+    # every other role-gated page, not just a hidden nav link.
+    live_session :owner,
+      on_mount: [
+        {TabletapWeb.UserAuth, :require_authenticated},
+        {TabletapWeb.ScopeHooks, :require_owner}
+      ] do
+      live "/settings/payments", Manager.PaymentSettingsLive, :show
     end
 
     post "/venues/switch", VenueController, :switch

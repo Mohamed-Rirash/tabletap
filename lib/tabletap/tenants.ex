@@ -279,6 +279,22 @@ defmodule Tabletap.Tenants do
     )
   end
 
+  @doc """
+  Resolves a payment by id with no scope — the pre-scope entry point for
+  the WaafiPay webhook controller (build-plan.md Feature 09), which
+  receives a callback identified only by the `requestId` WaafiPay echoes
+  back (our own `payment.id`, sent at charge time — library-docs.md).
+  Same narrow `skip_org_id: true` exception as `get_order_by_guest_token/1`
+  for the identical reason: no scope exists yet to enforce. The caller
+  calls `Repo.put_org_id/1` off the preloaded order's `org_id` afterward.
+  """
+  def get_payment_by_id(payment_id) do
+    Repo.one(
+      from(p in Tabletap.Payments.Payment, where: p.id == ^payment_id, preload: :order),
+      skip_org_id: true
+    )
+  end
+
   ## Venues (tenant-scoped — relies on Repo.put_org_id already being set)
 
   @doc "Lists the current org's active venues, for the venue switcher."
@@ -424,6 +440,21 @@ defmodule Tabletap.Tenants do
       [_hour, _minute] -> Time.from_iso8601!(time_string <> ":00")
       _full -> Time.from_iso8601!(time_string)
     end
+  end
+
+  ## Payment credentials (build-plan.md Feature 09, design-qa.md Q57/Q58)
+  ## — `venues` is this context's table; `Payments` reads
+  ## `scope.venue.waafipay_*`/`charges_enabled` directly off the
+  ## already-loaded struct, same read-through-scope pattern as Busy Mode.
+
+  @doc "Saves (or replaces) the venue's WaafiPay merchant credentials — always unverified until `mark_charges_enabled/2` runs."
+  def update_waafipay_credentials(%Scope{}, %Venue{} = venue, attrs) do
+    venue |> Venue.waafipay_credentials_changeset(attrs) |> Repo.update()
+  end
+
+  @doc "Flips `charges_enabled` true — only `Payments.verify_credentials/2`, after a real successful lookup, should call this."
+  def mark_charges_enabled(%Venue{} = venue) do
+    venue |> Venue.verified_changeset() |> Repo.update()
   end
 
   ## Staff invites (tenant-scoped creation; token lookup/acceptance are

@@ -79,7 +79,11 @@ defmodule TabletapWeb.Layouts do
   """
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_scope, :map, required: true
-  attr :active_nav, :atom, required: true, doc: ":dashboard, :menu, :modifiers, or :tables"
+
+  attr :active_nav, :atom,
+    required: true,
+    doc: ":dashboard, :menu, :modifiers, :tables, or :payments"
+
   attr :venues, :list, default: []
 
   slot :inner_block, required: true
@@ -164,6 +168,14 @@ defmodule TabletapWeb.Layouts do
           <p class="px-2 text-xs font-semibold uppercase tracking-wide text-base-content/50 mt-4 mb-1">
             {gettext("Others")}
           </p>
+          <.manager_nav_link
+            :if={@current_scope.role == :owner}
+            navigate={~p"/settings/payments"}
+            icon="hero-credit-card"
+            active={@active_nav == :payments}
+          >
+            {gettext("Payment account")}
+          </.manager_nav_link>
           <.manager_nav_link navigate={~p"/users/settings"} icon="hero-cog-6-tooth" active={false}>
             {gettext("Settings")}
           </.manager_nav_link>

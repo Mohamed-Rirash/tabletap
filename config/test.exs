@@ -66,3 +66,13 @@ config :tabletap, Tabletap.Vault,
       {Cloak.Ciphers.AES.GCM,
        tag: "AES.GCM.V1", key: Base.decode64!("5GcxCAF62/hDzxUOn9Q8I2I/4Uwz9XIv24zXFMDLoSQ=")}
   ]
+
+# No test ever calls the real WaafiPay adapter (code-standards.md —
+# Tabletap.Payments.ProviderMock stands in via Mox, config.exs). This
+# fixed value only backs the adapter's own HMAC unit tests, which need a
+# known, stable secret to sign fixture payloads against.
+config :tabletap, :waafipay,
+  api_url: "https://sandbox.waafipay.example/asm",
+  webhook_secret: "test-webhook-secret"
+
+config :tabletap, Tabletap.Payments, provider: Tabletap.Payments.ProviderMock

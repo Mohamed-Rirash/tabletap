@@ -9,6 +9,7 @@ defmodule TabletapWeb.Public.OrderTrackerLiveTest do
   """
   use TabletapWeb.ConnCase, async: true
 
+  import Mox
   import Phoenix.LiveViewTest
   import Tabletap.TenantsFixtures
 
@@ -16,7 +17,11 @@ defmodule TabletapWeb.Public.OrderTrackerLiveTest do
   alias Tabletap.Catalog
   alias Tabletap.Ordering
   alias Tabletap.Ordering.{Cart, OrderStateMachine}
+  alias Tabletap.Payments
+  alias Tabletap.Payments.ProviderMock
   alias Tabletap.Repo
+
+  setup :verify_on_exit!
 
   setup do
     %{org: org, venue: venue} = org_fixture()
@@ -128,5 +133,31 @@ defmodule TabletapWeb.Public.OrderTrackerLiveTest do
     {:ok, _lv, html} = live(conn, ~p"/orders/#{order.guest_token}")
 
     assert html =~ "expired"
+  end
+
+  test "an expired order that was charged then auto-refunded (Q21) shows the sold-out-refunded message, not the plain expiry one",
+       %{conn: conn, scope: scope, venue: venue, item: item} do
+    venue = charges_enabled_venue_fixture(venue)
+    scope = %{scope | venue: venue}
+
+    {:ok, _} = Catalog.set_daily_limit(scope, item, 1)
+    order = checked_out_order(scope, item)
+    {:ok, payment} = Payments.charge_order(scope, order, "252611111111")
+    {:ok, _} = OrderStateMachine.transition(scope, order, :expired)
+
+    # A different guest takes the last portion in the interim, so the
+    # late-arriving APPROVED confirmation can't be fulfilled.
+    _other_order = checked_out_order(scope, item)
+
+    expect(ProviderMock, :refund, fn _creds, _txn, _amount ->
+      {:ok, %{provider_refund_id: "r1"}}
+    end)
+
+    assert {:ok, :refunded} = Payments.confirm_approved(payment.id, "late-txn")
+
+    {:ok, _lv, html} = live(conn, ~p"/orders/#{order.guest_token}")
+
+    assert html =~ "sold out while your payment was confirming"
+    refute html =~ "expired before payment was confirmed"
   end
 end

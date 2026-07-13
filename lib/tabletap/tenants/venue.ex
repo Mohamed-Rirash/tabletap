@@ -1,15 +1,18 @@
 defmodule Tabletap.Tenants.Venue do
   @moduledoc """
   One restaurant/café location (architecture.md "Data Model"). Only the
-  identity/regional fields land in Feature 03 — payment credentials
-  (Feature 09) and pickup timeout (Feature 10/11) get added by the
-  features that need them, each in its own migration, rather than
-  speculatively created here. Busy Mode fields land in Feature 08
-  (design-qa.md Q2), since checkout is the first real caller.
+  identity/regional fields land in Feature 03 — pickup timeout (Feature
+  10/11) gets added by the feature that needs it, in its own migration,
+  rather than speculatively created here. Busy Mode fields land in
+  Feature 08 (design-qa.md Q2). Payment fields land in Feature 09
+  (design-qa.md Q57/Q58): `charges_enabled` only flips true after
+  `Payments.verify_credentials/2` succeeds — never trust a pasted-in
+  credential until it's actually been checked against WaafiPay.
   """
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Tabletap.Encrypted
   alias Tabletap.Tenants.Slug
 
   # "Pause until reopened" (Q2) uses this far-future sentinel instead of a
@@ -33,6 +36,14 @@ defmodule Tabletap.Tenants.Venue do
     field :eta_inflation_factor, :decimal, default: Decimal.new(1)
     field :opening_hours, :map
     field :archived_at, :utc_datetime
+
+    field :payment_provider, Ecto.Enum, values: [:waafipay, :edahab, :chapa, :stripe]
+    field :charges_enabled, :boolean, default: false
+    field :waafipay_merchant_uid, Encrypted.Binary
+    field :waafipay_api_user_id, Encrypted.Binary
+    field :waafipay_api_key, Encrypted.Binary
+    field :waafipay_store_id, Encrypted.Binary
+    field :waafipay_hpp_key, Encrypted.Binary
 
     has_many :memberships, Tabletap.Tenants.Membership
 
@@ -85,4 +96,35 @@ defmodule Tabletap.Tenants.Venue do
   def paused?(%__MODULE__{ordering_paused_until: until}) do
     DateTime.compare(until, DateTime.utc_now()) == :gt
   end
+
+  @doc """
+  The manager pastes WaafiPay merchant credentials in at onboarding
+  (build-plan.md Feature 09). Saving new credentials always resets
+  `charges_enabled` to `false` — a changed credential is unverified
+  until `Payments.verify_credentials/2` proves it works again; never
+  keep trusting the old verification against new, unchecked values.
+  `store_id`/`hpp_key` are optional (only needed for the HPP path, not
+  the direct API_PURCHASE flow this feature builds).
+  """
+  def waafipay_credentials_changeset(venue, attrs) do
+    venue
+    |> cast(attrs, [
+      :waafipay_merchant_uid,
+      :waafipay_api_user_id,
+      :waafipay_api_key,
+      :waafipay_store_id,
+      :waafipay_hpp_key
+    ])
+    |> validate_required([:waafipay_merchant_uid, :waafipay_api_user_id, :waafipay_api_key])
+    |> put_change(:payment_provider, :waafipay)
+    |> put_change(:charges_enabled, false)
+  end
+
+  def verified_changeset(venue) do
+    change(venue, charges_enabled: true)
+  end
+
+  @doc "Whether `venue` has WaafiPay credentials on file at all (verified or not)."
+  def waafipay_credentials?(%__MODULE__{waafipay_merchant_uid: nil}), do: false
+  def waafipay_credentials?(%__MODULE__{}), do: true
 end

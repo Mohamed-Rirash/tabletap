@@ -13,6 +13,12 @@ defmodule Tabletap.Ordering.OrderStateMachine do
         ▼                ▼            ▼      (undo)         └──────(undo)
      expired         cancelled    refunded  refunded       refunded
      cancelled
+        │
+        └──► placed  (late-success resurrection, design-qa.md Q21 — a
+                       WaafiPay charge confirms APPROVED after the
+                       12-min sweep already expired the order; legal
+                       only once `Ordering.reserve_holds_for_order/1`
+                       has re-reserved the stock the sweep released)
   ```
 
   `served` is irreversible (Q25) — no transition leads back out of it
@@ -31,12 +37,14 @@ defmodule Tabletap.Ordering.OrderStateMachine do
   something upstream is wrong, not a normal user error to hand back as
   `{:error, _}`.
 
-  Only three transitions touch `daily_item_limits` (Q1's hold
-  mechanics) — `pending_payment → placed` converts the hold
-  (`reserved_qty -= n, sold_qty += n`), `pending_payment → expired` and
-  `pending_payment → cancelled` release it (`reserved_qty -= n`).
-  Everything past `pending_payment` has already resolved its stock
-  question and never touches limits again.
+  Only four transitions touch `daily_item_limits` (Q1's hold mechanics)
+  — `pending_payment → placed` and `expired → placed` (resurrection)
+  both convert a hold (`reserved_qty -= n, sold_qty += n`; resurrection's
+  hold was put back by `Ordering.reserve_holds_for_order/1` just before
+  this call, so the same conversion applies), `pending_payment →
+  expired` and `pending_payment → cancelled` release one
+  (`reserved_qty -= n`). Everything past `pending_payment`/`expired` has
+  already resolved its stock question and never touches limits again.
   """
 
   import Ecto.Query, warn: false
@@ -54,7 +62,7 @@ defmodule Tabletap.Ordering.OrderStateMachine do
     ready: [:served, :preparing, :refunded],
     served: [:closed, :refunded],
     closed: [:refunded],
-    expired: [],
+    expired: [:placed],
     cancelled: [],
     refunded: []
   }
@@ -121,10 +129,15 @@ defmodule Tabletap.Ordering.OrderStateMachine do
   defp timestamp_field(:closed), do: :closed_at
   defp timestamp_field(_status), do: nil
 
-  ## Daily-limit hold settlement (design-qa.md Q1) — only the three
-  ## transitions out of pending_payment touch reserved_qty/sold_qty.
+  ## Daily-limit hold settlement (design-qa.md Q1) — only four
+  ## transitions touch reserved_qty/sold_qty.
 
-  defp settle_holds(order, :pending_payment, :placed), do: convert_holds(order)
+  # :expired here is the Q21 resurrection path — the caller has already
+  # called Ordering.reserve_holds_for_order/1 to put the hold back, so
+  # this is the exact same reserved->sold conversion as the normal
+  # pending_payment case.
+  defp settle_holds(order, from, :placed) when from in [:pending_payment, :expired],
+    do: convert_holds(order)
 
   defp settle_holds(order, :pending_payment, to) when to in [:expired, :cancelled],
     do: release_holds(order)

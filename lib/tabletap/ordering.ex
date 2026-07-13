@@ -321,9 +321,11 @@ defmodule Tabletap.Ordering do
     business_date = Tenants.business_date(venue)
     totals = Totals.compute(cart.items, venue.currency)
 
+    lines = Enum.map(cart.items, &{&1.menu_item.id, &1.qty})
+
     Ecto.Multi.new()
     |> Ecto.Multi.run(:holds, fn _repo, _changes ->
-      reserve_all_holds(cart.items, venue.id, business_date)
+      reserve_holds(lines, venue.id, business_date)
     end)
     |> Ecto.Multi.run(:number, fn _repo, _changes ->
       reserve_order_number(org.id, venue.id, business_date)
@@ -352,13 +354,28 @@ defmodule Tabletap.Ordering do
     end
   end
 
+  @doc """
+  Atomically re-reserves daily-limit stock for every line on an already-
+  snapshotted `order` — the late-success resurrection path (Payments
+  context, design-qa.md Q21): a charge confirms APPROVED after the
+  12-minute sweep already expired the order and released its original
+  hold. `{:error, :sold_out}` means a different order took the last
+  portion in the interim; the caller (Payments) decides refund from
+  there — this function never charges or refunds anything itself.
+  """
+  def reserve_holds_for_order(%Order{} = order) do
+    order = Repo.preload(order, :items)
+    lines = Enum.map(order.items, &{&1.menu_item_id, &1.qty})
+    reserve_holds(lines, order.venue_id, order.business_date)
+  end
+
   # Atomic per line — a zero-row match means either "sold out" (a limit
   # row exists but had insufficient remaining) or "unlimited" (no limit
   # row at all, nothing to reserve); only the failure path pays for the
   # extra existence check to tell the two apart (design-qa.md Q1).
-  defp reserve_all_holds(cart_items, venue_id, business_date) do
-    Enum.reduce_while(cart_items, {:ok, :held}, fn cart_item, {:ok, _} ->
-      case reserve_hold(cart_item.menu_item.id, cart_item.qty, venue_id, business_date) do
+  defp reserve_holds(lines, venue_id, business_date) do
+    Enum.reduce_while(lines, {:ok, :held}, fn {item_id, qty}, {:ok, _} ->
+      case reserve_hold(item_id, qty, venue_id, business_date) do
         :ok -> {:cont, {:ok, :held}}
         {:error, reason} -> {:halt, {:error, reason}}
       end

@@ -50,7 +50,10 @@ defmodule TabletapWeb.Endpoint do
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
-    json_decoder: Phoenix.json_library()
+    json_decoder: Phoenix.json_library(),
+    # Only the WaafiPay webhook route reads conn.assigns.raw_body — every
+    # other route's conn.params is unaffected (TabletapWeb.CacheBodyReader).
+    body_reader: {TabletapWeb.CacheBodyReader, :read_body, []}
 
   plug Plug.MethodOverride
   plug Plug.Head

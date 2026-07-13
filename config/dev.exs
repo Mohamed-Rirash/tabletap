@@ -108,3 +108,12 @@ config :tabletap, Tabletap.Vault,
       {Cloak.Ciphers.AES.GCM,
        tag: "AES.GCM.V1", key: Base.decode64!("5GcxCAF62/hDzxUOn9Q8I2I/4Uwz9XIv24zXFMDLoSQ=")}
   ]
+
+# WaafiPay sandbox — dev-only default (safe to hardcode, it's the
+# documented sandbox host, never production — runtime.exs forces a real
+# env var for that). A real sandbox merchant account still has to be
+# entered per-venue via Manager.PaymentSettingsLive to actually charge
+# anything; this alone just lets the adapter boot.
+config :tabletap, :waafipay,
+  api_url: "https://sandbox.waafipay.com/asm",
+  webhook_secret: "dev-only-not-a-real-secret"

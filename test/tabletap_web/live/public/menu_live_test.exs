@@ -1,5 +1,6 @@
 defmodule TabletapWeb.Public.MenuLiveTest do
   use TabletapWeb.ConnCase, async: true
+  use Oban.Testing, repo: Tabletap.ObanRepo
 
   import Ecto.Query
   import Phoenix.LiveViewTest
@@ -37,6 +38,12 @@ defmodule TabletapWeb.Public.MenuLiveTest do
   defp attach_fixture(scope, item, group) do
     {:ok, _} = Catalog.attach_group_to_item(scope, item, group)
     :ok
+  end
+
+  defp add_item_and_open_cart(lv, item) do
+    lv |> element("#item-#{item.id}") |> render_click()
+    lv |> element("#add-to-cart-form") |> render_submit(%{"notes" => ""})
+    lv |> element("button[phx-click='open_cart']") |> render_click()
   end
 
   test "redirects to / for an unknown slug", %{conn: conn} do
@@ -652,6 +659,67 @@ defmodule TabletapWeb.Public.MenuLiveTest do
       refute has_element?(lv_a, "#cart-line-#{line_b.id}")
       assert has_element?(lv_b, "#cart-line-#{line_b.id} p", "Fries")
       refute has_element?(lv_b, "#cart-line-#{line_a.id}")
+    end
+  end
+
+  describe "checkout (build-plan.md Feature 09)" do
+    test "shows the honest not-set-up message instead of a payment form when the venue has no charges_enabled",
+         %{conn: conn, venue: venue, item: item} do
+      {:ok, lv, _html} = live(conn, ~p"/venues/#{venue.slug}/menu")
+      html = add_item_and_open_cart(lv, item)
+
+      # Apostrophe is HTML-escaped by HEEx ("isn&#39;t") — match the rest.
+      assert html =~ "set up to accept online payments yet"
+      refute has_element?(lv, "#checkout-form")
+    end
+
+    test "shows the wallet-number checkout form once the venue can accept payments", %{
+      conn: conn,
+      venue: venue,
+      item: item
+    } do
+      venue = charges_enabled_venue_fixture(venue)
+      {:ok, lv, _html} = live(conn, ~p"/venues/#{venue.slug}/menu")
+      add_item_and_open_cart(lv, item)
+
+      assert has_element?(lv, "#checkout-form")
+      assert has_element?(lv, "#wallet_msisdn")
+    end
+
+    test "placing an order creates a pending payment and redirects to the tracker", %{
+      conn: conn,
+      venue: venue,
+      scope: scope,
+      item: item
+    } do
+      venue = charges_enabled_venue_fixture(venue)
+      {:ok, lv, _html} = live(conn, ~p"/venues/#{venue.slug}/menu")
+      add_item_and_open_cart(lv, item)
+
+      assert {:error, {:live_redirect, %{to: to}}} =
+               lv
+               |> element("#checkout-form")
+               |> render_submit(%{"wallet_msisdn" => "252611111111"})
+
+      assert to =~ "/orders/"
+
+      cart = only_active_cart(%{scope | venue: venue})
+      assert cart == nil
+
+      payment =
+        Repo.one(
+          from(p in Tabletap.Payments.Payment,
+            where: p.venue_id == ^venue.id,
+            order_by: [desc: p.inserted_at]
+          )
+        )
+
+      assert payment.status == :pending
+
+      assert_enqueued(
+        worker: Tabletap.Payments.Workers.ChargeOrder,
+        args: %{"payment_id" => payment.id}
+      )
     end
   end
 

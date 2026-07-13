@@ -105,9 +105,15 @@ defmodule Tabletap.Ordering.OrderStateMachineTest do
       assert OrderStateMachine.legal_transitions(:ready) == [:served, :preparing, :refunded]
       assert OrderStateMachine.legal_transitions(:served) == [:closed, :refunded]
       assert OrderStateMachine.legal_transitions(:closed) == [:refunded]
-      assert OrderStateMachine.legal_transitions(:expired) == []
+      assert OrderStateMachine.legal_transitions(:expired) == [:placed]
       assert OrderStateMachine.legal_transitions(:cancelled) == []
       assert OrderStateMachine.legal_transitions(:refunded) == []
+    end
+
+    test "expired -> placed is the Q21 late-success resurrection path, not un-expiring" do
+      assert OrderStateMachine.legal?(:expired, :placed)
+      refute OrderStateMachine.legal?(:expired, :accepted)
+      refute OrderStateMachine.legal?(:expired, :cancelled)
     end
 
     test "served is irreversible — no path back to ready" do
@@ -138,9 +144,12 @@ defmodule Tabletap.Ordering.OrderStateMachineTest do
       assert_raise ArgumentError, fn -> OrderStateMachine.transition(scope, order, :preparing) end
     end
 
-    test "no such thing as un-expiring", %{scope: scope, item: item} do
+    test "an expired order can only resurrect to placed (Q21), nothing else", %{
+      scope: scope,
+      item: item
+    } do
       order = order_fixture(scope, :expired, item)
-      assert_raise ArgumentError, fn -> OrderStateMachine.transition(scope, order, :placed) end
+      assert_raise ArgumentError, fn -> OrderStateMachine.transition(scope, order, :accepted) end
     end
   end
 
@@ -172,6 +181,36 @@ defmodule Tabletap.Ordering.OrderStateMachineTest do
       order = order_fixture(scope, :pending_payment, item, 2)
       assert {:ok, updated} = OrderStateMachine.transition(scope, order, :placed)
       assert updated.status == :placed
+    end
+  end
+
+  describe "transition/3 — expired -> placed resurrection converts the hold same as pending_payment (Q21)" do
+    test "reserved_qty moves to sold_qty exactly like the normal path, once the hold is put back",
+         %{
+           scope: scope,
+           item: item
+         } do
+      {:ok, _} = Catalog.set_daily_limit(scope, item, 10)
+      business_date = Tabletap.Tenants.business_date(scope.venue)
+
+      order = order_fixture(scope, :expired, item, 3)
+      # order_fixture's own pending_payment -> expired step already
+      # released a hold that (unlike a real checkout) was never actually
+      # reserved, leaving reserved_qty negative — a fixture artifact, not
+      # real behavior. `set:`, not `inc:`, to land on exactly what
+      # Ordering.reserve_holds_for_order/1 would have produced: reserved_qty
+      # back at 3, as if the hold had just been put back for real.
+      Repo.update_all(from(l in Catalog.DailyItemLimit, where: l.item_id == ^item.id),
+        set: [reserved_qty: 3]
+      )
+
+      assert {:ok, updated} = OrderStateMachine.transition(scope, order, :placed)
+      assert updated.status == :placed
+      assert updated.placed_at
+
+      limit = limit_row(scope, item, business_date)
+      assert limit.reserved_qty == 0
+      assert limit.sold_qty == 3
     end
   end
 
