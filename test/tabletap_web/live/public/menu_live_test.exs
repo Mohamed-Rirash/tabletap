@@ -6,7 +6,7 @@ defmodule TabletapWeb.Public.MenuLiveTest do
   import Tabletap.TenantsFixtures
 
   alias Tabletap.Accounts.Scope
-  alias Tabletap.{Catalog, Ordering, Repo}
+  alias Tabletap.{Catalog, Ordering, Repo, Tenants}
 
   setup do
     %{org: org, venue: venue} = org_fixture()
@@ -96,6 +96,58 @@ defmodule TabletapWeb.Public.MenuLiveTest do
     Phoenix.PubSub.broadcast(Tabletap.PubSub, "venue:#{venue.id}:menu", :menu_updated)
 
     refute render(lv) =~ item.name
+  end
+
+  describe "the honest paused/closed banner (design-qa.md Q2)" do
+    test "shows nothing when the venue is open and not paused", %{conn: conn, venue: venue} do
+      {:ok, _lv, html} = live(conn, ~p"/venues/#{venue.slug}/menu")
+
+      refute html =~ "Ordering paused"
+      refute html =~ "closed right now"
+    end
+
+    test "shows the paused banner when Busy Mode's Pause is active", %{
+      conn: conn,
+      venue: venue,
+      scope: scope
+    } do
+      {:ok, _} = Tenants.pause_ordering(scope, venue, 20)
+
+      {:ok, _lv, html} = live(conn, ~p"/venues/#{venue.slug}/menu")
+
+      assert html =~ "Ordering paused — please order at the counter"
+    end
+
+    test "shows the closed banner when outside configured opening hours", %{
+      conn: conn,
+      venue: venue
+    } do
+      hours =
+        for day <- ~w(monday tuesday wednesday thursday friday saturday sunday),
+            into: %{},
+            do: {day, []}
+
+      {:ok, venue} = venue |> Ecto.Changeset.change(opening_hours: hours) |> Repo.update()
+
+      {:ok, _lv, html} = live(conn, ~p"/venues/#{venue.slug}/menu")
+
+      # Apostrophe is HTML-escaped by HEEx ("We&#39;re") — match the rest.
+      assert html =~ "closed right now — please check back later."
+    end
+
+    test "the banner appears live when a manager pauses ordering mid-browse", %{
+      conn: conn,
+      venue: venue,
+      scope: scope
+    } do
+      {:ok, lv, html} = live(conn, ~p"/venues/#{venue.slug}/menu")
+      refute html =~ "Ordering paused"
+
+      {:ok, _} = Tenants.pause_ordering(scope, venue, 20)
+      Phoenix.PubSub.broadcast(Tabletap.PubSub, "venue:#{venue.id}:menu", :menu_updated)
+
+      assert render(lv) =~ "Ordering paused — please order at the counter"
+    end
   end
 
   test "shows the table number when reached via a scanned QR", %{

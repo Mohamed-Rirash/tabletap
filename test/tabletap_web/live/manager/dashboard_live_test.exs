@@ -72,6 +72,74 @@ defmodule TabletapWeb.Manager.DashboardLiveTest do
     end
   end
 
+  describe "Busy Mode (build-plan.md Feature 08, design-qa.md Q2)" do
+    setup :register_and_log_in_owner
+
+    test "shows Open with no pause controls resumed by default", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/dashboard")
+
+      assert html =~ "Open"
+      assert html =~ "Pause 20 min"
+      refute html =~ "Resume ordering"
+    end
+
+    test "pausing for 20 minutes flips to Paused and offers Resume instead", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/dashboard")
+
+      html =
+        lv |> element(~s([phx-click="pause_ordering"][phx-value-minutes="20"])) |> render_click()
+
+      assert html =~ "Paused"
+      assert html =~ "Resume ordering"
+      refute html =~ "Pause 20 min"
+    end
+
+    test "pausing until reopened shows the indefinite message, not a clock time", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/dashboard")
+
+      html =
+        lv
+        |> element(~s([phx-click="pause_ordering"][phx-value-minutes="indefinite"]))
+        |> render_click()
+
+      assert html =~ "Paused until you resume it."
+    end
+
+    test "resuming after a pause returns to Open", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/dashboard")
+      lv |> element(~s([phx-click="pause_ordering"][phx-value-minutes="20"])) |> render_click()
+
+      html = lv |> element(~s([phx-click="resume_ordering"])) |> render_click()
+
+      assert html =~ "Open"
+      refute html =~ "Resume ordering"
+    end
+
+    test "setting kitchen speed to Slower marks that button active, not Normal speed", %{
+      conn: conn
+    } do
+      {:ok, lv, html} = live(conn, ~p"/dashboard")
+      assert button_class(html, "1") =~ "btn-primary"
+
+      html =
+        lv
+        |> element(~s([phx-click="set_eta_inflation"][phx-value-factor="1.5"]))
+        |> render_click()
+
+      assert button_class(html, "1.5") =~ "btn-primary"
+      refute button_class(html, "1") =~ "btn-primary"
+    end
+
+    test "pausing broadcasts to the public menu's live-update topic", %{conn: conn, venue: venue} do
+      Phoenix.PubSub.subscribe(Tabletap.PubSub, "venue:#{venue.id}:menu")
+      {:ok, lv, _html} = live(conn, ~p"/dashboard")
+
+      lv |> element(~s([phx-click="pause_ordering"][phx-value-minutes="20"])) |> render_click()
+
+      assert_receive :menu_updated
+    end
+  end
+
   describe "switching venues" do
     setup :register_and_log_in_owner
 
@@ -99,5 +167,16 @@ defmodule TabletapWeb.Manager.DashboardLiveTest do
       assert redirected_to(conn) == ~p"/dashboard"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "isn't part of your organization"
     end
+  end
+
+  # No Floki dependency in this project — the eta-inflation buttons render
+  # in a fixed attribute order (phx-value-factor immediately before
+  # class), so a small regex is enough to pull one button's class list
+  # without a full HTML parser.
+  defp button_class(html, factor) do
+    [_, class] =
+      Regex.run(~r/phx-value-factor="#{Regex.escape(factor)}"[^>]*class="([^"]*)"/, html)
+
+    class
   end
 end

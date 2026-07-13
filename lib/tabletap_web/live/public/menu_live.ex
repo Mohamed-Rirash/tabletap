@@ -31,6 +31,7 @@ defmodule TabletapWeb.Public.MenuLive do
   alias Tabletap.Accounts.Scope
   alias Tabletap.{Catalog, Ordering, Repo, Tenants}
   alias Tabletap.Ordering.{Cart, CartItem}
+  alias Tabletap.Tenants.Venue
   alias TabletapWeb.GuestToken
 
   @impl true
@@ -53,6 +54,13 @@ defmodule TabletapWeb.Public.MenuLive do
       >
         {gettext("You have an active order →")}
       </.link>
+
+      <div
+        :if={@ordering_status != :open}
+        class="mb-4 rounded-box bg-warning/10 border border-warning/30 px-4 py-3 text-base-content text-sm font-medium"
+      >
+        {ordering_status_message(@ordering_status)}
+      </div>
 
       <.category_tabs menu={@menu} />
 
@@ -522,7 +530,8 @@ defmodule TabletapWeb.Public.MenuLive do
          |> assign(:selected_option_ids, MapSet.new())
          |> assign(:detail_qty, 1)
          |> assign(:detail_submit_attempted, false)
-         |> assign(:checkout_error, nil)}
+         |> assign(:checkout_error, nil)
+         |> assign(:ordering_status, ordering_status(venue))}
     end
   end
 
@@ -536,16 +545,39 @@ defmodule TabletapWeb.Public.MenuLive do
     end
   end
 
+  # design-qa.md Q2: "Menu shows an honest 'Ordering paused — please
+  # order at the counter' state instead of silently failing" — this is
+  # the proactive banner that decision calls for, distinct from (and in
+  # addition to) checkout/2's own reactive gate/error for a customer who
+  # already had a cart built before Busy Mode/hours changed.
+  defp ordering_status(venue) do
+    cond do
+      Venue.paused?(venue) -> :paused
+      not Tenants.venue_open?(venue) -> :closed
+      true -> :open
+    end
+  end
+
+  defp ordering_status_message(:paused),
+    do: gettext("Ordering paused — please order at the counter")
+
+  defp ordering_status_message(:closed),
+    do: gettext("We're closed right now — please check back later.")
+
   ## PubSub
 
   @impl true
   def handle_info(:menu_updated, socket) do
-    scope = socket.assigns.current_scope
+    venue = Tenants.get_venue_by_slug(socket.assigns.venue.slug)
+    scope = %{socket.assigns.current_scope | venue: venue}
 
     {:noreply,
      socket
+     |> assign(:venue, venue)
+     |> assign(:current_scope, scope)
      |> assign(:menu, Catalog.list_public_menu(scope))
-     |> assign(:daily_limits, Catalog.list_daily_limits(scope))}
+     |> assign(:daily_limits, Catalog.list_daily_limits(scope))
+     |> assign(:ordering_status, ordering_status(venue))}
   end
 
   ## Item detail sheet
