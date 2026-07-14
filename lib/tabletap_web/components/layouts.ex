@@ -82,7 +82,7 @@ defmodule TabletapWeb.Layouts do
 
   attr :active_nav, :atom,
     required: true,
-    doc: ":dashboard, :menu, :modifiers, :tables, or :payments"
+    doc: ":dashboard, :orders, :menu, :modifiers, :tables, or :payments"
 
   attr :venues, :list, default: []
 
@@ -142,9 +142,13 @@ defmodule TabletapWeb.Layouts do
           >
             {gettext("Dashboard")}
           </.manager_nav_link>
-          <.manager_nav_soon icon="hero-clipboard-document-list">
+          <.manager_nav_link
+            navigate={~p"/orders"}
+            icon="hero-clipboard-document-list"
+            active={@active_nav == :orders}
+          >
             {gettext("Orders")}
-          </.manager_nav_soon>
+          </.manager_nav_link>
           <.manager_nav_link
             navigate={~p"/tables"}
             icon="hero-table-cells"
@@ -205,6 +209,9 @@ defmodule TabletapWeb.Layouts do
           <div class="flex items-center gap-3 lg:hidden">
             <.link navigate={~p"/dashboard"} class={@active_nav == :dashboard && "font-semibold"}>
               {gettext("Dashboard")}
+            </.link>
+            <.link navigate={~p"/orders"} class={@active_nav == :orders && "font-semibold"}>
+              {gettext("Orders")}
             </.link>
             <.link navigate={~p"/menu"} class={@active_nav == :menu && "font-semibold"}>
               {gettext("Menu")}

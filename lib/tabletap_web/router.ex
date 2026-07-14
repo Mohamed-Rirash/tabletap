@@ -93,6 +93,7 @@ defmodule TabletapWeb.Router do
         {TabletapWeb.ScopeHooks, :require_manager}
       ] do
       live "/dashboard", Manager.DashboardLive, :show
+      live "/orders", Manager.OrdersLive, :index
       live "/menu", Manager.MenuLive, :index
       live "/menu/modifiers", Manager.ModifiersLive, :index
       live "/tables", Manager.TablesLive, :index

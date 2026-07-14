@@ -117,4 +117,14 @@ defmodule Tabletap.Ordering.Order do
   end
 
   def clear_flag_changeset(order), do: change(order, flag: nil, flagged_at: nil)
+
+  @doc """
+  Unserveable-order resolution (build-plan.md Feature 11, design-qa.md
+  Q9/Q10): the customer couldn't be found, so they'll collect this
+  themselves instead of waiting on a waiter delivery — clears the flag
+  and drops the assignment in the same write.
+  """
+  def convert_to_takeaway_changeset(order) do
+    change(order, kind: :takeaway, waiter_membership_id: nil, flag: nil, flagged_at: nil)
+  end
 end

@@ -60,6 +60,24 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
         <p class="font-medium">{terminal_message(@order, @latest_payment)}</p>
       </div>
 
+      <div
+        :if={@order.status == :served}
+        class="mb-6 rounded-box bg-success/10 border border-success/30 p-6 text-center space-y-2"
+      >
+        <.icon name="hero-check-badge" class="size-10 mx-auto text-success" />
+        <p class="font-semibold text-lg">{gettext("Order served — enjoy!")}</p>
+      </div>
+
+      <div
+        :if={@serve_qr_svg}
+        class="mb-6 rounded-box bg-base-100 border border-base-300 p-6 text-center space-y-2"
+      >
+        <p class="font-medium">{gettext("Show this to staff to collect your order")}</p>
+        <div class="w-40 mx-auto [&_svg]:w-full [&_svg]:h-auto">
+          {Phoenix.HTML.raw(@serve_qr_svg)}
+        </div>
+      </div>
+
       <.status_timeline
         :if={@order.status not in [:pending_payment | @terminal_non_timeline_status]}
         order={@order}
@@ -201,7 +219,8 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
          |> assign(:latest_payment, Payments.get_latest_payment_for_order(scope, order.id))
          |> assign(:terminal_non_timeline_status, @terminal_non_timeline)
          |> assign(:active_service_statuses, @active_service_statuses)
-         |> assign(:waiter_called, false)}
+         |> assign(:waiter_called, false)
+         |> assign(:serve_qr_svg, serve_qr_svg(scope, order))}
     end
   end
 
@@ -229,7 +248,8 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
      socket
      |> assign(:order, order)
      |> assign(:eta_minutes, Ordering.estimated_minutes(scope, order))
-     |> assign(:latest_payment, Payments.get_latest_payment_for_order(scope, order.id))}
+     |> assign(:latest_payment, Payments.get_latest_payment_for_order(scope, order.id))
+     |> assign(:serve_qr_svg, serve_qr_svg(scope, order))}
   end
 
   # Q46: pickup venues get "Ask at the counter", never a call button;
@@ -237,6 +257,31 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
   defp show_call_waiter?(venue, order) do
     venue.fulfillment_mode == :waiter and order.table_id != nil
   end
+
+  # build-plan.md Feature 11 (Q18): a takeaway order, or any order at a
+  # pickup-mode venue, has no table for staff to scan at serve time — the
+  # customer shows this instead. Whether that's the case is exactly what
+  # `Ordering.serve_token/2` already decided (its guest_token branch vs.
+  # its table-qr_token branch) — reusing it here keeps this in sync with
+  # what a scan is actually checked against, rather than re-deriving the
+  # same table_id/fulfillment_mode branching a second time. Encodes the
+  # raw token, not a URL — it's shown to be scanned, never navigated to.
+  defp serve_qr_svg(scope, %Order{status: :ready} = order) do
+    if Ordering.serve_token(scope, order) == order.guest_token do
+      {:ok, svg} =
+        order.guest_token
+        |> QRCode.create(:high)
+        |> QRCode.render(:svg, %QRCode.Render.SvgSettings{
+          qrcode_color: "#000000",
+          background_color: "#ffffff",
+          scale: 5
+        })
+
+      svg
+    end
+  end
+
+  defp serve_qr_svg(_scope, %Order{}), do: nil
 
   defp step_state(step, current_status) do
     step_index = Enum.find_index(@step_order, &(&1 == step))

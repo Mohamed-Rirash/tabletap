@@ -32,6 +32,9 @@ defmodule Tabletap.Tenants.Venue do
     field :locale, :string, default: "so"
     field :business_day_cutoff, :time, default: ~T[04:00:00]
     field :fulfillment_mode, Ecto.Enum, values: [:waiter, :pickup], default: :waiter
+    # Pickup-mode only (design-qa.md Q32) — minutes a `ready` order sits
+    # uncollected before the sweep flags it `not_picked_up`.
+    field :pickup_timeout_minutes, :integer, default: 15
     field :ordering_paused_until, :utc_datetime
     field :eta_inflation_factor, :decimal, default: Decimal.new(1)
     field :opening_hours, :map

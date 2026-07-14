@@ -99,6 +99,7 @@ defmodule Tabletap.Ordering.OrderStateMachine do
     Ecto.Multi.new()
     |> Ecto.Multi.run(:holds, fn _repo, _changes -> settle_holds(order, from, to) end)
     |> Ecto.Multi.update(:order, fn _changes -> build_changeset(order, from, to) end)
+    |> Ecto.Multi.run(:inventory, fn _repo, _changes -> deduct_stock(scope, order, to) end)
     |> Repo.transaction()
     |> case do
       {:ok, %{order: updated}} ->
@@ -123,6 +124,13 @@ defmodule Tabletap.Ordering.OrderStateMachine do
   end
 
   defp maybe_enqueue_assignment(_order, _to), do: :ok
+
+  # architecture.md "On served: Inventory.deduct_for_order/2 writes
+  # stock_movements per recipe line" — part of the same transaction as
+  # the status write, never a separate after-the-fact step, so a
+  # deduction failure rolls the `served` write back with it.
+  defp deduct_stock(scope, order, :served), do: Tabletap.Inventory.deduct_for_order(scope, order)
+  defp deduct_stock(_scope, _order, _to), do: {:ok, :not_served}
 
   defp build_changeset(order, :ready, :preparing) do
     # One-step-back undo (Q25) — the retracted state's timestamp goes

@@ -25,6 +25,7 @@ defmodule Tabletap.Ordering do
   alias Tabletap.Catalog.{DailyItemLimit, MenuItem}
   alias Tabletap.Ordering.{Cart, CartItem, CartItemOption, Order, OrderItem, OrderItemModifier}
   alias Tabletap.Ordering.{OrderNumberCounter, OrderStateMachine, Totals, WaiterCall}
+  alias Tabletap.Payments
   alias Tabletap.Repo
   alias Tabletap.Tenants
   alias Tabletap.Tenants.Venue
@@ -485,12 +486,12 @@ defmodule Tabletap.Ordering do
   @terminal_statuses [:closed, :expired, :cancelled, :refunded]
   @kitchen_queue_statuses [:placed, :accepted, :preparing]
 
-  @doc "A single order in the scope's venue, items/modifiers preloaded — `nil` for a cross-venue or unknown id (no Repo.get! on a guest-suppliable id)."
+  @doc "A single order in the scope's venue, table/items/modifiers preloaded — `nil` for a cross-venue or unknown id (no Repo.get! on a guest-suppliable id)."
   def get_order(%Scope{venue: venue}, id) do
     Repo.one(
       from(o in Order,
         where: o.id == ^id and o.venue_id == ^venue.id,
-        preload: [items: [:menu_item, :modifiers]]
+        preload: [:table, items: [:menu_item, :modifiers]]
       )
     )
   end
@@ -787,8 +788,20 @@ defmodule Tabletap.Ordering do
   the manager to resolve rather than letting it rot in `ready`. The
   status itself doesn't change; `flag` is the manager's work queue.
   """
-  def mark_unserveable(%Scope{venue: venue}, %Order{} = order) do
-    {:ok, order} = order |> Order.flag_changeset(:unserveable) |> Repo.update()
+  def mark_unserveable(%Scope{} = scope, %Order{} = order),
+    do: flag_order(scope, order, :unserveable)
+
+  @doc """
+  Pickup no-show sweep (build-plan.md Feature 11, design-qa.md Q32) —
+  flags a `ready` pickup-mode order that's sat uncollected past
+  `pickup_timeout_minutes`. Same shape as `mark_unserveable/2`: status
+  doesn't change, `flag` is the manager's work queue.
+  """
+  def mark_not_picked_up(%Scope{} = scope, %Order{} = order),
+    do: flag_order(scope, order, :not_picked_up)
+
+  defp flag_order(%Scope{venue: venue}, order, flag) do
+    {:ok, order} = order |> Order.flag_changeset(flag) |> Repo.update()
     Phoenix.PubSub.broadcast(Tabletap.PubSub, "venue:#{venue.id}:orders", :order_updated)
     {:ok, order}
   end
@@ -878,4 +891,171 @@ defmodule Tabletap.Ordering do
       {:ok, call}
     end
   end
+
+  ## Serve confirmation (build-plan.md Feature 11; design-qa.md Q18/Q19)
+
+  @doc """
+  Waiter/staff scan-confirm: the scanned QR value must match this
+  order's serve token — the table's printed `qr_token` for a dine-in
+  order, or the customer's own tracker-page QR (their `guest_token`) for
+  a takeaway order or any order at a pickup-mode venue, neither of which
+  has a table to scan (Q18). `order.table` must already be preloaded
+  when `order.table_id` is set — every real caller reaches this via
+  `list_waiter_queue/1` or `get_order/2`, which both preload it.
+
+  A mismatch is `{:error, :token_mismatch}`, not a crash — wrong table,
+  wrong customer, or a stale/reused QR are all ordinary user error, not
+  a bug (contrast `OrderStateMachine`'s illegal-transition raise).
+  """
+  def confirm_served_by_scan(%Scope{} = scope, %Order{status: :ready} = order, scanned_value) do
+    if serve_token(scope, order) == scanned_value do
+      OrderStateMachine.transition(scope, order, :served)
+    else
+      {:error, :token_mismatch}
+    end
+  end
+
+  def confirm_served_by_scan(%Scope{}, %Order{}, _scanned_value), do: {:error, :not_ready}
+
+  @doc """
+  The value a scan must match to serve `order` — public so the order
+  tracker can decide whether to render the "show this to staff" QR
+  without duplicating this branching (it must stay in sync with what
+  `confirm_served_by_scan/3` actually checks against): the customer's
+  own `guest_token` for a pickup-mode venue or a table-less (takeaway)
+  order, otherwise the order's table's `qr_token`.
+  """
+  def serve_token(%Scope{venue: %Venue{fulfillment_mode: :pickup}}, %Order{} = order),
+    do: order.guest_token
+
+  def serve_token(%Scope{}, %Order{table_id: nil} = order), do: order.guest_token
+  def serve_token(%Scope{}, %Order{table: %Tabletap.Tenants.Table{} = table}), do: table.qr_token
+
+  @doc """
+  Manager-only manual serve confirm (design-qa.md Q19) — the scan
+  fallback for a damaged table QR. Bypasses the token check entirely,
+  but is always attributed (`scope.role`) and telemetry-counted
+  separately from a normal scan-confirm, so habitual bypassing shows up
+  in the employee work report (Feature 18) rather than hiding inside the
+  ordinary serve numbers. Route-level `ScopeHooks.require_manager`
+  restricts who can ever reach this, same as every other manager-only
+  action in this codebase (code-standards.md — authorization lives at
+  the route, not re-checked per context function).
+
+  Also the shared "settle" step for the flag-resolution functions below
+  (`mark_collected/2`, `close_as_wasted/2`) — clearing any existing flag
+  in the same write is exactly what resolving it means.
+  """
+  def confirm_served_manually(%Scope{} = scope, %Order{status: :ready} = order) do
+    with {:ok, served} <- OrderStateMachine.transition(scope, order, :served) do
+      :telemetry.execute([:tabletap, :order, :serve_override], %{}, %{
+        order_id: served.id,
+        actor_role: scope.role
+      })
+
+      clear_flag_if_set(served)
+    end
+  end
+
+  def confirm_served_manually(%Scope{}, %Order{}), do: {:error, :not_ready}
+
+  defp clear_flag_if_set(%Order{flag: nil} = order), do: {:ok, order}
+  defp clear_flag_if_set(order), do: order |> Order.clear_flag_changeset() |> Repo.update()
+
+  @doc "Ready orders needing a serve confirm, oldest first — excludes already-flagged ones (they show up in `list_flagged_orders/1` instead)."
+  def list_ready_orders(%Scope{venue: venue}) do
+    Repo.all(
+      from(o in Order,
+        where: o.venue_id == ^venue.id and o.status == :ready and is_nil(o.flag),
+        order_by: [asc: o.ready_at],
+        preload: [:table, items: [:menu_item, :modifiers]]
+      )
+    )
+  end
+
+  @doc "Orders flagged for manager attention (`:unserveable`/`:not_picked_up`), oldest first."
+  def list_flagged_orders(%Scope{venue: venue}) do
+    Repo.all(
+      from(o in Order,
+        where: o.venue_id == ^venue.id and not is_nil(o.flag),
+        order_by: [asc: o.flagged_at],
+        preload: [:table, items: [:menu_item, :modifiers]]
+      )
+    )
+  end
+
+  ## Flag resolution (build-plan.md Feature 11; design-qa.md Q9/Q10/Q32) —
+  ## manager only (route-gated, same as confirm_served_manually/2 above).
+
+  @doc """
+  Refunds a flagged `ready` order in full and settles it as `:refunded`
+  — the resolution shared by both `:unserveable` (Q9/Q10 "refund or
+  convert to takeaway") and `:not_picked_up` (Q32 "refund / mark
+  collected / close + wastage"). A comp order (`payments.provider:
+  :comp`, Q30) never charged anything, so there's no money to move —
+  only the order settles.
+  """
+  def resolve_flag_refund(%Scope{} = scope, %Order{} = order, staff_user_id) do
+    case Payments.get_latest_payment_for_order(scope, order.id) do
+      nil -> {:error, :no_payment}
+      %{provider: :comp} -> settle_refunded(scope, order)
+      payment -> refund_and_settle(scope, order, payment, staff_user_id)
+    end
+  end
+
+  defp refund_and_settle(scope, order, payment, staff_user_id) do
+    with {:ok, _refund} <-
+           Payments.refund(scope, payment, payment.amount, refund_reason(order), staff_user_id) do
+      settle_refunded(scope, order)
+    end
+  end
+
+  defp settle_refunded(scope, order) do
+    with {:ok, order} <- OrderStateMachine.transition(scope, order, :refunded) do
+      order |> Order.clear_flag_changeset() |> Repo.update()
+    end
+  end
+
+  defp refund_reason(%Order{flag: :unserveable}),
+    do: "Customer could not be found (design-qa.md Q9)"
+
+  defp refund_reason(%Order{flag: :not_picked_up}),
+    do: "Order not collected (design-qa.md Q32)"
+
+  @doc """
+  Unserveable resolution (Q9/Q10): the customer will collect this
+  themselves — converts to a takeaway order (drops the waiter
+  assignment, clears the flag) rather than delivering it.
+  """
+  def convert_to_takeaway(%Scope{} = scope, %Order{flag: :unserveable} = order) do
+    order
+    |> Order.convert_to_takeaway_changeset()
+    |> Repo.update()
+    |> broadcast_order_updated(scope)
+  end
+
+  @doc "Pickup no-show resolution (Q32): the customer did collect it — staff just never scanned. Same effect as a normal serve confirm."
+  def mark_collected(%Scope{} = scope, %Order{flag: :not_picked_up} = order),
+    do: confirm_served_manually(scope, order)
+
+  @doc """
+  Pickup no-show resolution (Q32): the food was made but never
+  collected. `served` first (stock still deducts — it was cooked, same
+  comp-vs-void discipline `Q30` already established for made-but-unpaid
+  food) then straight to `closed`, no refund. A real wastage-ledger
+  attribution is Feature 13's job; this only settles the order honestly
+  in the meantime.
+  """
+  def close_as_wasted(%Scope{} = scope, %Order{flag: :not_picked_up} = order) do
+    with {:ok, served} <- confirm_served_manually(scope, order) do
+      OrderStateMachine.transition(scope, served, :closed)
+    end
+  end
+
+  defp broadcast_order_updated({:ok, _order} = result, %Scope{venue: venue}) do
+    Phoenix.PubSub.broadcast(Tabletap.PubSub, "venue:#{venue.id}:orders", :order_updated)
+    result
+  end
+
+  defp broadcast_order_updated(error, %Scope{}), do: error
 end

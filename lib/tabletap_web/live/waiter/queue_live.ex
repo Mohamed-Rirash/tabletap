@@ -110,7 +110,39 @@ defmodule TabletapWeb.Waiter.QueueLive do
           </p>
         </div>
       </div>
+
+      <.scan_modal :if={@scanning_order_id} />
     </Layouts.app>
+    """
+  end
+
+  defp scan_modal(assigns) do
+    ~H"""
+    <div class="fixed inset-0 z-50">
+      <div class="absolute inset-0 bg-black/80"></div>
+      <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 p-4">
+        <video
+          id="qr-scan-video"
+          phx-hook="QrScanner"
+          phx-update="ignore"
+          class="w-full max-w-sm aspect-square rounded-box bg-black object-cover"
+          muted
+          playsinline
+        ></video>
+        <p class="text-white text-sm text-center max-w-sm">
+          {gettext(
+            "Scan the table's QR code — for takeaway or pickup orders, scan the customer's tracker screen instead."
+          )}
+        </p>
+        <button
+          type="button"
+          phx-click="close_scan"
+          class="btn btn-outline btn-sm text-white border-white/40"
+        >
+          {gettext("Cancel")}
+        </button>
+      </div>
+    </div>
     """
   end
 
@@ -183,6 +215,15 @@ defmodule TabletapWeb.Waiter.QueueLive do
         <button
           :if={@board == :queue && @order.status == :ready && is_nil(@order.flag)}
           type="button"
+          phx-click="open_scan"
+          phx-value-id={@order.id}
+          class="btn btn-primary flex-1"
+        >
+          <.icon name="hero-qr-code" class="size-4" /> {gettext("Scan to serve")}
+        </button>
+        <button
+          :if={@board == :queue && @order.status == :ready && is_nil(@order.flag)}
+          type="button"
           phx-click="mark_unserveable"
           phx-value-id={@order.id}
           class="btn btn-ghost btn-sm text-error"
@@ -214,6 +255,7 @@ defmodule TabletapWeb.Waiter.QueueLive do
      |> assign(:on_shift, on_shift)
      |> assign(:tab, :queue)
      |> assign(:called_order_ids, MapSet.new())
+     |> assign(:scanning_order_id, nil)
      |> reload_boards()}
   end
 
@@ -314,6 +356,51 @@ defmodule TabletapWeb.Waiter.QueueLive do
          |> put_flash(:info, gettext("Flagged — a manager will resolve it."))
          |> reload_boards()}
     end
+  end
+
+  def handle_event("open_scan", %{"id" => id}, socket) do
+    {:noreply, assign(socket, :scanning_order_id, id)}
+  end
+
+  def handle_event("close_scan", _params, socket) do
+    {:noreply, assign(socket, :scanning_order_id, nil)}
+  end
+
+  def handle_event("qr_scanned", %{"value" => value}, socket) do
+    scope = socket.assigns.current_scope
+
+    order =
+      socket.assigns.scanning_order_id &&
+        Ordering.get_order(scope, socket.assigns.scanning_order_id)
+
+    case order && Ordering.confirm_served_by_scan(scope, order, value) do
+      {:ok, _served} ->
+        {:noreply,
+         socket
+         |> assign(:scanning_order_id, nil)
+         |> put_flash(:info, gettext("Served — nice work."))
+         |> reload_boards()}
+
+      {:error, :token_mismatch} ->
+        {:noreply,
+         put_flash(socket, :error, gettext("That's not the right table or customer — try again."))}
+
+      # Order vanished mid-scan, or moved on (already served/reassigned
+      # elsewhere) while the camera was open — never a crash.
+      _stale_or_not_ready ->
+        {:noreply,
+         socket
+         |> assign(:scanning_order_id, nil)
+         |> put_flash(:error, gettext("That order moved on — refreshing."))
+         |> reload_boards()}
+    end
+  end
+
+  def handle_event("scan_error", %{"message" => message}, socket) do
+    {:noreply,
+     socket
+     |> assign(:scanning_order_id, nil)
+     |> put_flash(:error, gettext("Couldn't access the camera: %{message}", message: message))}
   end
 
   @impl true
