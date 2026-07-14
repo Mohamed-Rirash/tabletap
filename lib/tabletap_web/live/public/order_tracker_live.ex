@@ -26,6 +26,9 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
 
   @step_order [:placed, :accepted, :preparing, :ready, :served]
   @terminal_non_timeline [:cancelled, :expired, :refunded]
+  # Call-waiter only makes sense while service is actually in flight —
+  # not before payment confirms, not after the food arrived.
+  @active_service_statuses [:placed, :accepted, :preparing, :ready]
 
   @impl true
   def render(assigns) do
@@ -62,6 +65,27 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
         order={@order}
         eta_minutes={@eta_minutes}
       />
+
+      <div :if={@order.status in @active_service_statuses} class="mt-6">
+        <button
+          :if={show_call_waiter?(@venue, @order)}
+          type="button"
+          phx-click="call_waiter"
+          disabled={@waiter_called}
+          class="btn btn-outline w-full"
+        >
+          <.icon name="hero-hand-raised" class="size-4" />
+          {if @waiter_called,
+            do: gettext("Waiter called — on the way"),
+            else: gettext("Call waiter")}
+        </button>
+        <p
+          :if={@venue.fulfillment_mode == :pickup}
+          class="text-sm text-base-content/60 text-center"
+        >
+          {gettext("Need help? Ask at the counter.")}
+        </p>
+      </div>
 
       <div class="mt-6 rounded-box bg-base-100 border border-base-300 p-4">
         <h2 class="font-semibold mb-3">{gettext("Order details")}</h2>
@@ -175,7 +199,24 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
          |> assign(:order, order)
          |> assign(:eta_minutes, Ordering.estimated_minutes(scope, order))
          |> assign(:latest_payment, Payments.get_latest_payment_for_order(scope, order.id))
-         |> assign(:terminal_non_timeline_status, @terminal_non_timeline)}
+         |> assign(:terminal_non_timeline_status, @terminal_non_timeline)
+         |> assign(:active_service_statuses, @active_service_statuses)
+         |> assign(:waiter_called, false)}
+    end
+  end
+
+  @impl true
+  def handle_event("call_waiter", _params, socket) do
+    scope = socket.assigns.current_scope
+
+    case Ordering.call_waiter(scope, socket.assigns.order) do
+      {:ok, _call} ->
+        {:noreply, assign(socket, :waiter_called, true)}
+
+      # Pickup venue / no table — the button never renders for these, so
+      # this is a stale/forged event; a graceful no-op, not a crash.
+      {:error, _reason} ->
+        {:noreply, socket}
     end
   end
 
@@ -189,6 +230,12 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
      |> assign(:order, order)
      |> assign(:eta_minutes, Ordering.estimated_minutes(scope, order))
      |> assign(:latest_payment, Payments.get_latest_payment_for_order(scope, order.id))}
+  end
+
+  # Q46: pickup venues get "Ask at the counter", never a call button;
+  # a takeaway order at a waiter venue has no table to call from either.
+  defp show_call_waiter?(venue, order) do
+    venue.fulfillment_mode == :waiter and order.table_id != nil
   end
 
   defp step_state(step, current_status) do

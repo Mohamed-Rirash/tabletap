@@ -126,7 +126,10 @@ config :tabletap, Oban,
        # Every minute — closest practical granularity to the ~30s target
        # (build-plan.md Feature 09); WaafiPay callbacks aren't retried, so
        # this poll is the guaranteed confirmation path, not a fallback.
-       {"* * * * *", Tabletap.Payments.Workers.ReconcilePendingPayments}
+       {"* * * * *", Tabletap.Payments.Workers.ReconcilePendingPayments},
+       # Shift auto-close has no tight latency requirement, unlike the
+       # payment/hold sweeps above (design-qa.md Q45).
+       {"*/15 * * * *", Tabletap.Staffing.Workers.AutoCloseShifts}
      ]}
   ]
 

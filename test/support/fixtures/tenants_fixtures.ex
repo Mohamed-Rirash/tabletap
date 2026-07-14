@@ -79,6 +79,26 @@ defmodule Tabletap.TenantsFixtures do
     venue
   end
 
+  @doc """
+  A fresh waiter (user + active waiter membership) at `venue` — the
+  standard fixture for assignment/shift tests (build-plan.md Feature 10).
+  """
+  def waiter_fixture(%Org{} = org, %Venue{} = venue) do
+    user = Tabletap.AccountsFixtures.user_fixture()
+
+    {:ok, membership} =
+      %Tabletap.Tenants.Membership{}
+      |> Tabletap.Tenants.Membership.changeset(%{
+        org_id: org.id,
+        venue_id: venue.id,
+        user_id: user.id,
+        role: :waiter
+      })
+      |> Repo.insert()
+
+    %{user: user, membership: membership}
+  end
+
   @doc "Creates a table in a scope's venue via `Tenants.create_table/2`."
   def table_fixture(%Scope{} = scope, attrs \\ %{}) do
     {:ok, table} =

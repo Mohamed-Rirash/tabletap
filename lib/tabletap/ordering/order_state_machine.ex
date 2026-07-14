@@ -104,12 +104,25 @@ defmodule Tabletap.Ordering.OrderStateMachine do
       {:ok, %{order: updated}} ->
         emit_telemetry(scope, updated, from, to)
         broadcast(updated)
+        maybe_enqueue_assignment(updated, to)
         {:ok, updated}
 
       {:error, _step, reason, _changes} ->
         {:error, reason}
     end
   end
+
+  # Assignment is a side-effect Oban job, never inline here (architecture.md
+  # "Reliability" — a crash mid-assignment survives as a retryable job,
+  # and the state machine itself stays focused on the transition alone).
+  # build-plan.md Feature 10.
+  defp maybe_enqueue_assignment(order, :placed) do
+    %{order_id: order.id, org_id: order.org_id}
+    |> Tabletap.Ordering.Workers.AssignWaiter.new()
+    |> Oban.insert()
+  end
+
+  defp maybe_enqueue_assignment(_order, _to), do: :ok
 
   defp build_changeset(order, :ready, :preparing) do
     # One-step-back undo (Q25) — the retracted state's timestamp goes
@@ -212,5 +225,9 @@ defmodule Tabletap.Ordering.OrderStateMachine do
 
   defp broadcast(order) do
     Phoenix.PubSub.broadcast(Tabletap.PubSub, "order:#{order.id}", :order_updated)
+    # architecture.md "Real-time Topology" — the KDS board, manager live
+    # floor view, and POS all watch every transition at a venue, not
+    # just this one order's own tracker page.
+    Phoenix.PubSub.broadcast(Tabletap.PubSub, "venue:#{order.venue_id}:orders", :order_updated)
   end
 end

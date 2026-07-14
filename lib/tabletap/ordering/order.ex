@@ -5,13 +5,18 @@ defmodule Tabletap.Ordering.Order do
   prices (`Tabletap.Ordering.OrderItem`/`OrderItemModifier`) so later menu
   edits never change history (code-standards.md "Snapshots over joins").
 
-  `waiter_membership_id`/`placed_by_membership_id` (architecture.md's
-  data-model row) are deliberately not columns yet — same deferral
-  `Tenants.Venue` used for its own not-yet-needed fields: they belong to
-  Feature 10 (waiter assignment) and Feature 15 (cashier POS)
-  respectively, added in those features' own migrations when a real
-  caller exists. `customer_user_id` is deferred to Feature 16, matching
+  `waiter_membership_id` lands in Feature 10 (waiter assignment).
+  `placed_by_membership_id` (architecture.md's data-model row) stays
+  deferred — it belongs to Feature 15 (cashier POS), added in that
+  feature's own migration when a real caller exists, same deferral
+  `Tenants.Venue` used for its own not-yet-needed fields.
+  `customer_user_id` is deferred to Feature 16, matching
   `Ordering.Cart`'s identical deferral.
+
+  `flag` (design-qa.md Q9 "Can't find customer" / Q32 pickup no-show) —
+  one shared column rather than two near-identical booleans, since both
+  mean the same thing operationally: this order needs a human to
+  resolve it. `nil` means nothing is wrong.
 
   Status changes only through `Ordering.OrderStateMachine.transition/3` —
   never `update_changeset`/`Repo.update` directly on `:status`
@@ -35,10 +40,13 @@ defmodule Tabletap.Ordering.Order do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @flags [:unserveable, :not_picked_up]
+
   schema "orders" do
     belongs_to :org, Tabletap.Tenants.Org
     belongs_to :venue, Tabletap.Tenants.Venue
     belongs_to :table, Tabletap.Tenants.Table
+    belongs_to :waiter_membership, Tabletap.Tenants.Membership, foreign_key: :waiter_membership_id
 
     field :guest_token, :string
     field :number, :integer
@@ -57,12 +65,16 @@ defmodule Tabletap.Ordering.Order do
     field :total, Money.Ecto.Composite.Type
     field :notes, :string
 
+    field :flag, Ecto.Enum, values: @flags
+    field :flagged_at, :utc_datetime
+
     has_many :items, Tabletap.Ordering.OrderItem, foreign_key: :order_id
 
     timestamps(type: :utc_datetime)
   end
 
   def statuses, do: @statuses
+  def flags, do: @flags
 
   @doc "A brand-new pending_payment order — built entirely from programmatically-computed attrs, never cast from user input (Ordering.checkout/N)."
   def new_changeset(attrs) do
@@ -93,4 +105,16 @@ defmodule Tabletap.Ordering.Order do
     changes = if timestamp_field, do: Map.put(changes, timestamp_field, timestamp), else: changes
     change(order, changes)
   end
+
+  @doc "Assignment (build-plan.md Feature 10) — `nil` unassigns (escalation, off-shift handoff)."
+  def assign_waiter_changeset(order, membership_id) do
+    change(order, waiter_membership_id: membership_id)
+  end
+
+  @doc "Flags an order needing manager attention (design-qa.md Q9/Q32) — always timestamped."
+  def flag_changeset(order, flag) when flag in @flags do
+    change(order, flag: flag, flagged_at: DateTime.utc_now(:second))
+  end
+
+  def clear_flag_changeset(order), do: change(order, flag: nil, flagged_at: nil)
 end

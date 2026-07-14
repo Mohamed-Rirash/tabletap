@@ -14,6 +14,10 @@ defmodule Tabletap.Application do
       Tabletap.ObanRepo,
       {DNSCluster, query: Application.get_env(:tabletap, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Tabletap.PubSub},
+      # Must start after PubSub, before the Endpoint (Phoenix.Presence's
+      # own setup instructions) — waiter shift Presence, build-plan.md
+      # Feature 10.
+      TabletapWeb.Presence,
       {Oban, Application.fetch_env!(:tabletap, Oban)},
       Tabletap.Vault,
       TabletapWeb.RateLimiter,

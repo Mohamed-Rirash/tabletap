@@ -111,6 +111,14 @@ defmodule TabletapWeb.Router do
       live "/settings/payments", Manager.PaymentSettingsLive, :show
     end
 
+    live_session :waiter,
+      on_mount: [
+        {TabletapWeb.UserAuth, :require_authenticated},
+        {TabletapWeb.ScopeHooks, :require_waiter}
+      ] do
+      live "/waiter", Waiter.QueueLive, :index
+    end
+
     post "/venues/switch", VenueController, :switch
   end
 
