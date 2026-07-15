@@ -99,6 +99,9 @@ defmodule TabletapWeb.Router do
       live "/tables", Manager.TablesLive, :index
       live "/tables/print", Manager.TablePrintLive, :index
       live "/inventory", Manager.IngredientsLive, :index
+      live "/inventory/restock", Manager.RestockReportLive, :index
+      live "/inventory/restock/print", Manager.RestockPrintLive, :index
+      live "/inventory/stocktake", Manager.StocktakeLive, :index
     end
 
     # role-features.md: "Payment account" is Owner back-office, not
@@ -122,6 +125,15 @@ defmodule TabletapWeb.Router do
     end
 
     post "/venues/switch", VenueController, :switch
+  end
+
+  # A raw CSV response, not a LiveView — own scope so `:require_manager`
+  # (user_auth.ex's controller-plug equivalent of ScopeHooks) never leaks
+  # onto the owner/waiter routes above or the public ones below.
+  scope "/", TabletapWeb do
+    pipe_through [:browser, :require_authenticated_user, :require_manager]
+
+    get "/inventory/restock.csv", Manager.RestockCsvController, :show
   end
 
   scope "/", TabletapWeb do

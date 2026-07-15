@@ -807,6 +807,35 @@ defmodule Tabletap.Ordering do
   end
 
   @doc """
+  Design-qa.md Q27 "86'ing an item didn't warn about in-flight tickets":
+  flags every open (`placed`/`accepted`/`preparing` — a `ready` order is
+  already made, 86'ing the item now changes nothing for it)
+  `Inventory`-triggered order containing `menu_item_id`,
+  `:contains_86d_item`, so the manager's "Needs your attention" board
+  (`list_flagged_orders/1`) surfaces them within seconds — the
+  manager-alert half of Q27; the KDS-ticket-badge half waits on Feature
+  14. Already-flagged orders are left alone, never clobbering an
+  existing flag. Returns the count newly flagged.
+  """
+  def flag_open_orders_containing_item(%Scope{venue: venue} = scope, menu_item_id) do
+    order_ids =
+      Repo.all(
+        from(o in Order,
+          join: i in assoc(o, :items),
+          where:
+            o.venue_id == ^venue.id and o.status in ^@kitchen_queue_statuses and
+              i.menu_item_id == ^menu_item_id and is_nil(o.flag),
+          distinct: true,
+          select: o.id
+        )
+      )
+
+    orders = Repo.all(from(o in Order, where: o.id in ^order_ids))
+    Enum.each(orders, &flag_order(scope, &1, :contains_86d_item))
+    length(orders)
+  end
+
+  @doc """
   Q44's staff-lifecycle handoff, and the waiter clock-out flow: every
   open order on this membership's plate goes to the claim board. Returns
   the count released.
@@ -848,6 +877,14 @@ defmodule Tabletap.Ordering do
         order_by: [asc: o.placed_at],
         preload: [:table, items: [:menu_item, :modifiers]]
       )
+    )
+  end
+
+  @doc "Count of orders still in flight (placed/accepted/preparing/ready) — the stocktake 'warns when open orders exist' advisory (design-qa.md Q43); non-blocking, the caller just shows it."
+  def count_open_orders(%Scope{venue: venue}) do
+    Repo.aggregate(
+      from(o in Order, where: o.venue_id == ^venue.id and o.status in ^@handoff_statuses),
+      :count
     )
   end
 
@@ -1022,6 +1059,9 @@ defmodule Tabletap.Ordering do
   defp refund_reason(%Order{flag: :not_picked_up}),
     do: "Order not collected (design-qa.md Q32)"
 
+  defp refund_reason(%Order{flag: :contains_86d_item}),
+    do: "Item 86'd, kitchen couldn't fulfill the order (design-qa.md Q27)"
+
   @doc """
   Unserveable resolution (Q9/Q10): the customer will collect this
   themselves — converts to a takeaway order (drops the waiter
@@ -1037,6 +1077,11 @@ defmodule Tabletap.Ordering do
   @doc "Pickup no-show resolution (Q32): the customer did collect it — staff just never scanned. Same effect as a normal serve confirm."
   def mark_collected(%Scope{} = scope, %Order{flag: :not_picked_up} = order),
     do: confirm_served_manually(scope, order)
+
+  @doc "Q27 resolution: the kitchen confirms it can still make the remaining portions despite the 86 — clears the flag, no status change, the order carries on normally."
+  def mark_still_makeable(%Scope{} = scope, %Order{flag: :contains_86d_item} = order) do
+    order |> Order.clear_flag_changeset() |> Repo.update() |> broadcast_order_updated(scope)
+  end
 
   @doc """
   Pickup no-show resolution (Q32): the food was made but never

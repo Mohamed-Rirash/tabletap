@@ -1,11 +1,19 @@
 defmodule TabletapWeb.Manager.IngredientsLive do
   @moduledoc """
-  Manager-facing ingredient library (build-plan.md Feature 12):
-  create/edit/archive ingredients with base units, thresholds, and
-  cost-per-unit. Recipe attachment lives on
+  Manager-facing ingredient library (build-plan.md Feature 12) plus
+  stock operations (Feature 13): create/edit/archive ingredients, and
+  per-ingredient restock/adjust/wastage quick actions — all as
+  `stock_movements` rows. Recipe attachment lives on
   `TabletapWeb.Manager.MenuLive`'s item modal, same split
   `Manager.ModifiersLive`/`Manager.MenuLive` already use for modifier
   groups (reusable library here, per-item attachment there).
+
+  Low-stock/negative-stock banners subscribe to `venue:<id>:inventory`
+  (`Inventory.restock/5`/`adjust_stock/4`/`log_wastage/4`/
+  `deduct_for_order/2` all broadcast there) so a live drop below
+  threshold pings this page without a refresh — the build-plan verify
+  step's "dropping cheese below threshold pings the manager dashboard
+  live."
   """
   use TabletapWeb, :live_view
 
@@ -24,12 +32,36 @@ defmodule TabletapWeb.Manager.IngredientsLive do
     >
       <div class="flex items-center justify-between flex-wrap gap-4 mb-2">
         <h1 class="text-2xl font-bold">{gettext("Inventory")}</h1>
+        <div class="flex items-center gap-2">
+          <.link navigate={~p"/inventory/stocktake"} class="btn btn-outline btn-sm">
+            {gettext("Stocktake")}
+          </.link>
+          <.link navigate={~p"/inventory/restock"} class="btn btn-outline btn-sm">
+            {gettext("Restock report")}
+          </.link>
+        </div>
       </div>
       <p class="text-sm text-base-content/60 mb-6 max-w-prose">
         {gettext(
           "Ingredients, stock levels, and thresholds. Attach a recipe to a menu item from the menu editor."
         )}
       </p>
+
+      <div :if={@low_stock != []} class="mb-4 rounded-box bg-warning/10 border border-warning/40 p-4">
+        <p class="font-semibold flex items-center gap-2">
+          <.icon name="hero-exclamation-triangle" class="size-4 text-warning" />
+          {gettext("Low stock: %{names}", names: Enum.map_join(@low_stock, ", ", & &1.name))}
+        </p>
+      </div>
+
+      <div :if={@negative_stock != []} class="mb-6 rounded-box bg-error/10 border border-error/40 p-4">
+        <p class="font-semibold flex items-center gap-2">
+          <.icon name="hero-exclamation-circle" class="size-4 text-error" />
+          {gettext("Negative stock (needs reconciling): %{names}",
+            names: Enum.map_join(@negative_stock, ", ", & &1.name)
+          )}
+        </p>
+      </div>
 
       <form
         id="ingredient-form"
@@ -124,7 +156,10 @@ defmodule TabletapWeb.Manager.IngredientsLive do
         <div
           :for={ingredient <- @ingredients}
           id={"ingredient-#{ingredient.id}"}
-          class="rounded-box bg-base-100 shadow-sm p-4"
+          class={[
+            "rounded-box bg-base-100 shadow-sm p-4",
+            Inventory.low_stock?(ingredient) && "border border-warning/40"
+          ]}
         >
           <div class="flex items-center justify-between gap-3 flex-wrap">
             <div class="flex items-center gap-2 flex-wrap min-w-0">
@@ -132,8 +167,41 @@ defmodule TabletapWeb.Manager.IngredientsLive do
               <span class="badge badge-ghost badge-sm">
                 {Decimal.to_string(ingredient.stock_qty)} {ingredient.unit}
               </span>
+              <span :if={Inventory.low_stock?(ingredient)} class="badge badge-warning badge-sm">
+                {gettext("Low")}
+              </span>
+              <span :if={Decimal.negative?(ingredient.stock_qty)} class="badge badge-error badge-sm">
+                {gettext("Negative")}
+              </span>
             </div>
             <div class="flex items-center gap-2">
+              <button
+                type="button"
+                phx-click="open_action"
+                phx-value-kind="restock"
+                phx-value-id={ingredient.id}
+                class="btn btn-xs btn-outline"
+              >
+                {gettext("Restock")}
+              </button>
+              <button
+                type="button"
+                phx-click="open_action"
+                phx-value-kind="adjust"
+                phx-value-id={ingredient.id}
+                class="btn btn-xs btn-outline"
+              >
+                {gettext("Adjust")}
+              </button>
+              <button
+                type="button"
+                phx-click="open_action"
+                phx-value-kind="wastage"
+                phx-value-id={ingredient.id}
+                class="btn btn-xs btn-outline"
+              >
+                {gettext("Waste")}
+              </button>
               <button
                 type="button"
                 phx-click="edit_ingredient"
@@ -157,6 +225,13 @@ defmodule TabletapWeb.Manager.IngredientsLive do
               </button>
             </div>
           </div>
+
+          <.action_form
+            :if={@action_target && elem(@action_target, 1) == ingredient.id}
+            kind={elem(@action_target, 0)}
+            ingredient={ingredient}
+            form={@action_form}
+          />
         </div>
 
         <p :if={@ingredients == []} class="text-sm text-base-content/50">
@@ -167,9 +242,80 @@ defmodule TabletapWeb.Manager.IngredientsLive do
     """
   end
 
+  attr :kind, :atom, required: true
+  attr :ingredient, :any, required: true
+  attr :form, :any, required: true
+
+  defp action_form(assigns) do
+    ~H"""
+    <form
+      id={"action-form-#{@ingredient.id}"}
+      phx-submit="save_action"
+      class="mt-3 rounded-field bg-base-200/60 p-3 grid gap-3 sm:grid-cols-3 items-end"
+    >
+      <div class="fieldset mb-2">
+        <label for={"action-qty-#{@ingredient.id}"}>
+          <span class="label mb-1">{action_qty_label(@kind)}</span>
+          <input
+            type="text"
+            id={"action-qty-#{@ingredient.id}"}
+            name="action[qty_input]"
+            value={@form.params["qty_input"]}
+            placeholder={gettext("e.g. 2kg")}
+            class="w-full input"
+          />
+        </label>
+      </div>
+      <div :if={@kind == :restock} class="fieldset mb-2">
+        <label for={"action-cost-#{@ingredient.id}"}>
+          <span class="label mb-1">{gettext("Price paid (per unit)")}</span>
+          <input
+            type="text"
+            id={"action-cost-#{@ingredient.id}"}
+            name="action[cost_amount]"
+            value={@form.params["cost_amount"]}
+            inputmode="decimal"
+            placeholder="0.00"
+            class="w-full input"
+          />
+        </label>
+      </div>
+      <div :if={@kind in [:adjust, :wastage]} class="fieldset mb-2">
+        <label for={"action-note-#{@ingredient.id}"}>
+          <span class="label mb-1">{gettext("Reason")}</span>
+          <input
+            type="text"
+            id={"action-note-#{@ingredient.id}"}
+            name="action[note]"
+            value={@form.params["note"]}
+            class="w-full input"
+          />
+        </label>
+      </div>
+      <p :for={{_field, {msg, _opts}} <- @form.source.errors} class="text-sm text-error sm:col-span-3">
+        {msg}
+      </p>
+      <div class="flex gap-2 sm:col-span-3">
+        <button type="submit" class="btn btn-sm btn-primary">{gettext("Save")}</button>
+        <button type="button" phx-click="cancel_action" class="btn btn-sm btn-ghost">
+          {gettext("Cancel")}
+        </button>
+      </div>
+    </form>
+    """
+  end
+
+  defp action_qty_label(:restock), do: gettext("Quantity received")
+  defp action_qty_label(:adjust), do: gettext("Adjustment (+/-)")
+  defp action_qty_label(:wastage), do: gettext("Quantity wasted")
+
   @impl true
   def mount(_params, _session, socket) do
     scope = socket.assigns.current_scope
+
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Tabletap.PubSub, "venue:#{scope.venue.id}:inventory")
+    end
 
     {:ok,
      socket
@@ -180,6 +326,8 @@ defmodule TabletapWeb.Manager.IngredientsLive do
        to_form(Ingredient.creation_changeset(%Ingredient{}, %{}), as: :ingredient)
      )
      |> assign(:ingredient_form_mode, :new)
+     |> assign(:action_target, nil)
+     |> assign(:action_form, nil)
      |> reload()}
   end
 
@@ -243,6 +391,46 @@ defmodule TabletapWeb.Manager.IngredientsLive do
     {:noreply, reload(socket)}
   end
 
+  ## Stock-op quick actions
+
+  def handle_event("open_action", %{"kind" => kind, "id" => id}, socket) do
+    {:noreply,
+     socket
+     |> assign(:action_target, {String.to_existing_atom(kind), id})
+     |> assign(:action_form, to_form(%{}, as: :action))}
+  end
+
+  def handle_event("cancel_action", _params, socket) do
+    {:noreply, socket |> assign(:action_target, nil) |> assign(:action_form, nil)}
+  end
+
+  def handle_event("save_action", %{"action" => params}, socket) do
+    {kind, id} = socket.assigns.action_target
+    ingredient = find_ingredient(socket, id)
+    scope = socket.assigns.current_scope
+
+    case parse_action(kind, scope, ingredient, params) do
+      {:ok, _movement} ->
+        {:noreply,
+         socket
+         |> assign(:action_target, nil)
+         |> assign(:action_form, nil)
+         |> put_flash(:info, gettext("Saved."))
+         |> reload()}
+
+      {:error, message} when is_binary(message) ->
+        {:noreply, put_flash(socket, :error, message)}
+
+      {:error, changeset} ->
+        {:noreply,
+         assign(socket, :action_form, to_form(changeset, action: :validate, as: :action))}
+    end
+  end
+
+  @impl true
+  def handle_info({:low_stock, _ingredient}, socket), do: {:noreply, reload(socket)}
+  def handle_info(_msg, socket), do: {:noreply, socket}
+
   ## Helpers
 
   defp do_save_ingredient(socket, attrs) do
@@ -268,6 +456,60 @@ defmodule TabletapWeb.Manager.IngredientsLive do
 
       {:error, changeset} ->
         {:noreply, assign(socket, :ingredient_form, to_form(changeset, as: :ingredient))}
+    end
+  end
+
+  defp parse_action(:restock, scope, ingredient, params) do
+    with {:ok, qty} <- require_positive_qty(ingredient.unit, params["qty_input"]),
+         {:ok, cost} <- parse_restock_cost(params["cost_amount"], scope.venue.currency) do
+      Inventory.restock(scope, ingredient, qty, cost, scope.user && scope.user.id)
+    end
+  end
+
+  defp parse_action(:adjust, scope, ingredient, params) do
+    case UnitInput.parse(ingredient.unit, params["qty_input"] || "") do
+      {:ok, qty} ->
+        Inventory.adjust_stock(
+          scope,
+          ingredient,
+          qty,
+          params["note"],
+          scope.user && scope.user.id
+        )
+
+      :error ->
+        {:error, gettext("Enter a valid quantity, e.g. 1.5kg or -200g.")}
+    end
+  end
+
+  defp parse_action(:wastage, scope, ingredient, params) do
+    with {:ok, qty} <- require_positive_qty(ingredient.unit, params["qty_input"]) do
+      Inventory.log_wastage(scope, ingredient, qty, params["note"], scope.user && scope.user.id)
+    end
+  end
+
+  # Bridges `parse_cost/2`'s field-tagged error (for the main ingredient
+  # form's per-field messages) to the plain-message shape `save_action`
+  # expects — and, unlike the ingredient form's optional cost, a restock
+  # without the price paid is exactly the one thing this action can't
+  # skip (build-plan.md Feature 13 "restock entry records unit_cost paid").
+  defp parse_restock_cost(amount_str, currency) do
+    case parse_cost(amount_str, currency) do
+      {:ok, nil} -> {:error, gettext("Enter the price paid per unit.")}
+      {:ok, cost} -> {:ok, cost}
+      {:error, _field, message} -> {:error, message}
+    end
+  end
+
+  defp require_positive_qty(unit, input) do
+    case UnitInput.parse(unit, input || "") do
+      {:ok, qty} ->
+        if Decimal.positive?(qty),
+          do: {:ok, qty},
+          else: {:error, gettext("Enter a quantity greater than zero.")}
+
+      :error ->
+        {:error, gettext("Enter a valid quantity, e.g. 1.5kg or 500g.")}
     end
   end
 
@@ -320,6 +562,10 @@ defmodule TabletapWeb.Manager.IngredientsLive do
 
   defp reload(socket) do
     scope = socket.assigns.current_scope
-    assign(socket, :ingredients, Inventory.list_ingredients(scope))
+
+    socket
+    |> assign(:ingredients, Inventory.list_ingredients(scope))
+    |> assign(:low_stock, Inventory.list_low_stock(scope))
+    |> assign(:negative_stock, Inventory.list_negative_stock(scope))
   end
 end

@@ -37,4 +37,39 @@ defmodule Tabletap.Inventory.StockMovement do
     |> validate_required([:org_id, :venue_id, :ingredient_id, :qty_delta])
     |> put_change(:reason, :sale)
   end
+
+  @doc """
+  A `:restock`/`:wastage`/`:adjustment` row (build-plan.md Feature 13).
+  Amounts are always pre-parsed by `Inventory.UnitInput` before reaching
+  here — this changeset validates the ledger row itself, not raw text.
+  `:restock`'s reason is self-evident from `unit_cost`; `:wastage`/
+  `:adjustment` always require a `note` (code-standards.md "manual order
+  edits always record who did it" — same discipline for stock).
+  """
+  def movement_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [
+      :org_id,
+      :venue_id,
+      :ingredient_id,
+      :order_id,
+      :staff_user_id,
+      :qty_delta,
+      :reason,
+      :unit_cost,
+      :note
+    ])
+    |> validate_required([:org_id, :venue_id, :ingredient_id, :reason, :qty_delta])
+    |> validate_inclusion(:reason, @reasons)
+    |> validate_number(:qty_delta, not_equal_to: 0)
+    |> validate_note_required_for_reason()
+  end
+
+  defp validate_note_required_for_reason(changeset) do
+    if get_field(changeset, :reason) in [:adjustment, :wastage] do
+      validate_required(changeset, [:note])
+    else
+      changeset
+    end
+  end
 end

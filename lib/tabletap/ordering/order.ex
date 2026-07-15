@@ -13,10 +13,14 @@ defmodule Tabletap.Ordering.Order do
   `customer_user_id` is deferred to Feature 16, matching
   `Ordering.Cart`'s identical deferral.
 
-  `flag` (design-qa.md Q9 "Can't find customer" / Q32 pickup no-show) —
-  one shared column rather than two near-identical booleans, since both
-  mean the same thing operationally: this order needs a human to
-  resolve it. `nil` means nothing is wrong.
+  `flag` (design-qa.md Q9 "Can't find customer" / Q32 pickup no-show /
+  Q27 "contains an 86'd item") — one shared column rather than three
+  near-identical booleans, since all three mean the same thing
+  operationally: this order needs a human to resolve it. `nil` means
+  nothing is wrong. The three never collide in practice — Q27 only ever
+  flags orders still in the kitchen (`placed`/`accepted`/`preparing`),
+  while Q9/Q32 only ever flag a `ready` order, so a single column has
+  never needed to hold more than one flag at once.
 
   Status changes only through `Ordering.OrderStateMachine.transition/3` —
   never `update_changeset`/`Repo.update` directly on `:status`
@@ -40,7 +44,7 @@ defmodule Tabletap.Ordering.Order do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
-  @flags [:unserveable, :not_picked_up]
+  @flags [:unserveable, :not_picked_up, :contains_86d_item]
 
   schema "orders" do
     belongs_to :org, Tabletap.Tenants.Org

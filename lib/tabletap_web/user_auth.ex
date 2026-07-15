@@ -324,6 +324,26 @@ defmodule TabletapWeb.UserAuth do
     end
   end
 
+  @doc """
+  Plug for **controller** (non-LiveView) routes that require a
+  manager/owner role — `ScopeHooks.require_role/2`'s `on_mount`
+  equivalent for the handful of routes that can't be a LiveView (e.g.
+  the restock CSV download, a raw file response). Must run after
+  `require_authenticated_user`.
+  """
+  def require_manager(conn, _opts) do
+    role = conn.assigns.current_scope && conn.assigns.current_scope.role
+
+    if role in [:manager, :owner] do
+      conn
+    else
+      conn
+      |> put_flash(:error, "You don't have access to that page.")
+      |> redirect(to: ~p"/")
+      |> halt()
+    end
+  end
+
   defp maybe_store_return_to(%{method: "GET"} = conn) do
     put_session(conn, :user_return_to, current_path(conn))
   end

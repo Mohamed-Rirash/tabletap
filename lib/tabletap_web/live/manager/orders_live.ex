@@ -104,6 +104,15 @@ defmodule TabletapWeb.Manager.OrdersLive do
               >
                 {gettext("Close (wasted)")}
               </button>
+              <button
+                :if={order.flag == :contains_86d_item}
+                type="button"
+                phx-click="resolve_still_makeable"
+                phx-value-id={order.id}
+                class="btn btn-outline btn-sm"
+              >
+                {gettext("Kitchen confirmed — still makeable")}
+              </button>
             </div>
           </div>
         </div>
@@ -206,6 +215,15 @@ defmodule TabletapWeb.Manager.OrdersLive do
     resolve(socket, id, &Ordering.close_as_wasted/2, gettext("Closed."))
   end
 
+  def handle_event("resolve_still_makeable", %{"id" => id}, socket) do
+    resolve(
+      socket,
+      id,
+      &Ordering.mark_still_makeable/2,
+      gettext("Cleared — order carries on normally.")
+    )
+  end
+
   defp resolve(socket, id, fun, success_message) do
     scope = socket.assigns.current_scope
 
@@ -245,4 +263,5 @@ defmodule TabletapWeb.Manager.OrdersLive do
 
   defp flag_label(:unserveable), do: gettext("Can't find customer")
   defp flag_label(:not_picked_up), do: gettext("Not picked up")
+  defp flag_label(:contains_86d_item), do: gettext("Contains an 86'd item")
 end
