@@ -82,7 +82,7 @@ defmodule TabletapWeb.Layouts do
 
   attr :active_nav, :atom,
     required: true,
-    doc: ":dashboard, :orders, :menu, :modifiers, :tables, or :payments"
+    doc: ":dashboard, :orders, :menu, :modifiers, :tables, :inventory, or :payments"
 
   attr :venues, :list, default: []
 
@@ -167,6 +167,13 @@ defmodule TabletapWeb.Layouts do
           >
             {gettext("Modifiers")}
           </.manager_nav_link>
+          <.manager_nav_link
+            navigate={~p"/inventory"}
+            icon="hero-cube"
+            active={@active_nav == :inventory}
+          >
+            {gettext("Inventory")}
+          </.manager_nav_link>
           <.manager_nav_soon icon="hero-chart-bar">{gettext("Analytics")}</.manager_nav_soon>
 
           <p class="px-2 text-xs font-semibold uppercase tracking-wide text-base-content/50 mt-4 mb-1">
@@ -221,6 +228,9 @@ defmodule TabletapWeb.Layouts do
             </.link>
             <.link navigate={~p"/tables"} class={@active_nav == :tables && "font-semibold"}>
               {gettext("Tables")}
+            </.link>
+            <.link navigate={~p"/inventory"} class={@active_nav == :inventory && "font-semibold"}>
+              {gettext("Inventory")}
             </.link>
           </div>
           <.theme_toggle />

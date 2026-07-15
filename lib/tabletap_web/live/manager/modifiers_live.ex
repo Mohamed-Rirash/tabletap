@@ -10,7 +10,7 @@ defmodule TabletapWeb.Manager.ModifiersLive do
 
   alias Tabletap.Catalog
   alias Tabletap.Catalog.{ModifierGroup, ModifierOption}
-  alias Tabletap.Tenants
+  alias Tabletap.{Inventory, Tenants}
 
   @impl true
   def render(assigns) do
@@ -196,6 +196,46 @@ defmodule TabletapWeb.Manager.ModifiersLive do
                 label={gettext("Pre-selected")}
               />
             </div>
+            <div class="grid gap-3 sm:grid-cols-3 items-end mt-3">
+              <div class="fieldset mb-2">
+                <label for={"option-ingredient-#{group.id}"}>
+                  <span class="label mb-1">{gettext("Stock effect (optional)")}</span>
+                  <select
+                    id={"option-ingredient-#{group.id}"}
+                    name="option[ingredient_id]"
+                    class="w-full select select-sm"
+                  >
+                    <option value="">{gettext("No stock effect")}</option>
+                    <option
+                      :for={ingredient <- @ingredients}
+                      value={ingredient.id}
+                      selected={ingredient.id == @option_form.params["ingredient_id"]}
+                    >
+                      {ingredient.name} ({ingredient.unit})
+                    </option>
+                  </select>
+                </label>
+              </div>
+              <div class="fieldset mb-2">
+                <label for={"option-ingredient-delta-#{group.id}"}>
+                  <span class="label mb-1">{gettext("Quantity delta")}</span>
+                  <input
+                    type="text"
+                    id={"option-ingredient-delta-#{group.id}"}
+                    name="option[ingredient_qty_delta_input]"
+                    value={@option_form.params["ingredient_qty_delta_input"]}
+                    placeholder={gettext("e.g. 20g or -15g")}
+                    class="w-full input input-sm"
+                  />
+                  <p
+                    :for={msg <- translate_errors(@option_form.source.errors, :ingredient_qty_delta)}
+                    class="mt-1.5 flex gap-2 items-center text-sm text-error"
+                  >
+                    <.icon name="hero-exclamation-circle" class="size-5" /> {msg}
+                  </p>
+                </label>
+              </div>
+            </div>
             <div class="flex gap-2 mt-2">
               <button type="submit" class="btn btn-sm btn-primary">
                 {if match?({:edit, _}, @option_form_target),
@@ -237,6 +277,7 @@ defmodule TabletapWeb.Manager.ModifiersLive do
      |> assign(:group_form_mode, :new)
      |> assign(:option_form, nil)
      |> assign(:option_form_target, nil)
+     |> assign(:ingredients, Inventory.list_ingredients(socket.assigns.current_scope))
      |> reload_groups()}
   end
 
@@ -310,7 +351,10 @@ defmodule TabletapWeb.Manager.ModifiersLive do
 
     changeset =
       ModifierOption.update_changeset(option, %{
-        "price_delta_amount" => option.price_delta |> Money.to_decimal() |> Decimal.to_string()
+        "price_delta_amount" => option.price_delta |> Money.to_decimal() |> Decimal.to_string(),
+        "ingredient_id" => option.ingredient_id,
+        "ingredient_qty_delta_input" =>
+          option.ingredient_qty_delta && Decimal.to_string(option.ingredient_qty_delta)
       })
 
     {:noreply,
@@ -334,15 +378,16 @@ defmodule TabletapWeb.Manager.ModifiersLive do
   def handle_event("save_option", %{"option" => params}, socket) do
     venue = socket.assigns.current_scope.venue
 
-    case parse_delta(params["price_delta_amount"], venue.currency) do
-      {:ok, delta} ->
-        do_save_option(socket, Map.put(params, "price_delta", delta))
-
-      :error ->
+    with {:ok, delta} <- price_delta_or_error(params["price_delta_amount"], venue.currency),
+         {:ok, ingredient_attrs} <- parse_ingredient_delta(socket, params) do
+      attrs = params |> Map.put("price_delta", delta) |> Map.merge(ingredient_attrs)
+      do_save_option(socket, attrs)
+    else
+      {:error, field, message} ->
         changeset =
           socket
           |> option_changeset(params)
-          |> Ecto.Changeset.add_error(:price_delta, gettext("must be a valid amount"))
+          |> Ecto.Changeset.add_error(field, message)
           |> Map.put(:action, :validate)
 
         {:noreply, assign(socket, :option_form, to_form(changeset, as: :option))}
@@ -368,6 +413,31 @@ defmodule TabletapWeb.Manager.ModifiersLive do
   end
 
   ## Helpers
+
+  defp price_delta_or_error(amount_str, currency) do
+    case parse_delta(amount_str, currency) do
+      {:ok, delta} -> {:ok, delta}
+      :error -> {:error, :price_delta, gettext("must be a valid amount")}
+    end
+  end
+
+  # "" (nothing picked) is the common case — no stock effect at all,
+  # same as leaving both database columns nil.
+  defp parse_ingredient_delta(_socket, %{"ingredient_id" => ""}),
+    do: {:ok, %{"ingredient_id" => nil, "ingredient_qty_delta" => nil}}
+
+  defp parse_ingredient_delta(socket, %{"ingredient_id" => ingredient_id} = params) do
+    scope = socket.assigns.current_scope
+    ingredient = Inventory.get_ingredient(scope, ingredient_id)
+
+    case Inventory.UnitInput.parse(ingredient.unit, params["ingredient_qty_delta_input"] || "") do
+      {:ok, delta} ->
+        {:ok, %{"ingredient_id" => ingredient_id, "ingredient_qty_delta" => delta}}
+
+      :error ->
+        {:error, :ingredient_qty_delta, gettext("must be a valid quantity, e.g. 20g or -15g")}
+    end
+  end
 
   defp do_save_option(socket, attrs) do
     scope = socket.assigns.current_scope

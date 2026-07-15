@@ -11,7 +11,8 @@ defmodule TabletapWeb.Manager.MenuLive do
 
   alias Tabletap.Catalog
   alias Tabletap.Catalog.{Category, DailyItemLimit, MenuItem}
-  alias Tabletap.{Storage, Tenants}
+  alias Tabletap.{Inventory, Storage, Tenants}
+  alias Tabletap.Inventory.UnitInput
 
   @impl true
   def render(assigns) do
@@ -237,6 +238,8 @@ defmodule TabletapWeb.Manager.MenuLive do
         daily_limit={modal_item && Map.get(@daily_limits, modal_item.id)}
         item_groups={@item_groups}
         available_groups={available_groups(@modifier_groups, @item_groups)}
+        recipe_lines={@recipe_lines}
+        available_ingredients={available_ingredients(@ingredients, @recipe_lines)}
       />
 
       <% preview_item = @preview_item_id && find_item_in_menu(@menu, @preview_item_id) %>
@@ -527,6 +530,8 @@ defmodule TabletapWeb.Manager.MenuLive do
   attr :daily_limit, DailyItemLimit, default: nil
   attr :item_groups, :list, default: []
   attr :available_groups, :list, default: []
+  attr :recipe_lines, :list, default: []
+  attr :available_ingredients, :list, default: []
 
   defp item_edit_modal(assigns) do
     ~H"""
@@ -735,6 +740,61 @@ defmodule TabletapWeb.Manager.MenuLive do
 
           <div :if={@item} class="border-t border-base-300 p-5">
             <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">
+              {gettext("Recipe")}
+            </p>
+
+            <div class="divide-y divide-base-300">
+              <div
+                :for={line <- @recipe_lines}
+                class="py-2 flex items-center justify-between gap-3"
+              >
+                <span class="font-medium">
+                  {line.ingredient.name} — {Decimal.to_string(line.qty_per_serving)} {line.ingredient.unit}
+                </span>
+                <button
+                  type="button"
+                  phx-click="detach_recipe_line"
+                  phx-value-line-id={line.id}
+                  class="btn btn-xs btn-ghost text-error"
+                >
+                  {gettext("Remove")}
+                </button>
+              </div>
+            </div>
+
+            <p :if={@recipe_lines == []} class="text-sm text-base-content/50 mb-2">
+              {gettext("No recipe yet — this item won't deduct stock on serve.")}
+            </p>
+
+            <form
+              :if={@available_ingredients != []}
+              id={"attach-recipe-line-form-#{@item.id}"}
+              phx-submit="attach_recipe_line"
+              class="mt-2 flex items-center gap-2"
+            >
+              <select name="ingredient_id" class="select select-sm flex-1">
+                <option :for={ingredient <- @available_ingredients} value={ingredient.id}>
+                  {ingredient.name} ({ingredient.unit})
+                </option>
+              </select>
+              <input
+                type="text"
+                name="qty_per_serving"
+                placeholder={gettext("qty per serving")}
+                class="input input-sm w-32"
+              />
+              <button type="submit" class="btn btn-sm btn-outline">{gettext("Add")}</button>
+            </form>
+            <p
+              :if={@available_ingredients == [] && @recipe_lines == []}
+              class="text-xs text-base-content/50"
+            >
+              {gettext("Add ingredients on the Inventory page first.")}
+            </p>
+          </div>
+
+          <div :if={@item} class="border-t border-base-300 p-5">
+            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">
               {gettext("Quantity available today")}
             </p>
             <form
@@ -794,6 +854,8 @@ defmodule TabletapWeb.Manager.MenuLive do
      |> assign(:item_form_target, nil)
      |> assign(:item_groups, [])
      |> assign(:modifier_groups, [])
+     |> assign(:recipe_lines, [])
+     |> assign(:ingredients, Inventory.list_ingredients(socket.assigns.current_scope))
      |> allow_upload(:photo,
        accept: ~w(.jpg .jpeg .png .webp),
        max_entries: 1,
@@ -930,7 +992,9 @@ defmodule TabletapWeb.Manager.MenuLive do
      |> assign(:item_form, to_form(changeset, as: :item))
      |> assign(:item_form_target, {:edit, item})
      |> assign(:item_groups, Catalog.list_item_modifier_groups(scope, item))
-     |> assign(:modifier_groups, Catalog.list_modifier_groups(scope))}
+     |> assign(:modifier_groups, Catalog.list_modifier_groups(scope))
+     |> assign(:recipe_lines, Inventory.list_recipe_lines(scope, item))
+     |> assign(:ingredients, Inventory.list_ingredients(scope))}
   end
 
   def handle_event("cancel_item_form", _params, socket) do
@@ -939,7 +1003,8 @@ defmodule TabletapWeb.Manager.MenuLive do
      |> cancel_all_uploads()
      |> assign(:item_form, nil)
      |> assign(:item_form_target, nil)
-     |> assign(:item_groups, [])}
+     |> assign(:item_groups, [])
+     |> assign(:recipe_lines, [])}
   end
 
   def handle_event("attach_group", %{"group_id" => group_id}, socket) do
@@ -961,6 +1026,43 @@ defmodule TabletapWeb.Manager.MenuLive do
 
     :ok = Catalog.detach_group_from_item(socket.assigns.current_scope, item, group)
     {:noreply, reload_item_groups(socket, item)}
+  end
+
+  def handle_event(
+        "attach_recipe_line",
+        %{"ingredient_id" => ingredient_id, "qty_per_serving" => qty_str},
+        socket
+      ) do
+    {:edit, item} = socket.assigns.item_form_target
+    scope = socket.assigns.current_scope
+    ingredient = Enum.find(socket.assigns.ingredients, &(&1.id == ingredient_id))
+
+    case UnitInput.parse(ingredient.unit, qty_str) do
+      {:ok, qty} ->
+        case Inventory.add_recipe_line(scope, item, ingredient, qty) do
+          {:ok, _line} ->
+            {:noreply, reload_recipe_lines(socket, item)}
+
+          {:error, _changeset} ->
+            {:noreply,
+             put_flash(
+               socket,
+               :error,
+               gettext("Couldn't add that ingredient — already in the recipe?")
+             )}
+        end
+
+      :error ->
+        {:noreply, put_flash(socket, :error, gettext("Enter a valid quantity, e.g. 150g."))}
+    end
+  end
+
+  def handle_event("detach_recipe_line", %{"line-id" => line_id}, socket) do
+    {:edit, item} = socket.assigns.item_form_target
+    line = Enum.find(socket.assigns.recipe_lines, &(&1.id == line_id))
+
+    :ok = Inventory.remove_recipe_line(socket.assigns.current_scope, line)
+    {:noreply, reload_recipe_lines(socket, item)}
   end
 
   def handle_event("validate_item", %{"item" => params}, socket) do
@@ -1060,6 +1162,7 @@ defmodule TabletapWeb.Manager.MenuLive do
          |> assign(:item_form, nil)
          |> assign(:item_form_target, nil)
          |> assign(:item_groups, [])
+         |> assign(:recipe_lines, [])
          |> put_flash(:info, gettext("Item saved."))}
 
       {:error, changeset} ->
@@ -1095,6 +1198,16 @@ defmodule TabletapWeb.Manager.MenuLive do
   defp reload_item_groups(socket, item) do
     scope = socket.assigns.current_scope
     assign(socket, :item_groups, Catalog.list_item_modifier_groups(scope, item))
+  end
+
+  defp reload_recipe_lines(socket, item) do
+    scope = socket.assigns.current_scope
+    assign(socket, :recipe_lines, Inventory.list_recipe_lines(scope, item))
+  end
+
+  defp available_ingredients(all_ingredients, recipe_lines) do
+    attached_ids = MapSet.new(recipe_lines, & &1.ingredient_id)
+    Enum.reject(all_ingredients, &MapSet.member?(attached_ids, &1.id))
   end
 
   defp available_groups(all_groups, item_groups) do

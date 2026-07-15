@@ -98,6 +98,7 @@ defmodule TabletapWeb.Router do
       live "/menu/modifiers", Manager.ModifiersLive, :index
       live "/tables", Manager.TablesLive, :index
       live "/tables/print", Manager.TablePrintLive, :index
+      live "/inventory", Manager.IngredientsLive, :index
     end
 
     # role-features.md: "Payment account" is Owner back-office, not

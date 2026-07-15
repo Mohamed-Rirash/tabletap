@@ -1,18 +1,22 @@
 defmodule Tabletap.Inventory.Ingredient do
   @moduledoc """
   A stocked ingredient (architecture.md Data Model; build-plan.md Feature
-  12 owns the CRUD/UI — this schema lands early, in Feature 11, only
-  because `Inventory.deduct_for_order/2` needs something to reference).
-  Stock is kept in base units only (`g`/`ml`/`piece`); unit-conversion
-  input helpers are Feature 12's job.
+  12). Stock is kept in base units only (`g`/`ml`/`piece`) —
+  `Inventory.UnitInput` converts a manager's free-typed quantity ("1.5
+  kg") to the base unit at the input boundary; nothing downstream ever
+  converts again.
 
   `stock_qty` is a cached sum — `stock_movements` is the append-only
   source of truth (architecture.md "stock_qty is derived and
-  re-derivable"). No archive changeset exists yet (no caller until
-  Feature 12), but `archived_at` lands with the table per Q41's blanket
-  archive-not-delete rule, so that feature isn't also a schema migration.
+  re-derivable"). It's deliberately **not** castable from
+  `creation_changeset`/`update_changeset` — a brand-new ingredient always
+  starts at zero and the manager restocks it from there
+  (`Inventory.restock/5`), so every unit of stock that ever existed has a
+  ledger row explaining it; there is no "opening balance" exception to
+  that rule.
   """
   use Ecto.Schema
+  import Ecto.Changeset
 
   @units [:g, :ml, :piece]
 
@@ -34,4 +38,19 @@ defmodule Tabletap.Inventory.Ingredient do
   end
 
   def units, do: @units
+
+  def creation_changeset(ingredient, attrs), do: validate(ingredient, attrs)
+  def update_changeset(ingredient, attrs), do: validate(ingredient, attrs)
+
+  defp validate(ingredient, attrs) do
+    ingredient
+    |> cast(attrs, [:name, :unit, :min_threshold, :cost_per_unit, :active])
+    |> validate_required([:name, :unit])
+    |> validate_length(:name, min: 1, max: 120)
+    |> validate_number(:min_threshold, greater_than_or_equal_to: 0)
+  end
+
+  @doc "Hides the ingredient from pickers (recipe editor, restock forms); every recipe_line/stock_movement FK and report stays intact (design-qa.md Q41)."
+  def archive_changeset(ingredient),
+    do: change(ingredient, archived_at: DateTime.utc_now(:second))
 end
