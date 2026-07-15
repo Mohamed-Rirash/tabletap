@@ -52,6 +52,7 @@ defmodule Tabletap.Ordering.OrderStateMachine do
   alias Tabletap.Accounts.Scope
   alias Tabletap.Catalog.DailyItemLimit
   alias Tabletap.Ordering.Order
+  alias Tabletap.Ordering.Workers.AssignWaiter
   alias Tabletap.Repo
 
   @transitions %{
@@ -119,7 +120,7 @@ defmodule Tabletap.Ordering.OrderStateMachine do
   # build-plan.md Feature 10.
   defp maybe_enqueue_assignment(order, :placed) do
     %{order_id: order.id, org_id: order.org_id}
-    |> Tabletap.Ordering.Workers.AssignWaiter.new()
+    |> AssignWaiter.new()
     |> Oban.insert()
   end
 

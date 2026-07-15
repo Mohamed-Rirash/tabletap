@@ -15,9 +15,9 @@ defmodule Tabletap.Ordering.AssignmentTest do
 
   alias Ecto.Adapters.SQL.Sandbox
   alias Tabletap.Accounts.Scope
-  alias Tabletap.Ordering.Workers.{AssignWaiter, EscalateUnacceptedOrder}
-  alias Tabletap.Ordering.{Cart, Order, OrderStateMachine, WaiterCall}
   alias Tabletap.{Catalog, Ordering, Repo, Staffing}
+  alias Tabletap.Ordering.{Cart, Order, OrderStateMachine, WaiterCall}
+  alias Tabletap.Ordering.Workers.{AssignWaiter, EscalateUnacceptedOrder}
 
   setup do
     %{org: org, venue: venue} = org_fixture()

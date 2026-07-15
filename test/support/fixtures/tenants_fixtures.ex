@@ -8,7 +8,7 @@ defmodule Tabletap.TenantsFixtures do
   alias Tabletap.Accounts.Scope
   alias Tabletap.Repo
   alias Tabletap.Tenants
-  alias Tabletap.Tenants.{Org, Venue}
+  alias Tabletap.Tenants.{Membership, Org, Venue}
 
   def unique_email, do: "owner#{System.unique_integer()}@example.com"
   def valid_password, do: "hello world!"
@@ -87,8 +87,8 @@ defmodule Tabletap.TenantsFixtures do
     user = Tabletap.AccountsFixtures.user_fixture()
 
     {:ok, membership} =
-      %Tabletap.Tenants.Membership{}
-      |> Tabletap.Tenants.Membership.changeset(%{
+      %Membership{}
+      |> Membership.changeset(%{
         org_id: org.id,
         venue_id: venue.id,
         user_id: user.id,

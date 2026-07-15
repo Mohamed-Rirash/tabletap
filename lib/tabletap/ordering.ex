@@ -25,6 +25,7 @@ defmodule Tabletap.Ordering do
   alias Tabletap.Catalog.{DailyItemLimit, MenuItem}
   alias Tabletap.Ordering.{Cart, CartItem, CartItemOption, Order, OrderItem, OrderItemModifier}
   alias Tabletap.Ordering.{OrderNumberCounter, OrderStateMachine, Totals, WaiterCall}
+  alias Tabletap.Ordering.Workers.EscalateUnacceptedOrder
   alias Tabletap.Payments
   alias Tabletap.Repo
   alias Tabletap.Tenants
@@ -684,7 +685,7 @@ defmodule Tabletap.Ordering do
     # The solo-waiter shortcut accepts immediately — no window to enforce.
     unless Keyword.get(opts, :notify_only, false) do
       %{order_id: order.id, org_id: order.org_id, assigned_membership_id: membership_id}
-      |> Tabletap.Ordering.Workers.EscalateUnacceptedOrder.new(
+      |> EscalateUnacceptedOrder.new(
         schedule_in: @accept_window_seconds,
         queue: :escalations
       )

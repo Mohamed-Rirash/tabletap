@@ -14,9 +14,9 @@ defmodule Tabletap.Staffing.Workers.AutoCloseShifts do
 
   import Ecto.Query
 
+  alias Tabletap.{Repo, Tenants}
   alias Tabletap.Staffing.Shift
   alias Tabletap.Tenants.Venue
-  alias Tabletap.{Repo, Tenants}
 
   @impl Oban.Worker
   def perform(_job) do
