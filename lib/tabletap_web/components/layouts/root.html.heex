@@ -53,7 +53,10 @@
     of theme preference, like KDS does — see app.css ".mk"), so this stays
     suppressed there via @hide_utility_bar to avoid two competing bars. --%>
     <%= unless assigns[:hide_utility_bar] do %>
-      <div class="w-full border-b border-base-300/60 bg-base-100/80 backdrop-blur">
+      <div
+        id="utility-bar"
+        class="w-full border-b border-base-300/60 bg-base-100/80 backdrop-blur"
+      >
         <ul class="menu menu-horizontal w-full max-w-6xl mx-auto flex items-center gap-1 px-4 sm:px-6 lg:px-8 py-1 justify-end text-sm">
           <%= if @current_scope && @current_scope.user do %>
             <li class="text-base-content/60">{@current_scope.user.email}</li>

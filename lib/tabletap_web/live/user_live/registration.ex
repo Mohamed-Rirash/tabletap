@@ -93,8 +93,13 @@ defmodule TabletapWeb.UserLive.Registration do
   end
 
   def mount(_params, _session, socket) do
+    # The utility bar's logged-out links are both redundant here ("Start
+    # free trial" points at this very page; the form subtitle already
+    # links to log-in), and stacking it over Layouts.app's own header
+    # renders two competing bars.
     {:ok,
      socket
+     |> assign(:hide_utility_bar, true)
      |> assign(:trigger_submit, false)
      |> assign_form(signup_changeset(%{}))}
   end

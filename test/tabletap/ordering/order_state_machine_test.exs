@@ -323,8 +323,12 @@ defmodule Tabletap.Ordering.OrderStateMachineTest do
 
       {:ok, _} = OrderStateMachine.transition(scope, order, :placed)
 
-      assert_received {[:tabletap, :order, :placed], ^ref, %{}, %{order_id: order_id}}
-      assert order_id == order.id
+      # Telemetry handlers are global, so a concurrently running test's own
+      # :placed transition can land in this mailbox too — pin the order id
+      # so the assertion selects this order's event, not whichever arrived
+      # first.
+      order_id = order.id
+      assert_received {[:tabletap, :order, :placed], ^ref, %{}, %{order_id: ^order_id}}
     end
 
     test "reaching :served also emits [:tabletap, :order, :served] with the accept-to-served duration",
@@ -340,7 +344,14 @@ defmodule Tabletap.Ordering.OrderStateMachineTest do
 
       {:ok, _} = OrderStateMachine.transition(scope, order, :served)
 
-      assert_received {[:tabletap, :order, :served], ^ref, %{}, %{accept_to_served_ms: ms}}
+      # Same global-handler race as the :placed test above: another test's
+      # :served event (accepted moments ago, ~0ms) can arrive first, so the
+      # un-pinned pattern would bind its duration instead of this order's.
+      order_id = order.id
+
+      assert_received {[:tabletap, :order, :served], ^ref, %{},
+                       %{order_id: ^order_id, accept_to_served_ms: ms}}
+
       assert ms >= 60_000
     end
   end

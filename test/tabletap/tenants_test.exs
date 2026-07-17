@@ -64,6 +64,32 @@ defmodule Tabletap.TenantsTest do
       assert "is not a supported launch city" in errors_on(changeset).city
     end
 
+    test "the Venue schema itself rejects an unsupported currency or timezone" do
+      # Schema-level backstop for Q53: a caller that bypasses resolve_city/1
+      # (a future API endpoint, a script) still can't create a venue with an
+      # arbitrary currency — the changeset refuses it, not just the form.
+      changeset =
+        Venue.registration_changeset(%Venue{}, %{
+          "name" => "Rogue Venue",
+          "currency" => "KES",
+          "timezone" => "Africa/Nairobi"
+        })
+
+      refute changeset.valid?
+      assert "is invalid" in errors_on(changeset).currency
+      assert "is invalid" in errors_on(changeset).timezone
+    end
+
+    test "every launch city resolves to a currency/timezone the Venue schema accepts" do
+      # Drift guard: adding a city to Tenants.city_options/0 with a currency
+      # or timezone missing from Venue's supported lists must fail here, not
+      # at the first real signup.
+      for {_name, currency, timezone} <- Tenants.city_options() do
+        assert currency in Venue.supported_currencies()
+        assert timezone in Venue.supported_timezones()
+      end
+    end
+
     test "rolls back everything when the email is already taken" do
       %{user: existing_user} = org_fixture()
 

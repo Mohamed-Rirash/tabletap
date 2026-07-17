@@ -20,6 +20,17 @@ defmodule Tabletap.Tenants.Venue do
   # both "is it paused" and "until when" with one comparison.
   @indefinite_pause_sentinel ~U[9999-12-31 23:59:59Z]
 
+  # Schema-level backstop for design-qa.md Q53 (currency locks permanently
+  # after a venue's first order): only values `Tenants.city_options/0` can
+  # resolve to are legal, so a future caller that skips `resolve_city/1`
+  # can't create a venue with an arbitrary currency/timezone. Kept in sync
+  # with the city list by a dedicated test in tenants_test.exs.
+  @supported_currencies ~w(USD ETB)
+  @supported_timezones ~w(Africa/Mogadishu Africa/Addis_Ababa)
+
+  def supported_currencies, do: @supported_currencies
+  def supported_timezones, do: @supported_timezones
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   schema "venues" do
@@ -64,6 +75,8 @@ defmodule Tabletap.Tenants.Venue do
     venue
     |> cast(attrs, [:name, :currency, :timezone, :locale])
     |> validate_required([:name, :currency, :timezone])
+    |> validate_inclusion(:currency, @supported_currencies)
+    |> validate_inclusion(:timezone, @supported_timezones)
     |> validate_length(:name, min: 2, max: 120)
     |> put_slug()
   end

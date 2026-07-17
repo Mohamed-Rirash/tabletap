@@ -26,6 +26,19 @@ defmodule TabletapWeb.UserLive.RegistrationTest do
       refute html =~ "Get Started"
     end
 
+    test "suppresses the sitewide utility bar — Layouts.app's header is the only chrome",
+         %{conn: conn} do
+      # The bar lives in the root layout, so only the disconnected render
+      # shows it — assert on the plain GET, not the connected LiveView.
+      html = conn |> get(~p"/users/register") |> html_response(200)
+
+      refute html =~ ~s(id="utility-bar")
+
+      # Sanity check the selector: the same layout does render the bar on a
+      # page that doesn't suppress it, so the refute above can't pass vacuously.
+      assert conn |> get(~p"/users/log-in") |> html_response(200) =~ ~s(id="utility-bar")
+    end
+
     test "redirects if already logged in", %{conn: conn} do
       %{conn: conn} = register_and_log_in_owner(%{conn: conn})
 
