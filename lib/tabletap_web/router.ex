@@ -124,6 +124,14 @@ defmodule TabletapWeb.Router do
       live "/waiter", Waiter.QueueLive, :index
     end
 
+    live_session :kitchen,
+      on_mount: [
+        {TabletapWeb.UserAuth, :require_authenticated},
+        {TabletapWeb.ScopeHooks, :require_kitchen_staff}
+      ] do
+      live "/kitchen", Kitchen.BoardLive, :index
+    end
+
     post "/venues/switch", VenueController, :switch
   end
 

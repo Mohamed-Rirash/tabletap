@@ -19,6 +19,13 @@ defmodule TabletapWeb.ScopeHooks do
   def on_mount(:require_kitchen, _params, _session, socket),
     do: require_role(socket, [:kitchen])
 
+  # The KDS is a shared venue screen, not a personal queue like /waiter —
+  # design-qa.md Q25 names both kitchen and manager as undo actors, and
+  # the always-on tablet is set up and sanity-checked by a manager, so
+  # manager/owner are admitted alongside the kitchen role.
+  def on_mount(:require_kitchen_staff, _params, _session, socket),
+    do: require_role(socket, [:kitchen, :manager, :owner])
+
   def on_mount(:require_cashier, _params, _session, socket),
     do: require_role(socket, [:cashier])
 

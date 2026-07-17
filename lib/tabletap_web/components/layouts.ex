@@ -60,15 +60,37 @@ defmodule TabletapWeb.Layouts do
   end
 
   @doc """
+  Full-bleed dark shell for the KDS (`/kitchen`) — ui-tokens.md "KDS:
+  always dark — kitchen tablets run for 12h and glare matters". The
+  `data-theme="dark"` wrapper pins daisyUI's dark tokens for the whole
+  subtree regardless of the device's theme preference (same forced-look
+  reasoning as the marketing page's `.mk` scope). No header/nav chrome
+  of its own: the board owns every pixel; the caller must also
+  `assign(:hide_utility_bar, true)`.
+  """
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+  slot :inner_block, required: true
+
+  def kds(assigns) do
+    ~H"""
+    <div data-theme="dark" class="min-h-dvh bg-base-200 text-base-content">
+      {render_slot(@inner_block)}
+      <.flash_group flash={@flash} />
+    </div>
+    """
+  end
+
+  @doc """
   Sidebar shell for manager/owner pages (`/dashboard`, `/menu`, ...) —
   venue switcher, primary nav, user/log-out, in place of `Layouts.app`'s
   plain header (never both: the caller must also `assign(:hide_utility_bar,
   true)` so root.html.heex's sitewide utility bar doesn't render a second,
   competing set of Settings/Log out links).
 
-  Nav entries for surfaces that don't exist yet (Orders, Tables, Kitchen,
-  Analytics) render disabled with a "Soon" badge rather than linking
-  anywhere — no dead links.
+  Nav entries for surfaces that don't exist yet (Analytics) render
+  disabled with a "Soon" badge rather than linking anywhere — no dead
+  links. Kitchen links out to the KDS (`/kitchen`) — it renders its own
+  dark full-bleed shell (`Layouts.kds/1`), not this sidebar.
 
   ## Examples
 
@@ -156,7 +178,9 @@ defmodule TabletapWeb.Layouts do
           >
             {gettext("Tables")}
           </.manager_nav_link>
-          <.manager_nav_soon icon="hero-fire">{gettext("Kitchen")}</.manager_nav_soon>
+          <.manager_nav_link navigate={~p"/kitchen"} icon="hero-fire" active={false}>
+            {gettext("Kitchen")}
+          </.manager_nav_link>
           <.manager_nav_link navigate={~p"/menu"} icon="hero-book-open" active={@active_nav == :menu}>
             {gettext("Menu")}
           </.manager_nav_link>
@@ -231,6 +255,9 @@ defmodule TabletapWeb.Layouts do
             </.link>
             <.link navigate={~p"/inventory"} class={@active_nav == :inventory && "font-semibold"}>
               {gettext("Inventory")}
+            </.link>
+            <.link navigate={~p"/kitchen"}>
+              {gettext("Kitchen")}
             </.link>
           </div>
           <.theme_toggle />

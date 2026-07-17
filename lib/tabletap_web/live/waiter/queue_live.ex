@@ -409,6 +409,29 @@ defmodule TabletapWeb.Waiter.QueueLive do
   def handle_info({:order_needs_claim, _order_id}, socket), do: {:noreply, reload_boards(socket)}
   def handle_info({:order_claimed, _order_id}, socket), do: {:noreply, reload_boards(socket)}
 
+  # Feature 14 — the kitchen's Ready tap (and its Q25 undo retraction)
+  # lands here live; the queue reload flips the card to "Scan to serve"
+  # (or back off it) without the waiter touching anything.
+  def handle_info({:order_ready, order_id}, socket) do
+    order = Enum.find(socket.assigns.queue, &(&1.id == order_id))
+
+    socket =
+      if order do
+        put_flash(
+          socket,
+          :info,
+          gettext("Order #%{number} is ready for pickup!", number: order.number)
+        )
+      else
+        socket
+      end
+
+    {:noreply, reload_boards(socket)}
+  end
+
+  def handle_info({:order_ready_retracted, _order_id}, socket),
+    do: {:noreply, reload_boards(socket)}
+
   def handle_info({:waiter_called, order_id}, socket) do
     {:noreply,
      socket

@@ -11,7 +11,7 @@
 msgid ""
 msgstr ""
 
-#: lib/tabletap_web/live/manager/dashboard_live.ex:88
+#: lib/tabletap_web/live/manager/dashboard_live.ex:235
 #, elixir-autogen, elixir-format
 msgid "%{count} day left in trial"
 msgid_plural "%{count} days left in trial"
@@ -28,8 +28,8 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:89
-#: lib/tabletap_web/components/layouts.ex:104
+#: lib/tabletap_web/components/layouts.ex:341
+#: lib/tabletap_web/components/layouts.ex:356
 #, elixir-autogen, elixir-format
 msgid "Attempting to reconnect"
 msgstr ""
@@ -44,7 +44,7 @@ msgstr ""
 msgid "Cadaani Coffee"
 msgstr ""
 
-#: lib/tabletap_web/live/manager/dashboard_live.ex:84
+#: lib/tabletap_web/live/manager/dashboard_live.ex:231
 #, elixir-autogen, elixir-format
 msgid "Cashier"
 msgstr ""
@@ -69,7 +69,11 @@ msgstr ""
 msgid "Creating your venue..."
 msgstr ""
 
-#: lib/tabletap_web/live/manager/dashboard_live.ex:85
+#: lib/tabletap_web/components/layouts.ex:182
+#: lib/tabletap_web/components/layouts.ex:260
+#: lib/tabletap_web/live/kitchen/board_live.ex:36
+#: lib/tabletap_web/live/kitchen/board_live.ex:321
+#: lib/tabletap_web/live/manager/dashboard_live.ex:232
 #, elixir-autogen, elixir-format
 msgid "Kitchen"
 msgstr ""
@@ -79,17 +83,14 @@ msgstr ""
 msgid "Log in"
 msgstr ""
 
-#: lib/tabletap_web/live/manager/dashboard_live.ex:82
+#: lib/tabletap_web/components/layouts.ex:311
+#: lib/tabletap_web/live/manager/dashboard_live.ex:229
 #, elixir-autogen, elixir-format
 msgid "Manager"
 msgstr ""
 
-#: lib/tabletap_web/live/manager/dashboard_live.ex:55
-#, elixir-autogen, elixir-format
-msgid "Menu, tables, staff, and live orders land as the next build phases ship. Your trial is active — no card needed to keep exploring."
-msgstr ""
-
-#: lib/tabletap_web/live/manager/dashboard_live.ex:81
+#: lib/tabletap_web/components/layouts.ex:310
+#: lib/tabletap_web/live/manager/dashboard_live.ex:228
 #, elixir-autogen, elixir-format
 msgid "Owner"
 msgstr ""
@@ -99,12 +100,12 @@ msgstr ""
 msgid "Password"
 msgstr ""
 
-#: lib/tabletap_web/live/user_live/registration.ex:143
+#: lib/tabletap_web/live/user_live/registration.ex:148
 #, elixir-autogen, elixir-format
 msgid "Something went wrong setting up your venue. Please try again."
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:96
+#: lib/tabletap_web/components/layouts.ex:348
 #, elixir-autogen, elixir-format
 msgid "Something went wrong!"
 msgstr ""
@@ -124,17 +125,18 @@ msgstr ""
 msgid "That venue isn't part of your organization."
 msgstr ""
 
-#: lib/tabletap_web/live/manager/dashboard_live.ex:33
+#: lib/tabletap_web/components/layouts.ex:128
 #, elixir-autogen, elixir-format
 msgid "Venue"
 msgstr ""
 
-#: lib/tabletap_web/live/manager/dashboard_live.ex:83
+#: lib/tabletap_web/live/manager/dashboard_live.ex:230
+#: lib/tabletap_web/live/waiter/queue_live.ex:31
 #, elixir-autogen, elixir-format
 msgid "Waiter"
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:81
+#: lib/tabletap_web/components/layouts.ex:333
 #, elixir-autogen, elixir-format
 msgid "We can't find the internet"
 msgstr ""
@@ -144,7 +146,7 @@ msgstr ""
 msgid "Your email"
 msgstr ""
 
-#: lib/tabletap_web/live/manager/dashboard_live.ex:53
+#: lib/tabletap_web/live/manager/dashboard_live.ex:118
 #, elixir-autogen, elixir-format
 msgid "Your venue is set up"
 msgstr ""
@@ -157,4 +159,1829 @@ msgstr ""
 #: lib/tabletap_web/live/user_live/registration.ex:28
 #, elixir-autogen, elixir-format
 msgid "if you already have an account."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:306
+#, elixir-autogen, elixir-format
+msgid "%{count} Result"
+msgid_plural "%{count} Results"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:69
+#, elixir-autogen, elixir-format
+msgid "%{count} item out of stock"
+msgid_plural "%{count} items out of stock"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:291
+#, elixir-autogen, elixir-format
+msgid "%{count} open order(s) moved to the claim board."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:42
+#, elixir-autogen, elixir-format
+msgid "%{count} order still open — counting now may not match sales in progress."
+msgid_plural "%{count} orders still open — counting now may not match sales in progress."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/tabletap_web/live/manager/table_print_live.ex:26
+#, elixir-autogen, elixir-format
+msgid "%{count} table QR codes"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:479
+#, elixir-autogen, elixir-format
+msgid "%{name}'s options changed — please remove and re-add it."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1257
+#, elixir-autogen, elixir-format
+msgid "%{remaining} Available"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:496
+#: lib/tabletap_web/live/manager/menu_live.ex:807
+#, elixir-autogen, elixir-format
+msgid "%{remaining} of %{limit} left today"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:182
+#, elixir-autogen, elixir-format
+msgid "A stocktake is already open."
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:439
+#, elixir-autogen, elixir-format
+msgid "A table is calling you!"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:57
+#, elixir-autogen, elixir-format
+msgid "API Key"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:55
+#, elixir-autogen, elixir-format
+msgid "API User ID"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:204
+#, elixir-autogen, elixir-format
+msgid "Accept"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:304
+#: lib/tabletap_web/live/waiter/queue_live.ex:469
+#, elixir-autogen, elixir-format
+msgid "Accepted"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:170
+#: lib/tabletap_web/live/manager/modifiers_live.ex:132
+#, elixir-autogen, elixir-format
+msgid "Activate"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:61
+#, elixir-autogen, elixir-format
+msgid "Active"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:786
+#: lib/tabletap_web/live/public/menu_live.ex:313
+#, elixir-autogen, elixir-format
+msgid "Add"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:128
+#, elixir-autogen, elixir-format
+msgid "Add category"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:55
+#, elixir-autogen, elixir-format
+msgid "Add group"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:141
+#, elixir-autogen, elixir-format
+msgid "Add ingredient"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:792
+#, elixir-autogen, elixir-format
+msgid "Add ingredients on the Inventory page first."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:220
+#: lib/tabletap_web/live/manager/menu_live.ex:568
+#: lib/tabletap_web/live/manager/menu_live.ex:670
+#, elixir-autogen, elixir-format
+msgid "Add item"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:243
+#: lib/tabletap_web/live/manager/modifiers_live.ex:258
+#, elixir-autogen, elixir-format
+msgid "Add option"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:65
+#, elixir-autogen, elixir-format
+msgid "Add table"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:784
+#, elixir-autogen, elixir-format
+msgid "Added to cart."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:194
+#, elixir-autogen, elixir-format
+msgid "Adjust"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:309
+#, elixir-autogen, elixir-format
+msgid "Adjustment (+/-)"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:86
+#, elixir-autogen, elixir-format
+msgid "All"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:653
+#, elixir-autogen, elixir-format
+msgid "Allergens"
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:201
+#, elixir-autogen, elixir-format
+msgid "Analytics"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:224
+#: lib/tabletap_web/live/manager/menu_live.ex:189
+#: lib/tabletap_web/live/manager/menu_live.ex:483
+#: lib/tabletap_web/live/manager/modifiers_live.ex:101
+#: lib/tabletap_web/live/manager/modifiers_live.ex:149
+#: lib/tabletap_web/live/manager/tables_live.ex:128
+#, elixir-autogen, elixir-format
+msgid "Archive"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:185
+#, elixir-autogen, elixir-format
+msgid "Archive this category? It'll be hidden from menus and pickers."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:97
+#, elixir-autogen, elixir-format
+msgid "Archive this group? It'll be detached from every item and hidden."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:218
+#, elixir-autogen, elixir-format
+msgid "Archive this ingredient? It'll be hidden from recipes and restock pickers."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:480
+#, elixir-autogen, elixir-format
+msgid "Archive this item?"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:146
+#, elixir-autogen, elixir-format
+msgid "Archive this option?"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:125
+#, elixir-autogen, elixir-format
+msgid "Archive this table? It'll be hidden from the floor."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:721
+#, elixir-autogen, elixir-format
+msgid "Attach"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1254
+#, elixir-autogen, elixir-format
+msgid "Available"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/restock_print_live.ex:18
+#, elixir-autogen, elixir-format
+msgid "Back to restock report"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/table_print_live.ex:23
+#, elixir-autogen, elixir-format
+msgid "Back to tables"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:86
+#, elixir-autogen, elixir-format
+msgid "Base unit"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:600
+#, elixir-autogen, elixir-format
+msgid "Beef patty, brioche bun, cheddar, lettuce"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:50
+#, elixir-autogen, elixir-format
+msgid "Busy Mode"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:98
+#, elixir-autogen, elixir-format
+msgid "Call waiter"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:264
+#: lib/tabletap_web/live/waiter/queue_live.ex:231
+#, elixir-autogen, elixir-format
+msgid "Can't find customer"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:150
+#: lib/tabletap_web/live/manager/ingredients_live.ex:301
+#: lib/tabletap_web/live/manager/menu_live.ex:136
+#: lib/tabletap_web/live/manager/menu_live.ex:673
+#: lib/tabletap_web/live/manager/modifiers_live.ex:63
+#: lib/tabletap_web/live/manager/modifiers_live.ex:246
+#: lib/tabletap_web/live/manager/tables_live.ex:73
+#: lib/tabletap_web/live/waiter/queue_live.ex:142
+#, elixir-autogen, elixir-format
+msgid "Cancel"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:611
+#, elixir-autogen, elixir-format
+msgid "Category"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:123
+#, elixir-autogen, elixir-format
+msgid "Category name"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:928
+#, elixir-autogen, elixir-format
+msgid "Category saved."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:304
+#, elixir-autogen, elixir-format
+msgid "Choose %{category}"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:920
+#, elixir-autogen, elixir-format
+msgid "Choose %{count}"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:926
+#, elixir-autogen, elixir-format
+msgid "Choose %{min}–%{max}"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:213
+#, elixir-autogen, elixir-format
+msgid "Claim"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:78
+#, elixir-autogen, elixir-format
+msgid "Claim board"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:518
+#: lib/tabletap_web/live/manager/menu_live.ex:831
+#, elixir-autogen, elixir-format
+msgid "Clear"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:223
+#, elixir-autogen, elixir-format
+msgid "Cleared — order carries on normally."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:69
+#, elixir-autogen, elixir-format
+msgid "Close & reconcile"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:105
+#, elixir-autogen, elixir-format
+msgid "Close (wasted)"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:65
+#, elixir-autogen, elixir-format
+msgid "Close this stocktake? Every counted line reconciles stock immediately."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:215
+#, elixir-autogen, elixir-format
+msgid "Closed."
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:49
+#, elixir-autogen, elixir-format
+msgid "Confirming your payment…"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:266
+#, elixir-autogen, elixir-format
+msgid "Contains an 86'd item"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:87
+#, elixir-autogen, elixir-format
+msgid "Convert to takeaway"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:207
+#, elixir-autogen, elixir-format
+msgid "Converted to takeaway."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:119
+#, elixir-autogen, elixir-format
+msgid "Cost per unit"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:403
+#, elixir-autogen, elixir-format
+msgid "Couldn't access the camera: %{message}"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1051
+#, elixir-autogen, elixir-format
+msgid "Couldn't add that ingredient — already in the recipe?"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1019
+#, elixir-autogen, elixir-format
+msgid "Couldn't attach that group."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:201
+#, elixir-autogen, elixir-format
+msgid "Couldn't refund that order — refreshing."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:78
+#: lib/tabletap_web/live/manager/stocktake_live.ex:120
+#, elixir-autogen, elixir-format
+msgid "Counted"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:474
+#: lib/tabletap_web/live/manager/orders_live.ex:261
+#: lib/tabletap_web/live/waiter/queue_live.ex:465
+#, elixir-autogen, elixir-format
+msgid "Counter"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:727
+#, elixir-autogen, elixir-format
+msgid "Create groups on the Modifiers page first."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:144
+#, elixir-autogen, elixir-format
+msgid "Credentials saved but not verified yet."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:108
+#, elixir-autogen, elixir-format
+msgid "Credentials saved — verify them before going live."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/restock_print_live.ex:38
+#: lib/tabletap_web/live/manager/restock_report_live.ex:54
+#, elixir-autogen, elixir-format
+msgid "Current"
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:165
+#: lib/tabletap_web/components/layouts.ex:242
+#, elixir-autogen, elixir-format
+msgid "Dashboard"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:170
+#: lib/tabletap_web/live/manager/modifiers_live.ex:132
+#, elixir-autogen, elixir-format
+msgid "Deactivate"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:595
+#, elixir-autogen, elixir-format
+msgid "Description"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:701
+#, elixir-autogen, elixir-format
+msgid "Detach"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:637
+#, elixir-autogen, elixir-format
+msgid "Dietary"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:475
+#: lib/tabletap_web/live/manager/orders_live.ex:262
+#: lib/tabletap_web/live/public/menu_live.ex:356
+#: lib/tabletap_web/live/waiter/queue_live.ex:466
+#, elixir-autogen, elixir-format
+msgid "Dine in"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:155
+#, elixir-autogen, elixir-format
+msgid "Drag to reorder"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:34
+#, elixir-autogen, elixir-format
+msgid "Each table gets its own QR code. Print the sheet, laminate it, and place one on every table. Rotating a code instantly disables the old printout."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:211
+#: lib/tabletap_web/live/manager/menu_live.ex:474
+#: lib/tabletap_web/live/manager/modifiers_live.ex:90
+#: lib/tabletap_web/live/manager/modifiers_live.ex:140
+#: lib/tabletap_web/live/manager/tables_live.ex:108
+#, elixir-autogen, elixir-format
+msgid "Edit"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:40
+#, elixir-autogen, elixir-format
+msgid "Edit group"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:75
+#, elixir-autogen, elixir-format
+msgid "Edit ingredient"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:568
+#, elixir-autogen, elixir-format
+msgid "Edit item"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:46
+#, elixir-autogen, elixir-format
+msgid "Edit table"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:47
+#, elixir-autogen, elixir-format
+msgid "End shift"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:509
+#, elixir-autogen, elixir-format
+msgid "Enter a quantity greater than zero."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:481
+#, elixir-autogen, elixir-format
+msgid "Enter a valid quantity, e.g. 1.5kg or -200g."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:512
+#, elixir-autogen, elixir-format
+msgid "Enter a valid quantity, e.g. 1.5kg or 500g."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1056
+#, elixir-autogen, elixir-format
+msgid "Enter a valid quantity, e.g. 150g."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:197
+#, elixir-autogen, elixir-format
+msgid "Enter a valid quantity, e.g. 2kg or 500g."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1129
+#, elixir-autogen, elixir-format
+msgid "Enter a whole number greater than zero."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:498
+#, elixir-autogen, elixir-format
+msgid "Enter the price paid per unit."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/restock_report_live.ex:39
+#, elixir-autogen, elixir-format
+msgid "Everything at or below its threshold, with a suggested reorder quantity (threshold × 2 − current)."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/restock_report_live.ex:34
+#, elixir-autogen, elixir-format
+msgid "Export CSV"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:234
+#, elixir-autogen, elixir-format
+msgid "Flagged for manager"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:356
+#, elixir-autogen, elixir-format
+msgid "Flagged — a manager will resolve it."
+msgstr ""
+
+#: lib/tabletap_web/controllers/public/table_html/not_found.html.heex:11
+#, elixir-autogen, elixir-format
+msgid "Go to tabletap.app"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:308
+#, elixir-autogen, elixir-format
+msgid "Group saved."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:66
+#, elixir-autogen, elixir-format
+msgid "HPP Key (optional — HPP only)"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:159
+#: lib/tabletap_web/live/manager/menu_live.ex:441
+#: lib/tabletap_web/live/manager/modifiers_live.ex:118
+#: lib/tabletap_web/live/manager/tables_live.ex:88
+#, elixir-autogen, elixir-format
+msgid "Inactive"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/restock_print_live.ex:37
+#: lib/tabletap_web/live/manager/restock_report_live.ex:53
+#: lib/tabletap_web/live/manager/stocktake_live.ex:77
+#: lib/tabletap_web/live/manager/stocktake_live.ex:118
+#, elixir-autogen, elixir-format
+msgid "Ingredient"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:455
+#, elixir-autogen, elixir-format
+msgid "Ingredient saved."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:404
+#: lib/tabletap_web/live/manager/menu_live.ex:599
+#, elixir-autogen, elixir-format
+msgid "Ingredients"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:45
+#, elixir-autogen, elixir-format
+msgid "Ingredients, stock levels, and thresholds. Attach a recipe to a menu item from the menu editor."
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:199
+#: lib/tabletap_web/components/layouts.ex:257
+#: lib/tabletap_web/live/manager/ingredients_live.ex:34
+#: lib/tabletap_web/live/manager/restock_report_live.ex:25
+#: lib/tabletap_web/live/manager/stocktake_live.ex:26
+#, elixir-autogen, elixir-format
+msgid "Inventory"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1166
+#, elixir-autogen, elixir-format
+msgid "Item saved."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:114
+#, elixir-autogen, elixir-format
+msgid "Kitchen confirmed — still makeable"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:97
+#, elixir-autogen, elixir-format
+msgid "Kitchen speed"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:58
+#, elixir-autogen, elixir-format
+msgid "Label (optional)"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:153
+#, elixir-autogen, elixir-format
+msgid "Live"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:120
+#, elixir-autogen, elixir-format
+msgid "Live orders and alerts land as the next build phases ship. Your trial is active — no card needed to keep exploring."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:140
+#, elixir-autogen, elixir-format
+msgid "Live — this venue can accept payments."
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:231
+#, elixir-autogen, elixir-format
+msgid "Log out"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:171
+#, elixir-autogen, elixir-format
+msgid "Low"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:53
+#, elixir-autogen, elixir-format
+msgid "Low stock: %{names}"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:100
+#, elixir-autogen, elixir-format
+msgid "Low-stock threshold"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:52
+#, elixir-autogen, elixir-format
+msgid "Manual serve confirm"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:96
+#, elixir-autogen, elixir-format
+msgid "Mark collected"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:178
+#, elixir-autogen, elixir-format
+msgid "Marked served without a scan. Consider reprinting this table's QR code."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:211
+#, elixir-autogen, elixir-format
+msgid "Marked served."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:50
+#, elixir-autogen, elixir-format
+msgid "Max picks"
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:158
+#: lib/tabletap_web/components/layouts.ex:185
+#: lib/tabletap_web/components/layouts.ex:248
+#: lib/tabletap_web/live/manager/menu_live.ex:22
+#, elixir-autogen, elixir-format
+msgid "Menu"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:40
+#, elixir-autogen, elixir-format
+msgid "Menu Editing"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:50
+#, elixir-autogen, elixir-format
+msgid "Merchant UID"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:49
+#, elixir-autogen, elixir-format
+msgid "Min picks"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:680
+#, elixir-autogen, elixir-format
+msgid "Modifier groups"
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:192
+#: lib/tabletap_web/components/layouts.ex:251
+#: lib/tabletap_web/live/manager/modifiers_live.ex:25
+#, elixir-autogen, elixir-format
+msgid "Modifiers"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:192
+#, elixir-autogen, elixir-format
+msgid "Much slower (2×)"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:68
+#, elixir-autogen, elixir-format
+msgid "My queue"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:168
+#, elixir-autogen, elixir-format
+msgid "NEXT UP"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:81
+#: lib/tabletap_web/live/manager/menu_live.ex:572
+#: lib/tabletap_web/live/manager/modifiers_live.ex:46
+#, elixir-autogen, elixir-format
+msgid "Name"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:104
+#, elixir-autogen, elixir-format
+msgid "Need help? Ask at the counter."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:59
+#, elixir-autogen, elixir-format
+msgid "Needs your attention"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:174
+#, elixir-autogen, elixir-format
+msgid "Negative"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:60
+#, elixir-autogen, elixir-format
+msgid "Negative stock (needs reconciling): %{names}"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:58
+#: lib/tabletap_web/live/waiter/queue_live.ex:468
+#, elixir-autogen, elixir-format
+msgid "New"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:122
+#, elixir-autogen, elixir-format
+msgid "New category name"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:40
+#, elixir-autogen, elixir-format
+msgid "New group"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:74
+#, elixir-autogen, elixir-format
+msgid "New ingredient"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:46
+#, elixir-autogen, elixir-format
+msgid "New table"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:225
+#, elixir-autogen, elixir-format
+msgid "No categories yet — add one above to get started."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:146
+#, elixir-autogen, elixir-format
+msgid "No credentials on file yet."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:501
+#, elixir-autogen, elixir-format
+msgid "No daily limit"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:813
+#, elixir-autogen, elixir-format
+msgid "No daily limit — unlimited"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:238
+#, elixir-autogen, elixir-format
+msgid "No ingredients yet — add one above to get started."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:210
+#, elixir-autogen, elixir-format
+msgid "No items match \"%{search}\"."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:354
+#, elixir-autogen, elixir-format
+msgid "No items to preview yet — add some in Menu Editing."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:207
+#, elixir-autogen, elixir-format
+msgid "No items yet."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:707
+#, elixir-autogen, elixir-format
+msgid "No modifier groups attached."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:263
+#, elixir-autogen, elixir-format
+msgid "No modifier groups yet — add one above to get started."
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:63
+#, elixir-autogen, elixir-format
+msgid "No new tickets"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:155
+#, elixir-autogen, elixir-format
+msgid "No options yet."
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:95
+#, elixir-autogen, elixir-format
+msgid "No orders yet — new assignments appear here."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:766
+#, elixir-autogen, elixir-format
+msgid "No recipe yet — this item won't deduct stock on serve."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:208
+#, elixir-autogen, elixir-format
+msgid "No stock effect"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/table_print_live.ex:49
+#, elixir-autogen, elixir-format
+msgid "No tables to print yet — add some first."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:134
+#, elixir-autogen, elixir-format
+msgid "No tables yet — add one above to generate its QR code."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:190
+#, elixir-autogen, elixir-format
+msgid "Normal speed"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:154
+#, elixir-autogen, elixir-format
+msgid "Not live"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:265
+#, elixir-autogen, elixir-format
+msgid "Not picked up"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:279
+#, elixir-autogen, elixir-format
+msgid "Note:"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:298
+#, elixir-autogen, elixir-format
+msgid "Notes (optional) — e.g. no onions"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:810
+#, elixir-autogen, elixir-format
+msgid "Notes are too long — please shorten them."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:61
+#, elixir-autogen, elixir-format
+msgid "Nothing flagged right now."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/restock_print_live.ex:56
+#: lib/tabletap_web/live/manager/restock_report_live.ex:46
+#, elixir-autogen, elixir-format
+msgid "Nothing needs restocking right now."
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:71
+#, elixir-autogen, elixir-format
+msgid "Nothing on the fire"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:109
+#, elixir-autogen, elixir-format
+msgid "Nothing unclaimed right now."
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:79
+#, elixir-autogen, elixir-format
+msgid "Nothing waiting for pickup"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:37
+#, elixir-autogen, elixir-format
+msgid "Nothing waiting on a serve confirm right now."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:147
+#, elixir-autogen, elixir-format
+msgid "Nothing was counted this session."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:52
+#, elixir-autogen, elixir-format
+msgid "Number"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:333
+#: lib/tabletap_web/live/manager/menu_live.ex:389
+#: lib/tabletap_web/live/manager/menu_live.ex:444
+#: lib/tabletap_web/live/manager/menu_live.ex:1252
+#, elixir-autogen, elixir-format
+msgid "Off today"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1310
+#, elixir-autogen, elixir-format
+msgid "Only one photo allowed."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:199
+#, elixir-autogen, elixir-format
+msgid "Open"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:98
+#, elixir-autogen, elixir-format
+msgid "Open this table's live QR link"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:170
+#, elixir-autogen, elixir-format
+msgid "Option name"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:461
+#, elixir-autogen, elixir-format
+msgid "Option saved."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:131
+#: lib/tabletap_web/live/public/order_tracker_live.ex:40
+#: lib/tabletap_web/live/waiter/queue_live.ex:174
+#, elixir-autogen, elixir-format
+msgid "Order #%{number}"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:423
+#, elixir-autogen, elixir-format
+msgid "Order #%{number} is ready for pickup!"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:109
+#, elixir-autogen, elixir-format
+msgid "Order details"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:200
+#, elixir-autogen, elixir-format
+msgid "Order not found."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/restock_print_live.ex:40
+#, elixir-autogen, elixir-format
+msgid "Order qty"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:68
+#, elixir-autogen, elixir-format
+msgid "Order served — enjoy!"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:856
+#, elixir-autogen, elixir-format
+msgid "Ordering is paused right now — please check back shortly."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:585
+#, elixir-autogen, elixir-format
+msgid "Ordering paused — please order at the counter"
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:172
+#: lib/tabletap_web/components/layouts.ex:245
+#: lib/tabletap_web/live/manager/orders_live.ex:29
+#, elixir-autogen, elixir-format
+msgid "Orders"
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:204
+#, elixir-autogen, elixir-format
+msgid "Others"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:74
+#, elixir-autogen, elixir-format
+msgid "Pause 20 min"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:83
+#, elixir-autogen, elixir-format
+msgid "Pause 40 min"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:92
+#, elixir-autogen, elixir-format
+msgid "Pause until reopened"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:199
+#, elixir-autogen, elixir-format
+msgid "Paused"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:211
+#, elixir-autogen, elixir-format
+msgid "Paused until %{time}."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:208
+#, elixir-autogen, elixir-format
+msgid "Paused until you resume it."
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:212
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:25
+#, elixir-autogen, elixir-format
+msgid "Payment account"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:626
+#, elixir-autogen, elixir-format
+msgid "Photo"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1308
+#, elixir-autogen, elixir-format
+msgid "Photo is too large (max 6MB)."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1219
+#: lib/tabletap_web/live/manager/modifiers_live.ex:495
+#, elixir-autogen, elixir-format
+msgid "Pick %{count}"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1222
+#: lib/tabletap_web/live/manager/modifiers_live.ex:498
+#, elixir-autogen, elixir-format
+msgid "Pick %{min}–%{max}"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:418
+#, elixir-autogen, elixir-format
+msgid "Place order"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:303
+#, elixir-autogen, elixir-format
+msgid "Placed"
+msgstr ""
+
+#: lib/tabletap_web/controllers/public/table_html/not_found.html.heex:8
+#, elixir-autogen, elixir-format
+msgid "Please ask a staff member for help, or check if the code was recently reprinted."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:115
+#: lib/tabletap_web/live/manager/modifiers_live.ex:196
+#, elixir-autogen, elixir-format
+msgid "Pre-selected"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:607
+#, elixir-autogen, elixir-format
+msgid "Prep time (minutes)"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:66
+#: lib/tabletap_web/live/public/order_tracker_live.ex:305
+#: lib/tabletap_web/live/waiter/queue_live.ex:470
+#, elixir-autogen, elixir-format
+msgid "Preparing"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:49
+#, elixir-autogen, elixir-format
+msgid "Preview"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:575
+#, elixir-autogen, elixir-format
+msgid "Price"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:175
+#, elixir-autogen, elixir-format
+msgid "Price change"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:271
+#, elixir-autogen, elixir-format
+msgid "Price paid (per unit)"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:732
+#, elixir-autogen, elixir-format
+msgid "Price with options:"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/restock_print_live.ex:21
+#: lib/tabletap_web/live/manager/table_print_live.ex:30
+#, elixir-autogen, elixir-format
+msgid "Print"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:30
+#, elixir-autogen, elixir-format
+msgid "Print QR sheet"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/restock_report_live.ex:31
+#, elixir-autogen, elixir-format
+msgid "Print purchase order"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/restock_print_live.ex:29
+#, elixir-autogen, elixir-format
+msgid "Purchase order"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:226
+#, elixir-autogen, elixir-format
+msgid "QR code rotated — reprint this table's code."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:798
+#, elixir-autogen, elixir-format
+msgid "Quantity available today"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:221
+#, elixir-autogen, elixir-format
+msgid "Quantity delta"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:308
+#, elixir-autogen, elixir-format
+msgid "Quantity received"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:310
+#, elixir-autogen, elixir-format
+msgid "Quantity wasted"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:74
+#: lib/tabletap_web/live/kitchen/board_live.ex:299
+#: lib/tabletap_web/live/public/order_tracker_live.ex:306
+#: lib/tabletap_web/live/waiter/queue_live.ex:471
+#, elixir-autogen, elixir-format
+msgid "Ready"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:31
+#, elixir-autogen, elixir-format
+msgid "Ready orders waiting on a serve scan, and anything flagged for your attention."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:35
+#, elixir-autogen, elixir-format
+msgid "Ready — needs serving"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:285
+#, elixir-autogen, elixir-format
+msgid "Reason"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:743
+#, elixir-autogen, elixir-format
+msgid "Recipe"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:95
+#, elixir-autogen, elixir-format
+msgid "Refresh"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:78
+#, elixir-autogen, elixir-format
+msgid "Refund"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:196
+#, elixir-autogen, elixir-format
+msgid "Refunded."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:760
+#: lib/tabletap_web/live/public/menu_live.ex:473
+#: lib/tabletap_web/live/public/menu_live.ex:489
+#, elixir-autogen, elixir-format
+msgid "Remove"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:178
+#, elixir-autogen, elixir-format
+msgid "Rename"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:692
+#: lib/tabletap_web/live/manager/modifiers_live.ex:51
+#: lib/tabletap_web/live/manager/modifiers_live.ex:79
+#, elixir-autogen, elixir-format
+msgid "Required"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:185
+#, elixir-autogen, elixir-format
+msgid "Restock"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:40
+#: lib/tabletap_web/live/manager/restock_report_live.ex:27
+#, elixir-autogen, elixir-format
+msgid "Restock report"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:65
+#, elixir-autogen, elixir-format
+msgid "Resume ordering"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:28
+#, elixir-autogen, elixir-format
+msgid "Reusable option groups — sizes, extras, removals. Build a group once, then attach it to any item from the menu editor."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:119
+#, elixir-autogen, elixir-format
+msgid "Rotate QR"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:115
+#, elixir-autogen, elixir-format
+msgid "Rotate this table's QR code? The current printout will stop working."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:299
+#: lib/tabletap_web/live/manager/menu_live.ex:128
+#, elixir-autogen, elixir-format
+msgid "Save"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:142
+#: lib/tabletap_web/live/manager/menu_live.ex:670
+#: lib/tabletap_web/live/manager/modifiers_live.ex:55
+#: lib/tabletap_web/live/manager/tables_live.ex:65
+#, elixir-autogen, elixir-format
+msgid "Save changes"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:71
+#, elixir-autogen, elixir-format
+msgid "Save credentials"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:242
+#, elixir-autogen, elixir-format
+msgid "Save option"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:418
+#, elixir-autogen, elixir-format
+msgid "Saved."
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:133
+#, elixir-autogen, elixir-format
+msgid "Scan the table's QR code — for takeaway or pickup orders, scan the customer's tracker screen instead."
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:222
+#, elixir-autogen, elixir-format
+msgid "Scan to serve"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:63
+#, elixir-autogen, elixir-format
+msgid "Search category or menu..."
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:307
+#, elixir-autogen, elixir-format
+msgid "Served"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:381
+#, elixir-autogen, elixir-format
+msgid "Served — nice work."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:510
+#: lib/tabletap_web/live/manager/menu_live.ex:823
+#: lib/tabletap_web/live/manager/stocktake_live.ex:98
+#, elixir-autogen, elixir-format
+msgid "Set"
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:215
+#, elixir-autogen, elixir-format
+msgid "Settings"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:75
+#, elixir-autogen, elixir-format
+msgid "Show this to staff to collect your order"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:191
+#, elixir-autogen, elixir-format
+msgid "Slower (1.5×)"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:36
+#, elixir-autogen, elixir-format
+msgid "Snapshots every ingredient's current stock, then lets you enter physical counts. Best done at close, with the fewest sales in flight."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:191
+#, elixir-autogen, elixir-format
+msgid "Sold out"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:873
+#, elixir-autogen, elixir-format
+msgid "Some items changed — please review your cart and try again."
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:339
+#, elixir-autogen, elixir-format
+msgid "Someone else got it first."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:812
+#: lib/tabletap_web/live/public/menu_live.ex:885
+#, elixir-autogen, elixir-format
+msgid "Something went wrong — please try again."
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:305
+#, elixir-autogen, elixir-format
+msgid "Soon"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:320
+#, elixir-autogen, elixir-format
+msgid "Sorry — this item sold out while your payment was confirming. You've been refunded."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:881
+#, elixir-autogen, elixir-format
+msgid "Sorry, an item just sold out — please review your cart."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:795
+#, elixir-autogen, elixir-format
+msgid "Sorry, that item just sold out."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:851
+#, elixir-autogen, elixir-format
+msgid "Sorry, we're closed right now."
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:51
+#, elixir-autogen, elixir-format
+msgid "Sound off"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:48
+#, elixir-autogen, elixir-format
+msgid "Sound on"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:290
+#, elixir-autogen, elixir-format
+msgid "Start"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:39
+#, elixir-autogen, elixir-format
+msgid "Start shift"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:50
+#, elixir-autogen, elixir-format
+msgid "Start stocktake"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:55
+#, elixir-autogen, elixir-format
+msgid "Start your shift to receive orders."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:57
+#, elixir-autogen, elixir-format
+msgid "Started %{time}"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:34
+#, elixir-autogen, elixir-format
+msgid "Status"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:202
+#, elixir-autogen, elixir-format
+msgid "Stock effect (optional)"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:37
+#: lib/tabletap_web/live/manager/stocktake_live.ex:28
+#, elixir-autogen, elixir-format
+msgid "Stocktake"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:212
+#, elixir-autogen, elixir-format
+msgid "Stocktake closed and reconciled."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:61
+#, elixir-autogen, elixir-format
+msgid "Store ID (optional — HPP only)"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/restock_report_live.ex:56
+#, elixir-autogen, elixir-format
+msgid "Suggested reorder"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:231
+#: lib/tabletap_web/live/manager/orders_live.ex:133
+#: lib/tabletap_web/live/manager/table_print_live.ex:41
+#: lib/tabletap_web/live/manager/tables_live.ex:85
+#: lib/tabletap_web/live/public/menu_live.ex:48
+#: lib/tabletap_web/live/waiter/queue_live.ex:177
+#, elixir-autogen, elixir-format
+msgid "Table %{number}"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:237
+#, elixir-autogen, elixir-format
+msgid "Table archived."
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:171
+#, elixir-autogen, elixir-format
+msgid "Table calling!"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:185
+#, elixir-autogen, elixir-format
+msgid "Table saved."
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:179
+#: lib/tabletap_web/components/layouts.ex:254
+#: lib/tabletap_web/live/manager/tables_live.ex:24
+#, elixir-autogen, elixir-format
+msgid "Tables"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:473
+#: lib/tabletap_web/live/manager/orders_live.ex:260
+#: lib/tabletap_web/live/public/menu_live.ex:367
+#: lib/tabletap_web/live/waiter/queue_live.ex:464
+#, elixir-autogen, elixir-format
+msgid "Takeaway"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/dashboard_live.ex:205
+#, elixir-autogen, elixir-format
+msgid "Taking orders normally."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:617
+#, elixir-autogen, elixir-format
+msgid "That item is no longer available."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/orders_live.ex:185
+#: lib/tabletap_web/live/manager/orders_live.ex:242
+#: lib/tabletap_web/live/waiter/queue_live.ex:323
+#: lib/tabletap_web/live/waiter/queue_live.ex:394
+#, elixir-autogen, elixir-format
+msgid "That order moved on — refreshing."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:264
+#, elixir-autogen, elixir-format
+msgid "That table is no longer available."
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:355
+#, elixir-autogen, elixir-format
+msgid "That ticket moved on — board refreshed."
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:386
+#, elixir-autogen, elixir-format
+msgid "That's not the right table or customer — try again."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:119
+#, elixir-autogen, elixir-format
+msgid "Theoretical"
+msgstr ""
+
+#: lib/tabletap_web/controllers/public/table_html/not_found.html.heex:6
+#, elixir-autogen, elixir-format
+msgid "This QR code isn't active"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:84
+#, elixir-autogen, elixir-format
+msgid "This menu is empty right now."
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:327
+#, elixir-autogen, elixir-format
+msgid "This order expired before payment was confirmed."
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:324
+#, elixir-autogen, elixir-format
+msgid "This order was cancelled."
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:330
+#, elixir-autogen, elixir-format
+msgid "This order was refunded."
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:92
+#, elixir-autogen, elixir-format
+msgid "This screen has been running a long time — refresh to keep it snappy."
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:51
+#, elixir-autogen, elixir-format
+msgid "This updates automatically — no need to refresh."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:396
+#, elixir-autogen, elixir-format
+msgid "This venue isn't set up to accept online payments yet — please ask staff."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/restock_print_live.ex:39
+#: lib/tabletap_web/live/manager/restock_report_live.ex:55
+#, elixir-autogen, elixir-format
+msgid "Threshold"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:45
+#, elixir-autogen, elixir-format
+msgid "Toggle new-ticket sound"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:387
+#: lib/tabletap_web/live/public/order_tracker_live.ex:125
+#, elixir-autogen, elixir-format
+msgid "Total"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:466
+#, elixir-autogen, elixir-format
+msgid "Turn off today"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:466
+#, elixir-autogen, elixir-format
+msgid "Turn on today"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:250
+#, elixir-autogen, elixir-format
+msgid "Undo — one step back"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1309
+#, elixir-autogen, elixir-format
+msgid "Unsupported file type."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:923
+#, elixir-autogen, elixir-format
+msgid "Up to %{max}"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:1311
+#, elixir-autogen, elixir-format
+msgid "Upload failed."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:122
+#, elixir-autogen, elixir-format
+msgid "Value"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:121
+#, elixir-autogen, elixir-format
+msgid "Variance"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/stocktake_live.ex:113
+#, elixir-autogen, elixir-format
+msgid "Variance report"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:526
+#, elixir-autogen, elixir-format
+msgid "Venue not found."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:130
+#, elixir-autogen, elixir-format
+msgid "Verification failed — double-check the credentials and try again."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:123
+#, elixir-autogen, elixir-format
+msgid "Verified — this venue can now accept payments."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:79
+#, elixir-autogen, elixir-format
+msgid "Verify"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:511
+#, elixir-autogen, elixir-format
+msgid "View cart"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:28
+#, elixir-autogen, elixir-format
+msgid "View public menu"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:27
+#, elixir-autogen, elixir-format
+msgid "WaafiPay merchant credentials for this venue, from your offline registration with WaafiPay. Customer payments land directly in your own merchant account — we never hold your money."
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:97
+#, elixir-autogen, elixir-format
+msgid "Waiter called — on the way"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:305
+#, elixir-autogen, elixir-format
+msgid "Waiting for pickup"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:402
+#, elixir-autogen, elixir-format
+msgid "Wallet phone number"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:203
+#, elixir-autogen, elixir-format
+msgid "Waste"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:588
+#, elixir-autogen, elixir-format
+msgid "We're closed right now — please check back later."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:866
+#, elixir-autogen, elixir-format
+msgid "You already have several active orders — please wait for one to finish."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:57
+#, elixir-autogen, elixir-format
+msgid "You have an active order →"
+msgstr ""
+
+#: lib/tabletap_web/live/waiter/queue_live.ex:53
+#, elixir-autogen, elixir-format
+msgid "You're off shift"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:378
+#: lib/tabletap_web/live/public/menu_live.ex:861
+#, elixir-autogen, elixir-format
+msgid "Your cart is empty."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:339
+#, elixir-autogen, elixir-format
+msgid "Your order"
+msgstr ""
+
+#: lib/tabletap_web/live/kitchen/board_live.ex:240
+#, elixir-autogen, elixir-format
+msgid "contains 86'd item"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:106
+#, elixir-autogen, elixir-format
+msgid "e.g. 1.5kg"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:53
+#, elixir-autogen, elixir-format
+msgid "e.g. 12 or A3"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:227
+#, elixir-autogen, elixir-format
+msgid "e.g. 20g or -15g"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:264
+#: lib/tabletap_web/live/manager/stocktake_live.ex:94
+#, elixir-autogen, elixir-format
+msgid "e.g. 2kg"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:82
+#, elixir-autogen, elixir-format
+msgid "e.g. Cheddar cheese"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:125
+#, elixir-autogen, elixir-format
+msgid "e.g. Drinks"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:171
+#, elixir-autogen, elixir-format
+msgid "e.g. Extra cheese"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:47
+#, elixir-autogen, elixir-format
+msgid "e.g. Extras"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/tables_live.ex:59
+#, elixir-autogen, elixir-format
+msgid "e.g. Window booth"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:507
+#: lib/tabletap_web/live/manager/menu_live.ex:820
+#, elixir-autogen, elixir-format
+msgid "limit"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:542
+#: lib/tabletap_web/live/manager/menu_live.ex:1085
+#: lib/tabletap_web/live/manager/modifiers_live.ex:420
+#, elixir-autogen, elixir-format
+msgid "must be a valid amount"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/ingredients_live.ex:532
+#, elixir-autogen, elixir-format
+msgid "must be a valid quantity, e.g. 1.5kg"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/modifiers_live.ex:438
+#, elixir-autogen, elixir-format
+msgid "must be a valid quantity, e.g. 20g or -15g"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/menu_live.ex:783
+#, elixir-autogen, elixir-format
+msgid "qty per serving"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:187
+#, elixir-autogen, elixir-format
+msgid "~%{minutes} min"
 msgstr ""

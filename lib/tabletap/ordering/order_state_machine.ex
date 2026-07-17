@@ -105,7 +105,7 @@ defmodule Tabletap.Ordering.OrderStateMachine do
     |> case do
       {:ok, %{order: updated}} ->
         emit_telemetry(scope, updated, from, to)
-        broadcast(updated)
+        broadcast(updated, from, to)
         maybe_enqueue_assignment(updated, to)
         {:ok, updated}
 
@@ -232,11 +232,45 @@ defmodule Tabletap.Ordering.OrderStateMachine do
     DateTime.diff(served_at, accepted_at, :millisecond)
   end
 
-  defp broadcast(order) do
+  defp broadcast(order, from, to) do
     Phoenix.PubSub.broadcast(Tabletap.PubSub, "order:#{order.id}", :order_updated)
     # architecture.md "Real-time Topology" — the KDS board, manager live
     # floor view, and POS all watch every transition at a venue, not
-    # just this one order's own tracker page.
-    Phoenix.PubSub.broadcast(Tabletap.PubSub, "venue:#{order.venue_id}:orders", :order_updated)
+    # just this one order's own tracker page. The id rides along so the
+    # KDS can stream-update the one affected ticket instead of
+    # re-querying the whole board (ui-registry.md "Real-time update
+    # pattern").
+    Phoenix.PubSub.broadcast(
+      Tabletap.PubSub,
+      "venue:#{order.venue_id}:orders",
+      {:order_updated, order.id}
+    )
+
+    notify_waiter(order, from, to)
   end
+
+  # Feature 14 "Waiter notified on ready" — the kitchen's Ready tap lands
+  # on the assigned waiter's phone the moment it commits, and the Q25
+  # undo retracts it ("a rollback from `ready` retracts the waiter's
+  # pickup notification"). An unassigned order (pickup venue, claim
+  # board) has nobody to tell.
+  defp notify_waiter(%Order{waiter_membership_id: nil}, _from, _to), do: :ok
+
+  defp notify_waiter(order, _from, :ready) do
+    Phoenix.PubSub.broadcast(
+      Tabletap.PubSub,
+      "waiter:#{order.waiter_membership_id}",
+      {:order_ready, order.id}
+    )
+  end
+
+  defp notify_waiter(order, :ready, :preparing) do
+    Phoenix.PubSub.broadcast(
+      Tabletap.PubSub,
+      "waiter:#{order.waiter_membership_id}",
+      {:order_ready_retracted, order.id}
+    )
+  end
+
+  defp notify_waiter(_order, _from, _to), do: :ok
 end

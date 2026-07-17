@@ -199,6 +199,46 @@
    same attribute — the KDS layout just never reads the user/system
    preference the other surfaces do. */
 
+/* New KDS ticket entrance (ui-tokens.md Animation Tokens: "250ms slide +
+   fade, ease-out"). Referenced via motion-safe:animate-[...] so
+   reduced-motion users get an instant appearance instead. */
+@keyframes kds-ticket-in {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Overdue KDS ticket (ui-tokens.md KDS Ticket: "header background flips
+   to warning at 15%, timer turns warning and pulses"). The .TicketTimer
+   hook toggles .kds-overdue client-side — the elapsed clock lives in the
+   browser, so its threshold-crossing must too; no server round-trip ever
+   restyles a late ticket. Reduced motion: static warning color, no pulse
+   (ui-tokens.md "replace pulses with static color"). */
+[data-kds-ticket].kds-overdue .kds-ticket-header {
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+}
+
+[data-kds-ticket].kds-overdue .kds-ticket-timer {
+  color: var(--color-warning);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-kds-ticket].kds-overdue .kds-ticket-timer {
+    animation: kds-overdue-pulse 1s ease-in-out infinite;
+  }
+}
+
+@keyframes kds-overdue-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
 /* Add variants based on LiveView classes */
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);

@@ -307,6 +307,8 @@ defmodule TabletapWeb.UserAuth do
     ~p"/dashboard"
   end
 
+  def signed_in_path(%{assigns: %{current_scope: %Scope{role: :kitchen}}}), do: ~p"/kitchen"
+
   def signed_in_path(_), do: ~p"/"
 
   @doc """

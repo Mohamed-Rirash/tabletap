@@ -246,7 +246,7 @@ defmodule TabletapWeb.Manager.OrdersLive do
   end
 
   @impl true
-  def handle_info(:order_updated, socket), do: {:noreply, reload_boards(socket)}
+  def handle_info({:order_updated, _order_id}, socket), do: {:noreply, reload_boards(socket)}
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   defp reload_boards(socket) do

@@ -528,15 +528,7 @@ defmodule Tabletap.Ordering do
   `venue.eta_inflation_factor` when Busy Mode's "Slow" is active (Q2).
   """
   def estimated_minutes(%Scope{venue: venue}, %Order{} = order) do
-    base_minutes =
-      order.items
-      |> Enum.map(&(&1.menu_item && &1.menu_item.prep_minutes))
-      |> Enum.reject(&is_nil/1)
-      |> case do
-        [] -> 10
-        minutes -> Enum.max(minutes)
-      end
-
+    base_minutes = expected_prep_minutes(order)
     queue_depth = max(count_kitchen_queue(venue), 1)
     inflation = venue.eta_inflation_factor || Decimal.new(1)
 
@@ -803,7 +795,13 @@ defmodule Tabletap.Ordering do
 
   defp flag_order(%Scope{venue: venue}, order, flag) do
     {:ok, order} = order |> Order.flag_changeset(flag) |> Repo.update()
-    Phoenix.PubSub.broadcast(Tabletap.PubSub, "venue:#{venue.id}:orders", :order_updated)
+
+    Phoenix.PubSub.broadcast(
+      Tabletap.PubSub,
+      "venue:#{venue.id}:orders",
+      {:order_updated, order.id}
+    )
+
     {:ok, order}
   end
 
@@ -887,6 +885,94 @@ defmodule Tabletap.Ordering do
       from(o in Order, where: o.venue_id == ^venue.id and o.status in ^@handoff_statuses),
       :count
     )
+  end
+
+  ## Kitchen board (build-plan.md Feature 14; design-qa.md Q25/Q27)
+
+  @doc """
+  Every ticket the KDS shows — the venue's in-flight orders
+  (`placed`/`accepted`/`preparing`/`ready`), oldest placed first so the
+  board reads top-to-bottom in cook order. `menu_item` is preloaded for
+  `prep_minutes` (the per-ticket overdue threshold), never for live
+  prices — tickets render snapshots only.
+  """
+  def list_kitchen_orders(%Scope{venue: venue}) do
+    Repo.all(
+      from(o in Order,
+        where: o.venue_id == ^venue.id and o.status in ^@handoff_statuses,
+        order_by: [asc: o.placed_at],
+        preload: [:table, items: [:menu_item, :modifiers]]
+      )
+    )
+  end
+
+  @doc "One kitchen ticket by id — `nil` if it's cross-venue, unknown, or no longer in a kitchen status (the board's cue to drop it)."
+  def get_kitchen_order(%Scope{venue: venue}, id) do
+    Repo.one(
+      from(o in Order,
+        where: o.id == ^id and o.venue_id == ^venue.id and o.status in ^@handoff_statuses,
+        preload: [:table, items: [:menu_item, :modifiers]]
+      )
+    )
+  end
+
+  @doc """
+  The KDS "Start" tap. A `placed` ticket passes through `accepted` on
+  its way to `preparing` — the machine has no `placed → preparing` edge,
+  and starting to cook *is* acceptance (also the only accept path at a
+  pickup-mode venue, where no waiter exists to accept). The waiter's own
+  Accept button only shows on `placed`, so it simply disappears.
+
+  `{:error, :stale}` when the tablet's ticket is behind reality (another
+  device advanced it first) — the board reloads, never crashes.
+  """
+  def kitchen_start_order(%Scope{} = scope, %Order{status: :placed} = order) do
+    with {:ok, accepted} <- OrderStateMachine.transition(scope, order, :accepted) do
+      OrderStateMachine.transition(scope, accepted, :preparing)
+    end
+  end
+
+  def kitchen_start_order(%Scope{} = scope, %Order{status: :accepted} = order),
+    do: OrderStateMachine.transition(scope, order, :preparing)
+
+  def kitchen_start_order(%Scope{}, %Order{}), do: {:error, :stale}
+
+  @doc "The KDS \"Ready\" tap — `preparing → ready`; `{:error, :stale}` if the ticket moved on under this tablet."
+  def kitchen_mark_ready(%Scope{} = scope, %Order{status: :preparing} = order),
+    do: OrderStateMachine.transition(scope, order, :ready)
+
+  def kitchen_mark_ready(%Scope{}, %Order{}), do: {:error, :stale}
+
+  @doc """
+  One-step-back undo (design-qa.md Q25): `ready → preparing` (retracts
+  the waiter's pickup notification — the machine broadcasts that) or
+  `preparing → accepted`. Anything else is `{:error, :stale}` — `served`
+  is deliberately unreachable backwards (stock deducted, scan-confirmed;
+  fixing a wrong serve is a manager refund flow).
+  """
+  def kitchen_undo(%Scope{} = scope, %Order{status: :ready} = order),
+    do: OrderStateMachine.transition(scope, order, :preparing)
+
+  def kitchen_undo(%Scope{} = scope, %Order{status: :preparing} = order),
+    do: OrderStateMachine.transition(scope, order, :accepted)
+
+  def kitchen_undo(%Scope{}, %Order{}), do: {:error, :stale}
+
+  @doc """
+  A ticket's overdue threshold in minutes — its slowest line's
+  `prep_minutes` (parallel prep, same reasoning as `estimated_minutes/2`)
+  with the same 10-minute default for items that never set one. Pure
+  kitchen time: no queue-depth or Busy-Mode inflation — those manage the
+  *customer's* expectation; the cook's clock starts honest.
+  """
+  def expected_prep_minutes(%Order{} = order) do
+    order.items
+    |> Enum.map(&(&1.menu_item && &1.menu_item.prep_minutes))
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> 10
+      minutes -> Enum.max(minutes)
+    end
   end
 
   ## Call waiter (build-plan.md Feature 10; design-qa.md Q46)
@@ -1098,8 +1184,13 @@ defmodule Tabletap.Ordering do
     end
   end
 
-  defp broadcast_order_updated({:ok, _order} = result, %Scope{venue: venue}) do
-    Phoenix.PubSub.broadcast(Tabletap.PubSub, "venue:#{venue.id}:orders", :order_updated)
+  defp broadcast_order_updated({:ok, order} = result, %Scope{venue: venue}) do
+    Phoenix.PubSub.broadcast(
+      Tabletap.PubSub,
+      "venue:#{venue.id}:orders",
+      {:order_updated, order.id}
+    )
+
     result
   end
 
