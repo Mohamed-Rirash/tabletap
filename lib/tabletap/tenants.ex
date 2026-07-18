@@ -457,6 +457,32 @@ defmodule Tabletap.Tenants do
     venue |> Venue.verified_changeset() |> Repo.update()
   end
 
+  @doc "Owner toggle for design-qa.md Q3's pay-at-counter option (build-plan.md Feature 15) — independent of wallet `charges_enabled`, a venue can take counter cash with no wallet credentials at all."
+  def set_pay_at_counter_enabled(%Scope{}, %Venue{} = venue, enabled?) do
+    venue |> Venue.pay_at_counter_changeset(enabled?) |> Repo.update()
+  end
+
+  @doc """
+  Memberships by id, user preloaded — a display-name lookup for surfaces
+  that only carry membership ids (the Z-report's per-cashier cash
+  counts, build-plan.md Feature 15). Two queries, not `preload: :user`:
+  `users` has no `org_id` column, so a normal tenant-scoped preload's
+  inner query would hit it too (`Repo.prepare_query/3` injects `org_id`
+  into every query it runs, preloads included) and raise — the `User`
+  lookup needs its own explicit `skip_org_id: true`, same as `Accounts`
+  does everywhere else it touches `users` directly.
+  """
+  def list_memberships(%Scope{}, ids) when is_list(ids) do
+    memberships = Repo.all(from(m in Membership, where: m.id in ^ids))
+    user_ids = Enum.map(memberships, & &1.user_id)
+
+    users =
+      Repo.all(from(u in User, where: u.id in ^user_ids), skip_org_id: true)
+      |> Map.new(&{&1.id, &1})
+
+    Enum.map(memberships, &%{&1 | user: Map.fetch!(users, &1.user_id)})
+  end
+
   ## Staff invites (tenant-scoped creation; token lookup/acceptance are
   ## public — skip_org_id, since no scope exists yet for a brand-new hire)
 

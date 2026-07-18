@@ -80,6 +80,23 @@ defmodule TabletapWeb.Manager.PaymentSettingsLive do
           </button>
         </div>
       </form>
+
+      <div class="rounded-box bg-base-100 shadow-sm p-5 mt-6 flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <p class="font-medium">{gettext("Pay at counter")}</p>
+          <p class="text-sm text-base-content/60 max-w-prose">
+            {gettext(
+              "Let customers choose Cash at checkout — they walk to the counter with an order number, and your cashier verifies payment there (design-qa.md Q3)."
+            )}
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          class="toggle toggle-primary"
+          checked={@current_scope.venue.pay_at_counter_enabled}
+          phx-click="toggle_pay_at_counter"
+        />
+      </div>
     </Layouts.manager>
     """
   end
@@ -130,6 +147,15 @@ defmodule TabletapWeb.Manager.PaymentSettingsLive do
            gettext("Verification failed — double-check the credentials and try again.")
          )}
     end
+  end
+
+  def handle_event("toggle_pay_at_counter", _params, socket) do
+    scope = socket.assigns.current_scope
+    enabled? = !scope.venue.pay_at_counter_enabled
+
+    {:ok, venue} = Tenants.set_pay_at_counter_enabled(scope, scope.venue, enabled?)
+
+    {:noreply, put_venue(socket, venue)}
   end
 
   defp put_venue(socket, venue) do

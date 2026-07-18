@@ -99,6 +99,23 @@ defmodule Tabletap.TenantsFixtures do
     %{user: user, membership: membership}
   end
 
+  @doc "A fresh cashier (user + active cashier membership) at `venue` — the standard fixture for POS/cash-settlement tests (build-plan.md Feature 15)."
+  def cashier_fixture(%Org{} = org, %Venue{} = venue) do
+    user = Tabletap.AccountsFixtures.user_fixture()
+
+    {:ok, membership} =
+      %Membership{}
+      |> Membership.changeset(%{
+        org_id: org.id,
+        venue_id: venue.id,
+        user_id: user.id,
+        role: :cashier
+      })
+      |> Repo.insert()
+
+    %{user: user, membership: membership}
+  end
+
   @doc "Creates a table in a scope's venue via `Tenants.create_table/2`."
   def table_fixture(%Scope{} = scope, attrs \\ %{}) do
     {:ok, table} =

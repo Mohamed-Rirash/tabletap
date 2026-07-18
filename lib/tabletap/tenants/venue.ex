@@ -51,6 +51,11 @@ defmodule Tabletap.Tenants.Venue do
     field :opening_hours, :map
     field :archived_at, :utc_datetime
 
+    # design-qa.md Q3 — off by default; a venue that doesn't want counter
+    # traffic never sees the "Cash" option on the customer's own QR
+    # checkout (build-plan.md Feature 15).
+    field :pay_at_counter_enabled, :boolean, default: false
+
     field :payment_provider, Ecto.Enum, values: [:waafipay, :edahab, :chapa, :stripe]
     field :charges_enabled, :boolean, default: false
     field :waafipay_merchant_uid, Encrypted.Binary
@@ -99,6 +104,11 @@ defmodule Tabletap.Tenants.Venue do
   end
 
   def resume_changeset(venue), do: change(venue, ordering_paused_until: nil)
+
+  @doc "Manager settings toggle for design-qa.md Q3's pay-at-counter option."
+  def pay_at_counter_changeset(venue, enabled?) when is_boolean(enabled?) do
+    change(venue, pay_at_counter_enabled: enabled?)
+  end
 
   def eta_inflation_changeset(venue, factor) do
     venue

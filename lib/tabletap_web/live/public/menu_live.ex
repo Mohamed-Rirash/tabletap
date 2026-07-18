@@ -109,6 +109,8 @@ defmodule TabletapWeb.Public.MenuLive do
         locale={@venue.locale}
         checkout_error={@checkout_error}
         charges_enabled={@venue.charges_enabled}
+        pay_at_counter_enabled={@venue.pay_at_counter_enabled}
+        payment_method={@payment_method}
       />
 
       <script :type={Phoenix.LiveView.ColocatedHook} name=".GuestToken">
@@ -325,6 +327,8 @@ defmodule TabletapWeb.Public.MenuLive do
   attr :locale, :string, required: true
   attr :checkout_error, :string, default: nil
   attr :charges_enabled, :boolean, required: true
+  attr :pay_at_counter_enabled, :boolean, required: true
+  attr :payment_method, :atom, required: true
 
   defp cart_sheet(assigns) do
     ~H"""
@@ -392,12 +396,45 @@ defmodule TabletapWeb.Public.MenuLive do
               />
             </div>
 
-            <p :if={!@charges_enabled} class="text-sm text-base-content/60">
-              {gettext("This venue isn't set up to accept online payments yet — please ask staff.")}
+            <p
+              :if={!@charges_enabled and !@pay_at_counter_enabled}
+              class="text-sm text-base-content/60"
+            >
+              {gettext("This venue isn't set up to accept payments yet — please ask staff.")}
             </p>
 
-            <form :if={@charges_enabled} id="checkout-form" phx-submit="place_order" class="space-y-3">
-              <div>
+            <form
+              :if={@charges_enabled or @pay_at_counter_enabled}
+              id="checkout-form"
+              phx-submit="place_order"
+              class="space-y-3"
+            >
+              <div :if={@charges_enabled and @pay_at_counter_enabled} class="join w-full">
+                <button
+                  type="button"
+                  phx-click="set_payment_method"
+                  phx-value-method="wallet"
+                  class={[
+                    "btn join-item flex-1",
+                    @payment_method == :wallet && "bg-brand text-brand-content border-brand"
+                  ]}
+                >
+                  {gettext("Wallet")}
+                </button>
+                <button
+                  type="button"
+                  phx-click="set_payment_method"
+                  phx-value-method="cash"
+                  class={[
+                    "btn join-item flex-1",
+                    @payment_method == :cash && "bg-brand text-brand-content border-brand"
+                  ]}
+                >
+                  {gettext("Cash at counter")}
+                </button>
+              </div>
+
+              <div :if={@payment_method == :wallet}>
                 <label for="wallet_msisdn" class="text-sm font-medium">
                   {gettext("Wallet phone number")}
                 </label>
@@ -410,12 +447,21 @@ defmodule TabletapWeb.Public.MenuLive do
                   required
                 />
               </div>
+
+              <p :if={@payment_method == :cash} class="text-sm text-base-content/60">
+                {gettext("Pay cash at the counter — you'll get an order number to show staff there.")}
+              </p>
+
+              <input type="hidden" name="payment_method" value={@payment_method} />
+
               <p :if={@checkout_error} class="text-sm text-error">{@checkout_error}</p>
               <button
                 type="submit"
                 class="btn w-full h-14 bg-brand hover:bg-brand/90 text-brand-content border-brand"
               >
-                {gettext("Place order")}
+                {if @payment_method == :cash,
+                  do: gettext("Place order — pay at counter"),
+                  else: gettext("Place order")}
               </button>
             </form>
           </div>
@@ -554,6 +600,7 @@ defmodule TabletapWeb.Public.MenuLive do
          |> assign(:detail_qty, 1)
          |> assign(:detail_submit_attempted, false)
          |> assign(:checkout_error, nil)
+         |> assign(:payment_method, default_payment_method(venue))
          |> assign(:ordering_status, ordering_status(venue))}
     end
   end
@@ -683,13 +730,24 @@ defmodule TabletapWeb.Public.MenuLive do
     {:noreply, socket |> assign(:overlay, :cart) |> assign(:checkout_error, nil)}
   end
 
-  def handle_event("place_order", %{"wallet_msisdn" => wallet_msisdn}, socket) do
+  def handle_event("place_order", params, socket) do
     scope = socket.assigns.current_scope
+    method = Map.get(params, "payment_method", "wallet")
 
     case Ordering.checkout(scope, socket.assigns.cart) do
-      {:ok, order} -> {:noreply, checkout_succeeded(socket, scope, order, wallet_msisdn)}
-      {:error, reason} -> {:noreply, checkout_failed_for(socket, scope, reason)}
+      {:ok, order} ->
+        {:noreply, checkout_succeeded(socket, scope, order, method, params["wallet_msisdn"])}
+
+      {:error, reason} ->
+        {:noreply, checkout_failed_for(socket, scope, reason)}
     end
+  end
+
+  # design-qa.md Q3 — the venue's own toggle picks which methods appear;
+  # a cash-only venue never renders the wallet/cash tab strip at all, so
+  # this only fires when both are actually offered.
+  def handle_event("set_payment_method", %{"method" => method}, socket) do
+    {:noreply, assign(socket, :payment_method, String.to_existing_atom(method))}
   end
 
   def handle_event("set_kind", %{"kind" => kind}, socket) do
@@ -834,11 +892,20 @@ defmodule TabletapWeb.Public.MenuLive do
   defp checkout_failed(socket, message), do: assign(socket, :checkout_error, message)
 
   # The order itself is already safe (held, snapshotted) regardless of
-  # what happens next — a charge_order/3 failure here (e.g. a race on
-  # charges_enabled) still lands the customer on the tracker; the order
-  # simply expires via the 12-min sweep rather than being silently lost
-  # (design-qa.md Q1's zero-order-loss rule).
-  defp checkout_succeeded(socket, scope, order, wallet_msisdn) do
+  # what happens next — a charge_order/3 or record_cash_intent/2 failure
+  # here (e.g. a race on charges_enabled) still lands the customer on the
+  # tracker; the order simply expires via the 12-min sweep rather than
+  # being silently lost (design-qa.md Q1's zero-order-loss rule).
+  defp checkout_succeeded(socket, scope, order, "cash", _wallet_msisdn) do
+    case Payments.record_cash_intent(scope, order) do
+      {:ok, _payment} -> :ok
+      {:error, reason} -> Logger.warning("record_cash_intent failed: #{inspect(reason)}")
+    end
+
+    push_navigate(socket, to: ~p"/orders/#{order.guest_token}")
+  end
+
+  defp checkout_succeeded(socket, scope, order, _wallet, wallet_msisdn) do
     case Payments.charge_order(scope, order, wallet_msisdn) do
       {:ok, _payment} -> :ok
       {:error, reason} -> Logger.warning("charge_order failed: #{inspect(reason)}")
@@ -846,6 +913,9 @@ defmodule TabletapWeb.Public.MenuLive do
 
     push_navigate(socket, to: ~p"/orders/#{order.guest_token}")
   end
+
+  defp default_payment_method(%{charges_enabled: true}), do: :wallet
+  defp default_payment_method(_venue), do: :cash
 
   defp checkout_failed_for(socket, _scope, :venue_closed),
     do: checkout_failed(socket, gettext("Sorry, we're closed right now."))

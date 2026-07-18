@@ -132,6 +132,15 @@ defmodule TabletapWeb.Router do
       live "/kitchen", Kitchen.BoardLive, :index
     end
 
+    live_session :cashier,
+      on_mount: [
+        {TabletapWeb.UserAuth, :require_authenticated},
+        {TabletapWeb.ScopeHooks, :require_cashier_staff}
+      ] do
+      live "/pos", Cashier.PosLive, :index
+      live "/pos/z-report", Cashier.ZReportLive, :index
+    end
+
     post "/venues/switch", VenueController, :switch
   end
 

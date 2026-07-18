@@ -68,6 +68,20 @@ defmodule Tabletap.Ordering.AssignmentTest do
       assert Repo.get(Order, order.id).waiter_membership_id == nil
     end
 
+    test "a :counter walk-in order skips assignment too, even at a waiter-mode venue (Feature 15)",
+         %{scope: scope, item: item} do
+      %{membership: _waiter} = on_shift_waiter(scope)
+
+      token = Cart.generate_guest_token()
+      {:ok, cart} = Ordering.add_to_cart(scope, token, nil, item, [], 1, nil)
+      {:ok, cart} = Ordering.set_kind(scope, cart, :counter)
+      {:ok, order} = Ordering.checkout(scope, cart)
+      {:ok, order} = OrderStateMachine.transition(scope, order, :placed)
+
+      assert {:ok, :counter_no_assignment} = Ordering.assign_waiter(scope, order, &all_alive/2)
+      assert Repo.get(Order, order.id).waiter_membership_id == nil
+    end
+
     test "no waiters on shift → straight to the claim board, unassigned", %{
       scope: scope,
       item: item

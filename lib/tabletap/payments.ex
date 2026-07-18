@@ -22,12 +22,12 @@ defmodule Tabletap.Payments do
 
   alias Tabletap.Accounts.Scope
   alias Tabletap.Ordering
-  alias Tabletap.Ordering.{Order, OrderStateMachine}
-  alias Tabletap.Payments.{Payment, PlatformFeeLedgerEntry, Refund}
+  alias Tabletap.Ordering.{Order, OrderDiscount, OrderStateMachine}
+  alias Tabletap.Payments.{Payment, PlatformFeeLedgerEntry, Refund, ZReport, ZReportCashCount}
   alias Tabletap.Payments.Workers.ChargeOrder
   alias Tabletap.Repo
   alias Tabletap.Tenants
-  alias Tabletap.Tenants.{Org, Venue}
+  alias Tabletap.Tenants.{Membership, Org, Venue}
 
   @doc "The configured Payments.Provider adapter — WaafiPay everywhere except test (config.exs/test.exs, mirrors Tabletap.Storage's adapter-swap pattern)."
   def provider, do: Application.fetch_env!(:tabletap, __MODULE__) |> Keyword.fetch!(:provider)
@@ -400,6 +400,426 @@ defmodule Tabletap.Payments do
 
         {:error, {:refund_failed, reason}}
     end
+  end
+
+  ## Cash & comp settlement (build-plan.md Feature 15; design-qa.md
+  ## Q3/Q22/Q26/Q30). Neither path calls `accrue_platform_fee/2` — the
+  ## per-order fee only rides wallet charges (design-qa.md Q24 "an
+  ## acknowledged pricing decision, not an oversight"), and comp's total
+  ## is zero regardless.
+
+  @doc """
+  The customer's own QR checkout choosing "Cash" (design-qa.md Q3,
+  gated on `venue.pay_at_counter_enabled`) — parks a `pending` cash
+  payment against the order; the order itself stays `pending_payment`
+  under the same 12-minute hold TTL a wallet charge gets, until a
+  cashier verifies it at the counter. No `cashier_membership_id` yet —
+  nobody's handled the cash.
+  """
+  def record_cash_intent(%Scope{org: org, venue: venue}, %Order{status: :pending_payment} = order) do
+    %{
+      org_id: org.id,
+      venue_id: venue.id,
+      order_id: order.id,
+      provider: :cash,
+      amount: order.total,
+      status: :pending
+    }
+    |> Payment.pos_changeset()
+    |> Repo.insert()
+  end
+
+  @doc """
+  The cashier's "Verify paid" action (Q3): takes the cash, marks the
+  parked payment succeeded, fires the order. An `expired` order gets
+  the **Revive** treatment first (Q26) — re-reserves the daily-limit
+  holds the 12-minute sweep already released; `{:error, {:sold_out,
+  item_name}}` (`item_name` may be `nil` — see
+  `Ordering.first_sold_out_item_name/2`) if stock is genuinely gone in
+  the interim, and nothing is mutated on that path.
+  """
+  def verify_cash_payment(
+        %Scope{} = scope,
+        %Order{status: :pending_payment} = order,
+        %Membership{} = staff
+      ) do
+    settle_pending_cash(scope, order, staff)
+  end
+
+  def verify_cash_payment(
+        %Scope{} = scope,
+        %Order{status: :expired} = order,
+        %Membership{} = staff
+      ) do
+    case Ordering.reserve_holds_for_order(order) do
+      {:ok, :held} ->
+        settle_pending_cash(scope, order, staff)
+
+      {:error, :sold_out} ->
+        {:error, {:sold_out, Ordering.first_sold_out_item_name(scope, order)}}
+    end
+  end
+
+  defp settle_pending_cash(scope, order, staff) do
+    case get_pending_cash_payment(order) do
+      nil -> {:error, :no_pending_cash_payment}
+      payment -> do_settle_cash(scope, order, payment, staff)
+    end
+  end
+
+  defp get_pending_cash_payment(order) do
+    Repo.one(
+      from(p in Payment,
+        where: p.order_id == ^order.id and p.provider == :cash and p.status == :pending
+      )
+    )
+  end
+
+  @doc """
+  The POS's own "Cash" button (ui-rules.md "two big buttons — Cash...")
+  — a cashier standing right there taking cash for a ticket they just
+  rang up. Unlike `verify_cash_payment/3` there's no pre-existing parked
+  payment to find; this creates one and settles it in the same breath.
+  """
+  def settle_cash_now(
+        %Scope{org: org, venue: venue} = scope,
+        %Order{status: :pending_payment} = order,
+        %Membership{} = staff
+      ) do
+    attrs = %{
+      org_id: org.id,
+      venue_id: venue.id,
+      order_id: order.id,
+      provider: :cash,
+      amount: order.total,
+      status: :pending
+    }
+
+    case attrs |> Payment.pos_changeset() |> Repo.insert() do
+      {:ok, payment} -> do_settle_cash(scope, order, payment, staff)
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  defp do_settle_cash(scope, order, payment, staff) do
+    with {:ok, payment} <-
+           payment
+           |> Ecto.Changeset.change(status: :succeeded, cashier_membership_id: staff.id)
+           |> Repo.update(),
+         {:ok, _order} <- OrderStateMachine.transition(scope, order, :placed) do
+      {:ok, payment}
+    end
+  end
+
+  @doc """
+  Zeroes `order` with a whole-order discount and settles it as
+  `provider: :comp` in one atomic transaction (design-qa.md Q30) —
+  manager/owner only (architecture.md "manager-permission-gated"; an
+  ordinary partial discount, `Ordering.apply_discount/4`, needs no such
+  gate). `{:error, :requires_manager}` for a cashier-only scope.
+  """
+  def charge_comp(
+        %Scope{role: role} = scope,
+        %Order{status: :pending_payment} = order,
+        reason,
+        %Membership{} = staff
+      )
+      when role in [:manager, :owner] do
+    Ecto.Multi.new()
+    |> Ecto.Multi.run(:discount, fn _repo, _changes ->
+      Ordering.apply_discount(scope, order, %{amount: order.total, reason: reason}, staff)
+    end)
+    |> Ecto.Multi.run(:payment, fn _repo, %{discount: zeroed_order} ->
+      %{
+        org_id: order.org_id,
+        venue_id: order.venue_id,
+        order_id: order.id,
+        cashier_membership_id: staff.id,
+        provider: :comp,
+        amount: zeroed_order.total,
+        status: :succeeded
+      }
+      |> Payment.pos_changeset()
+      |> Repo.insert()
+    end)
+    |> Ecto.Multi.run(:order, fn _repo, %{discount: zeroed_order} ->
+      OrderStateMachine.transition(scope, zeroed_order, :placed)
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{payment: payment}} -> {:ok, payment}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
+
+  def charge_comp(%Scope{}, %Order{}, _reason, %Membership{}), do: {:error, :requires_manager}
+
+  ## End-of-day close — the Z-report (build-plan.md Feature 15;
+  ## design-qa.md's Gap Analysis "End-of-day close (Z-report)"). Money
+  ## events (payments/refunds) are windowed by the business day's real
+  ## cutoff-to-cutoff instants and count on the day they actually
+  ## happened (Q37) — never on the underlying order's own business_date,
+  ## which can differ for a late refund.
+
+  defp business_date_bounds(venue, business_date) do
+    {
+      DateTime.new!(business_date, venue.business_day_cutoff, venue.timezone),
+      DateTime.new!(Date.add(business_date, 1), venue.business_day_cutoff, venue.timezone)
+    }
+  end
+
+  @doc """
+  Everything a manager sees before closing a business day: order count,
+  revenue/discount/refund totals, a per-payment-provider breakdown, and
+  one expected-cash line per cashier who took cash that day — the
+  human counts the real drawer against each of those before calling
+  `close_z_report/3`. A pure read, safe to call repeatedly while
+  deciding whether to close.
+  """
+  def z_report_preview(%Scope{venue: venue}, business_date) do
+    zero = Money.new!(venue.currency, 0)
+    succeeded_payments = succeeded_payments_for_day(venue, business_date)
+    succeeded_refunds = succeeded_refunds_for_day(venue, business_date)
+
+    by_provider =
+      Enum.reduce(succeeded_payments, %{}, fn payment, acc ->
+        Map.update(acc, payment.provider, payment.amount, &Money.add!(&1, payment.amount))
+      end)
+
+    refund_total =
+      succeeded_refunds |> Enum.map(&elem(&1, 0).amount) |> Enum.reduce(zero, &Money.add!(&2, &1))
+
+    gross_revenue = by_provider |> Map.values() |> Enum.reduce(zero, &Money.add!(&2, &1))
+
+    %{
+      business_date: business_date,
+      order_count: order_count_for_day(venue, business_date),
+      gross_revenue: gross_revenue,
+      discount_total: discount_total_for_day(venue, business_date, zero),
+      refund_total: refund_total,
+      net_revenue: Money.sub!(gross_revenue, refund_total),
+      by_provider: by_provider,
+      cash_counts: expected_cash_by_cashier(succeeded_payments, succeeded_refunds, zero)
+    }
+  end
+
+  defp order_count_for_day(venue, business_date) do
+    Repo.aggregate(
+      from(o in Order,
+        where:
+          o.venue_id == ^venue.id and o.business_date == ^business_date and
+            o.status not in [:pending_payment, :cancelled, :expired]
+      ),
+      :count
+    )
+  end
+
+  defp succeeded_payments_for_day(venue, business_date) do
+    {start_at, end_at} = business_date_bounds(venue, business_date)
+
+    Repo.all(
+      from(p in Payment,
+        where:
+          p.venue_id == ^venue.id and p.status == :succeeded and p.inserted_at >= ^start_at and
+            p.inserted_at < ^end_at
+      )
+    )
+  end
+
+  defp succeeded_refunds_for_day(venue, business_date) do
+    {start_at, end_at} = business_date_bounds(venue, business_date)
+
+    Repo.all(
+      from(r in Refund,
+        join: p in Payment,
+        on: p.id == r.payment_id,
+        where:
+          p.venue_id == ^venue.id and r.status == :succeeded and r.inserted_at >= ^start_at and
+            r.inserted_at < ^end_at,
+        select: {r, p}
+      )
+    )
+  end
+
+  defp discount_total_for_day(venue, business_date, zero) do
+    Repo.all(
+      from(d in OrderDiscount,
+        join: o in Order,
+        on: o.id == d.order_id,
+        where: o.venue_id == ^venue.id and o.business_date == ^business_date,
+        select: d.amount
+      )
+    )
+    |> Enum.reduce(zero, &Money.add!(&2, &1))
+  end
+
+  # Q22's per-cashier drawer number: cash taken, minus cash refunds netted
+  # back against whichever cashier's payment they refund (the drawer that
+  # gave the cash is the drawer it comes back out of), keyed by
+  # `cashier_membership_id` — a `nil` key (shouldn't happen for a
+  # succeeded cash payment, `do_settle_cash/4` always sets it) is dropped.
+  defp expected_cash_by_cashier(payments, refunds, zero) do
+    taken =
+      payments
+      |> Enum.filter(&(&1.provider == :cash))
+      |> Enum.group_by(& &1.cashier_membership_id)
+      |> Map.new(fn {id, ps} -> {id, Enum.reduce(ps, zero, &Money.add!(&2, &1.amount))} end)
+
+    given_back =
+      refunds
+      |> Enum.filter(fn {_refund, payment} -> payment.provider == :cash end)
+      |> Enum.group_by(fn {_refund, payment} -> payment.cashier_membership_id end)
+      |> Map.new(fn {id, rs} ->
+        {id, rs |> Enum.map(&elem(&1, 0).amount) |> Enum.reduce(zero, &Money.add!(&2, &1))}
+      end)
+
+    taken
+    |> Map.keys()
+    |> Enum.reject(&is_nil/1)
+    |> Map.new(fn id ->
+      expected = Money.sub!(Map.get(taken, id, zero), Map.get(given_back, id, zero))
+      {id, expected}
+    end)
+  end
+
+  @doc """
+  Closes the business day — `{:error, changeset}` with a `:venue_id`
+  "has already been taken" error (Ecto attaches a composite
+  `unique_constraint/3` error to the first listed field) on a second
+  attempt
+  (`unique_index(:z_reports, [:venue_id, :business_date])`).
+  Persists `z_report_preview/2`'s numbers as a point-in-time snapshot
+  (Q38 "the original close stays visible as closed") plus one
+  `ZReportCashCount` row per `{membership_id, counted_cash}` the caller
+  supplies (the human-entered drawer count) — variance is derived and
+  stored, never recomputed later.
+  """
+  def close_z_report(
+        %Scope{org: org, venue: venue, membership: membership},
+        business_date,
+        counted_by_membership
+      ) do
+    preview = z_report_preview(%Scope{org: org, venue: venue}, business_date)
+
+    changeset =
+      %ZReport{}
+      |> Ecto.Changeset.change(%{
+        org_id: org.id,
+        venue_id: venue.id,
+        business_date: business_date,
+        closed_by_membership_id: membership.id,
+        closed_at: DateTime.utc_now(:second),
+        totals: preview_totals_for_storage(preview)
+      })
+      |> Ecto.Changeset.unique_constraint([:venue_id, :business_date],
+        name: :z_reports_venue_id_business_date_index
+      )
+
+    Ecto.Multi.new()
+    |> Ecto.Multi.insert(:z_report, changeset)
+    |> Ecto.Multi.run(:cash_counts, fn _repo, %{z_report: z_report} ->
+      insert_cash_counts(z_report, org.id, preview.cash_counts, counted_by_membership)
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{z_report: z_report}} -> {:ok, Repo.preload(z_report, :cash_counts)}
+      {:error, :z_report, changeset, _changes} -> {:error, changeset}
+    end
+  end
+
+  # Raw decimal + currency, never `Money.to_string!/2` — that needs a
+  # locale and this is storage, not display (the "so" locale has no CLDR
+  # data and would raise; a known gap flagged in progress-tracker.md).
+  defp money_for_storage(%Money{} = money) do
+    %{
+      "amount" => money |> Money.to_decimal() |> Decimal.to_string(),
+      "currency" => to_string(money.currency)
+    }
+  end
+
+  defp preview_totals_for_storage(preview) do
+    %{
+      "order_count" => preview.order_count,
+      "gross_revenue" => money_for_storage(preview.gross_revenue),
+      "discount_total" => money_for_storage(preview.discount_total),
+      "refund_total" => money_for_storage(preview.refund_total),
+      "net_revenue" => money_for_storage(preview.net_revenue),
+      "by_provider" =>
+        Map.new(preview.by_provider, fn {provider, amount} ->
+          {to_string(provider), money_for_storage(amount)}
+        end)
+    }
+  end
+
+  defp insert_cash_counts(z_report, org_id, expected_by_cashier, counted_by_membership) do
+    results =
+      Enum.map(counted_by_membership, fn {membership_id, counted_cash} ->
+        expected =
+          Map.get(expected_by_cashier, membership_id, Money.new!(counted_cash.currency, 0))
+
+        %ZReportCashCount{}
+        |> Ecto.Changeset.change(%{
+          org_id: org_id,
+          z_report_id: z_report.id,
+          membership_id: membership_id,
+          expected_cash: expected,
+          counted_cash: counted_cash,
+          variance: Money.sub!(counted_cash, expected)
+        })
+        |> Repo.insert()
+      end)
+
+    if Enum.all?(results, &match?({:ok, _}, &1)) do
+      {:ok, Enum.map(results, fn {:ok, row} -> row end)}
+    else
+      {:error, :cash_count_failed}
+    end
+  end
+
+  @doc "A previously-closed business day's report, cash counts preloaded — `nil` if that day was never closed."
+  def get_z_report(%Scope{venue: venue}, business_date) do
+    Repo.one(
+      from(z in ZReport,
+        where: z.venue_id == ^venue.id and z.business_date == ^business_date,
+        preload: :cash_counts
+      )
+    )
+  end
+
+  @doc """
+  A cashier's own running total for `business_date` (default today) —
+  build-plan.md's "shift summary" bullet: transactions taken + cash
+  total, reachable from the POS in two taps. Live-computed (never
+  waits for the day's Z-report to close).
+  """
+  def cashier_summary(
+        %Scope{venue: venue} = scope,
+        %Membership{} = membership,
+        business_date \\ nil
+      ) do
+    business_date = business_date || Tenants.business_date(venue)
+    {start_at, end_at} = business_date_bounds(venue, business_date)
+    preview = z_report_preview(scope, business_date)
+
+    cash_taken = Map.get(preview.cash_counts, membership.id, Money.new!(venue.currency, 0))
+
+    transactions =
+      Repo.all(
+        from(p in Payment,
+          where:
+            p.venue_id == ^venue.id and p.cashier_membership_id == ^membership.id and
+              p.status == :succeeded and p.inserted_at >= ^start_at and p.inserted_at < ^end_at,
+          order_by: [desc: p.inserted_at],
+          preload: :order
+        )
+      )
+
+    %{
+      business_date: business_date,
+      transaction_count: length(transactions),
+      cash_taken: cash_taken,
+      transactions: transactions
+    }
   end
 
   ## Reads

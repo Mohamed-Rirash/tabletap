@@ -669,7 +669,7 @@ defmodule TabletapWeb.Public.MenuLiveTest do
       html = add_item_and_open_cart(lv, item)
 
       # Apostrophe is HTML-escaped by HEEx ("isn&#39;t") — match the rest.
-      assert html =~ "set up to accept online payments yet"
+      assert html =~ "set up to accept payments yet"
       refute has_element?(lv, "#checkout-form")
     end
 

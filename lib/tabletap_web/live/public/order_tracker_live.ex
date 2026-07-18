@@ -42,7 +42,19 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
       </div>
 
       <div
-        :if={@order.status == :pending_payment}
+        :if={@order.status == :pending_payment and pending_cash?(@latest_payment)}
+        class="rounded-box bg-base-100 border border-base-300 p-6 text-center space-y-2"
+      >
+        <.icon name="hero-banknotes" class="size-8 mx-auto opacity-40" />
+        <p class="font-medium">{gettext("Show this order number at the counter")}</p>
+        <p class="text-4xl font-extrabold text-brand tabular-nums">{@order.number}</p>
+        <p class="text-sm text-base-content/60">
+          {gettext("Pay cash there and staff will fire your order.")}
+        </p>
+      </div>
+
+      <div
+        :if={@order.status == :pending_payment and !pending_cash?(@latest_payment)}
         class="rounded-box bg-base-100 border border-base-300 p-6 text-center space-y-2"
       >
         <.icon name="hero-clock" class="size-8 mx-auto opacity-40 motion-safe:animate-pulse" />
@@ -323,9 +335,22 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
   defp terminal_message(%Order{status: :cancelled}, _payment),
     do: gettext("This order was cancelled.")
 
+  # design-qa.md Q26 — a cash order's hold can expire before the customer
+  # reaches the counter; the cashier's own Revive flow brings it back, so
+  # this points them there rather than implying the order is dead.
+  defp terminal_message(%Order{status: :expired} = order, %{provider: :cash}) do
+    gettext(
+      "Your hold expired — show order number %{number} at the counter and staff can revive it.",
+      number: order.number
+    )
+  end
+
   defp terminal_message(%Order{status: :expired}, _payment),
     do: gettext("This order expired before payment was confirmed.")
 
   defp terminal_message(%Order{status: :refunded}, _payment),
     do: gettext("This order was refunded.")
+
+  defp pending_cash?(%{provider: :cash, status: :pending}), do: true
+  defp pending_cash?(_payment), do: false
 end

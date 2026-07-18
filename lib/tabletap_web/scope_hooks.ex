@@ -29,6 +29,12 @@ defmodule TabletapWeb.ScopeHooks do
   def on_mount(:require_cashier, _params, _session, socket),
     do: require_role(socket, [:cashier])
 
+  # The register is often minded by a manager filling in, and Z-report
+  # closing (build-plan.md Feature 15) is squarely a manager-level action
+  # — same reasoning as :require_kitchen_staff above.
+  def on_mount(:require_cashier_staff, _params, _session, socket),
+    do: require_role(socket, [:cashier, :manager, :owner])
+
   # Owners can do everything a manager can, plus more (role-features.md) —
   # manager-gated pages always admit owners too.
   def on_mount(:require_manager, _params, _session, socket),

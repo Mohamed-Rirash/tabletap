@@ -17,6 +17,11 @@ defmodule Tabletap.Ordering.Cart do
   (architecture.md's data model row) is deliberately not a column yet —
   no `users`-as-customers linkage exists until Feature 16, same
   deferral `Tenants.Venue` used for its Feature 09/08-only fields.
+
+  `:counter` (build-plan.md Feature 15) is a cashier-built walk-in
+  ticket — same cart machinery, no table, skips waiter assignment once
+  it becomes an order (`Ordering.checkout/2` passes `cart.kind` straight
+  through to `Order.kind`, which has carried `:counter` since Feature 08).
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -29,7 +34,7 @@ defmodule Tabletap.Ordering.Cart do
     belongs_to :table, Tabletap.Tenants.Table
 
     field :guest_token, :string
-    field :kind, Ecto.Enum, values: [:dine_in, :takeaway], default: :dine_in
+    field :kind, Ecto.Enum, values: [:dine_in, :takeaway, :counter], default: :dine_in
     field :status, Ecto.Enum, values: [:active, :converted, :abandoned], default: :active
 
     has_many :items, Tabletap.Ordering.CartItem, foreign_key: :cart_id
@@ -50,7 +55,7 @@ defmodule Tabletap.Ordering.Cart do
     )
   end
 
-  def kind_changeset(cart, kind) when kind in [:dine_in, :takeaway] do
+  def kind_changeset(cart, kind) when kind in [:dine_in, :takeaway, :counter] do
     change(cart, kind: kind)
   end
 

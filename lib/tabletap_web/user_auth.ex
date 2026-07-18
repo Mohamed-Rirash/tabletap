@@ -300,14 +300,15 @@ defmodule TabletapWeb.UserAuth do
   # Owner/manager land on their venue dashboard. Everyone else authenticated
   # but not staff (a bare Accounts user with no membership — today only
   # reachable in tests; customer accounts land here for real starting
-  # Feature 16) falls back to "/" until they have a surface of their own
-  # (waiter/cashier/kitchen apps are Feature 10/15).
+  # Feature 16) falls back to "/" until they have a surface of their own.
   def signed_in_path(%{assigns: %{current_scope: %Scope{role: role}}})
       when role in [:owner, :manager] do
     ~p"/dashboard"
   end
 
   def signed_in_path(%{assigns: %{current_scope: %Scope{role: :kitchen}}}), do: ~p"/kitchen"
+  def signed_in_path(%{assigns: %{current_scope: %Scope{role: :waiter}}}), do: ~p"/waiter"
+  def signed_in_path(%{assigns: %{current_scope: %Scope{role: :cashier}}}), do: ~p"/pos"
 
   def signed_in_path(_), do: ~p"/"
 

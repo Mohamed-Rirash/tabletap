@@ -28,8 +28,8 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:341
-#: lib/tabletap_web/components/layouts.ex:356
+#: lib/tabletap_web/components/layouts.ex:347
+#: lib/tabletap_web/components/layouts.ex:362
 #, elixir-autogen, elixir-format
 msgid "Attempting to reconnect"
 msgstr ""
@@ -70,7 +70,7 @@ msgid "Creating your venue..."
 msgstr ""
 
 #: lib/tabletap_web/components/layouts.ex:182
-#: lib/tabletap_web/components/layouts.ex:260
+#: lib/tabletap_web/components/layouts.ex:263
 #: lib/tabletap_web/live/kitchen/board_live.ex:36
 #: lib/tabletap_web/live/kitchen/board_live.ex:321
 #: lib/tabletap_web/live/manager/dashboard_live.ex:232
@@ -83,13 +83,13 @@ msgstr ""
 msgid "Log in"
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:311
+#: lib/tabletap_web/components/layouts.ex:317
 #: lib/tabletap_web/live/manager/dashboard_live.ex:229
 #, elixir-autogen, elixir-format
 msgid "Manager"
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:310
+#: lib/tabletap_web/components/layouts.ex:316
 #: lib/tabletap_web/live/manager/dashboard_live.ex:228
 #, elixir-autogen, elixir-format
 msgid "Owner"
@@ -105,7 +105,7 @@ msgstr ""
 msgid "Something went wrong setting up your venue. Please try again."
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:348
+#: lib/tabletap_web/components/layouts.ex:354
 #, elixir-autogen, elixir-format
 msgid "Something went wrong!"
 msgstr ""
@@ -136,7 +136,7 @@ msgstr ""
 msgid "Waiter"
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:333
+#: lib/tabletap_web/components/layouts.ex:339
 #, elixir-autogen, elixir-format
 msgid "We can't find the internet"
 msgstr ""
@@ -192,7 +192,7 @@ msgstr[1] ""
 msgid "%{count} table QR codes"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:479
+#: lib/tabletap_web/live/public/menu_live.ex:525
 #, elixir-autogen, elixir-format
 msgid "%{name}'s options changed — please remove and re-add it."
 msgstr ""
@@ -233,7 +233,7 @@ msgstr ""
 msgid "Accept"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:304
+#: lib/tabletap_web/live/public/order_tracker_live.ex:316
 #: lib/tabletap_web/live/waiter/queue_live.ex:469
 #, elixir-autogen, elixir-format
 msgid "Accepted"
@@ -251,7 +251,7 @@ msgid "Active"
 msgstr ""
 
 #: lib/tabletap_web/live/manager/menu_live.ex:786
-#: lib/tabletap_web/live/public/menu_live.ex:313
+#: lib/tabletap_web/live/public/menu_live.ex:315
 #, elixir-autogen, elixir-format
 msgid "Add"
 msgstr ""
@@ -294,7 +294,7 @@ msgstr ""
 msgid "Add table"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:784
+#: lib/tabletap_web/live/public/menu_live.ex:842
 #, elixir-autogen, elixir-format
 msgid "Added to cart."
 msgstr ""
@@ -309,6 +309,7 @@ msgstr ""
 msgid "Adjustment (+/-)"
 msgstr ""
 
+#: lib/tabletap_web/live/cashier/pos_live.ex:176
 #: lib/tabletap_web/live/manager/menu_live.ex:86
 #, elixir-autogen, elixir-format
 msgid "All"
@@ -319,7 +320,7 @@ msgstr ""
 msgid "Allergens"
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:201
+#: lib/tabletap_web/components/layouts.ex:204
 #, elixir-autogen, elixir-format
 msgid "Analytics"
 msgstr ""
@@ -399,7 +400,7 @@ msgstr ""
 msgid "Busy Mode"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:98
+#: lib/tabletap_web/live/public/order_tracker_live.ex:110
 #, elixir-autogen, elixir-format
 msgid "Call waiter"
 msgstr ""
@@ -442,12 +443,12 @@ msgstr ""
 msgid "Choose %{category}"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:920
+#: lib/tabletap_web/live/public/menu_live.ex:990
 #, elixir-autogen, elixir-format
 msgid "Choose %{count}"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:926
+#: lib/tabletap_web/live/public/menu_live.ex:996
 #, elixir-autogen, elixir-format
 msgid "Choose %{min}–%{max}"
 msgstr ""
@@ -493,7 +494,7 @@ msgstr ""
 msgid "Closed."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:49
+#: lib/tabletap_web/live/public/order_tracker_live.ex:61
 #, elixir-autogen, elixir-format
 msgid "Confirming your payment…"
 msgstr ""
@@ -556,12 +557,12 @@ msgstr ""
 msgid "Create groups on the Modifiers page first."
 msgstr ""
 
-#: lib/tabletap_web/live/manager/payment_settings_live.ex:144
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:170
 #, elixir-autogen, elixir-format
 msgid "Credentials saved but not verified yet."
 msgstr ""
 
-#: lib/tabletap_web/live/manager/payment_settings_live.ex:108
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:125
 #, elixir-autogen, elixir-format
 msgid "Credentials saved — verify them before going live."
 msgstr ""
@@ -573,7 +574,7 @@ msgid "Current"
 msgstr ""
 
 #: lib/tabletap_web/components/layouts.ex:165
-#: lib/tabletap_web/components/layouts.ex:242
+#: lib/tabletap_web/components/layouts.ex:245
 #, elixir-autogen, elixir-format
 msgid "Dashboard"
 msgstr ""
@@ -599,9 +600,10 @@ msgstr ""
 msgid "Dietary"
 msgstr ""
 
+#: lib/tabletap_web/live/cashier/pos_live.ex:348
 #: lib/tabletap_web/live/kitchen/board_live.ex:475
 #: lib/tabletap_web/live/manager/orders_live.ex:262
-#: lib/tabletap_web/live/public/menu_live.ex:356
+#: lib/tabletap_web/live/public/menu_live.ex:360
 #: lib/tabletap_web/live/waiter/queue_live.ex:466
 #, elixir-autogen, elixir-format
 msgid "Dine in"
@@ -646,6 +648,7 @@ msgstr ""
 msgid "Edit table"
 msgstr ""
 
+#: lib/tabletap_web/live/cashier/pos_live.ex:154
 #: lib/tabletap_web/live/waiter/queue_live.ex:47
 #, elixir-autogen, elixir-format
 msgid "End shift"
@@ -754,7 +757,7 @@ msgid "Ingredients, stock levels, and thresholds. Attach a recipe to a menu item
 msgstr ""
 
 #: lib/tabletap_web/components/layouts.ex:199
-#: lib/tabletap_web/components/layouts.ex:257
+#: lib/tabletap_web/components/layouts.ex:260
 #: lib/tabletap_web/live/manager/ingredients_live.ex:34
 #: lib/tabletap_web/live/manager/restock_report_live.ex:25
 #: lib/tabletap_web/live/manager/stocktake_live.ex:26
@@ -782,7 +785,7 @@ msgstr ""
 msgid "Label (optional)"
 msgstr ""
 
-#: lib/tabletap_web/live/manager/payment_settings_live.ex:153
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:179
 #, elixir-autogen, elixir-format
 msgid "Live"
 msgstr ""
@@ -792,12 +795,12 @@ msgstr ""
 msgid "Live orders and alerts land as the next build phases ship. Your trial is active — no card needed to keep exploring."
 msgstr ""
 
-#: lib/tabletap_web/live/manager/payment_settings_live.ex:140
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:166
 #, elixir-autogen, elixir-format
 msgid "Live — this venue can accept payments."
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:231
+#: lib/tabletap_web/components/layouts.ex:234
 #, elixir-autogen, elixir-format
 msgid "Log out"
 msgstr ""
@@ -844,7 +847,7 @@ msgstr ""
 
 #: lib/tabletap_web/components/layouts.ex:158
 #: lib/tabletap_web/components/layouts.ex:185
-#: lib/tabletap_web/components/layouts.ex:248
+#: lib/tabletap_web/components/layouts.ex:251
 #: lib/tabletap_web/live/manager/menu_live.ex:22
 #, elixir-autogen, elixir-format
 msgid "Menu"
@@ -871,7 +874,7 @@ msgid "Modifier groups"
 msgstr ""
 
 #: lib/tabletap_web/components/layouts.ex:192
-#: lib/tabletap_web/components/layouts.ex:251
+#: lib/tabletap_web/components/layouts.ex:254
 #: lib/tabletap_web/live/manager/modifiers_live.ex:25
 #, elixir-autogen, elixir-format
 msgid "Modifiers"
@@ -899,7 +902,7 @@ msgstr ""
 msgid "Name"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:104
+#: lib/tabletap_web/live/public/order_tracker_live.ex:116
 #, elixir-autogen, elixir-format
 msgid "Need help? Ask at the counter."
 msgstr ""
@@ -950,7 +953,7 @@ msgstr ""
 msgid "No categories yet — add one above to get started."
 msgstr ""
 
-#: lib/tabletap_web/live/manager/payment_settings_live.ex:146
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:172
 #, elixir-autogen, elixir-format
 msgid "No credentials on file yet."
 msgstr ""
@@ -1035,7 +1038,7 @@ msgstr ""
 msgid "Normal speed"
 msgstr ""
 
-#: lib/tabletap_web/live/manager/payment_settings_live.ex:154
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:180
 #, elixir-autogen, elixir-format
 msgid "Not live"
 msgstr ""
@@ -1050,12 +1053,12 @@ msgstr ""
 msgid "Note:"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:298
+#: lib/tabletap_web/live/public/menu_live.ex:300
 #, elixir-autogen, elixir-format
 msgid "Notes (optional) — e.g. no onions"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:810
+#: lib/tabletap_web/live/public/menu_live.ex:868
 #, elixir-autogen, elixir-format
 msgid "Notes are too long — please shorten them."
 msgstr ""
@@ -1134,6 +1137,9 @@ msgstr ""
 msgid "Option saved."
 msgstr ""
 
+#: lib/tabletap_web/live/cashier/pos_live.ex:459
+#: lib/tabletap_web/live/cashier/pos_live.ex:609
+#: lib/tabletap_web/live/cashier/pos_live.ex:697
 #: lib/tabletap_web/live/manager/orders_live.ex:131
 #: lib/tabletap_web/live/public/order_tracker_live.ex:40
 #: lib/tabletap_web/live/waiter/queue_live.ex:174
@@ -1146,12 +1152,12 @@ msgstr ""
 msgid "Order #%{number} is ready for pickup!"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:109
+#: lib/tabletap_web/live/public/order_tracker_live.ex:121
 #, elixir-autogen, elixir-format
 msgid "Order details"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:200
+#: lib/tabletap_web/live/public/order_tracker_live.ex:212
 #, elixir-autogen, elixir-format
 msgid "Order not found."
 msgstr ""
@@ -1161,29 +1167,30 @@ msgstr ""
 msgid "Order qty"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:68
+#: lib/tabletap_web/live/public/order_tracker_live.ex:80
 #, elixir-autogen, elixir-format
 msgid "Order served — enjoy!"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:856
+#: lib/tabletap_web/live/public/menu_live.ex:926
 #, elixir-autogen, elixir-format
 msgid "Ordering is paused right now — please check back shortly."
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:585
+#: lib/tabletap_web/live/public/menu_live.ex:632
 #, elixir-autogen, elixir-format
 msgid "Ordering paused — please order at the counter"
 msgstr ""
 
 #: lib/tabletap_web/components/layouts.ex:172
-#: lib/tabletap_web/components/layouts.ex:245
+#: lib/tabletap_web/components/layouts.ex:248
+#: lib/tabletap_web/live/cashier/z_report_live.ex:123
 #: lib/tabletap_web/live/manager/orders_live.ex:29
 #, elixir-autogen, elixir-format
 msgid "Orders"
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:204
+#: lib/tabletap_web/components/layouts.ex:207
 #, elixir-autogen, elixir-format
 msgid "Others"
 msgstr ""
@@ -1218,7 +1225,7 @@ msgstr ""
 msgid "Paused until you resume it."
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:212
+#: lib/tabletap_web/components/layouts.ex:215
 #: lib/tabletap_web/live/manager/payment_settings_live.ex:25
 #, elixir-autogen, elixir-format
 msgid "Payment account"
@@ -1246,12 +1253,12 @@ msgstr ""
 msgid "Pick %{min}–%{max}"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:418
+#: lib/tabletap_web/live/public/menu_live.ex:464
 #, elixir-autogen, elixir-format
 msgid "Place order"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:303
+#: lib/tabletap_web/live/public/order_tracker_live.ex:315
 #, elixir-autogen, elixir-format
 msgid "Placed"
 msgstr ""
@@ -1273,7 +1280,7 @@ msgid "Prep time (minutes)"
 msgstr ""
 
 #: lib/tabletap_web/live/kitchen/board_live.ex:66
-#: lib/tabletap_web/live/public/order_tracker_live.ex:305
+#: lib/tabletap_web/live/public/order_tracker_live.ex:317
 #: lib/tabletap_web/live/waiter/queue_live.ex:470
 #, elixir-autogen, elixir-format
 msgid "Preparing"
@@ -1352,7 +1359,7 @@ msgstr ""
 
 #: lib/tabletap_web/live/kitchen/board_live.ex:74
 #: lib/tabletap_web/live/kitchen/board_live.ex:299
-#: lib/tabletap_web/live/public/order_tracker_live.ex:306
+#: lib/tabletap_web/live/public/order_tracker_live.ex:318
 #: lib/tabletap_web/live/waiter/queue_live.ex:471
 #, elixir-autogen, elixir-format
 msgid "Ready"
@@ -1368,6 +1375,8 @@ msgstr ""
 msgid "Ready — needs serving"
 msgstr ""
 
+#: lib/tabletap_web/live/cashier/pos_live.ex:496
+#: lib/tabletap_web/live/cashier/pos_live.ex:708
 #: lib/tabletap_web/live/manager/ingredients_live.ex:285
 #, elixir-autogen, elixir-format
 msgid "Reason"
@@ -1383,6 +1392,8 @@ msgstr ""
 msgid "Refresh"
 msgstr ""
 
+#: lib/tabletap_web/live/cashier/pos_live.ex:145
+#: lib/tabletap_web/live/cashier/pos_live.ex:653
 #: lib/tabletap_web/live/manager/orders_live.ex:78
 #, elixir-autogen, elixir-format
 msgid "Refund"
@@ -1394,8 +1405,8 @@ msgid "Refunded."
 msgstr ""
 
 #: lib/tabletap_web/live/manager/menu_live.ex:760
-#: lib/tabletap_web/live/public/menu_live.ex:473
-#: lib/tabletap_web/live/public/menu_live.ex:489
+#: lib/tabletap_web/live/public/menu_live.ex:519
+#: lib/tabletap_web/live/public/menu_live.ex:535
 #, elixir-autogen, elixir-format
 msgid "Remove"
 msgstr ""
@@ -1487,7 +1498,7 @@ msgstr ""
 msgid "Search category or menu..."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:307
+#: lib/tabletap_web/live/public/order_tracker_live.ex:319
 #, elixir-autogen, elixir-format
 msgid "Served"
 msgstr ""
@@ -1504,12 +1515,12 @@ msgstr ""
 msgid "Set"
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:215
+#: lib/tabletap_web/components/layouts.ex:218
 #, elixir-autogen, elixir-format
 msgid "Settings"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:75
+#: lib/tabletap_web/live/public/order_tracker_live.ex:87
 #, elixir-autogen, elixir-format
 msgid "Show this to staff to collect your order"
 msgstr ""
@@ -1524,12 +1535,12 @@ msgstr ""
 msgid "Snapshots every ingredient's current stock, then lets you enter physical counts. Best done at close, with the fewest sales in flight."
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:191
+#: lib/tabletap_web/live/public/menu_live.ex:193
 #, elixir-autogen, elixir-format
 msgid "Sold out"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:873
+#: lib/tabletap_web/live/public/menu_live.ex:943
 #, elixir-autogen, elixir-format
 msgid "Some items changed — please review your cart and try again."
 msgstr ""
@@ -1539,33 +1550,34 @@ msgstr ""
 msgid "Someone else got it first."
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:812
-#: lib/tabletap_web/live/public/menu_live.ex:885
+#: lib/tabletap_web/live/cashier/pos_live.ex:1262
+#: lib/tabletap_web/live/public/menu_live.ex:870
+#: lib/tabletap_web/live/public/menu_live.ex:955
 #, elixir-autogen, elixir-format
 msgid "Something went wrong — please try again."
 msgstr ""
 
-#: lib/tabletap_web/components/layouts.ex:305
+#: lib/tabletap_web/components/layouts.ex:311
 #, elixir-autogen, elixir-format
 msgid "Soon"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:320
+#: lib/tabletap_web/live/public/order_tracker_live.ex:332
 #, elixir-autogen, elixir-format
 msgid "Sorry — this item sold out while your payment was confirming. You've been refunded."
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:881
+#: lib/tabletap_web/live/public/menu_live.ex:951
 #, elixir-autogen, elixir-format
 msgid "Sorry, an item just sold out — please review your cart."
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:795
+#: lib/tabletap_web/live/public/menu_live.ex:853
 #, elixir-autogen, elixir-format
 msgid "Sorry, that item just sold out."
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:851
+#: lib/tabletap_web/live/public/menu_live.ex:921
 #, elixir-autogen, elixir-format
 msgid "Sorry, we're closed right now."
 msgstr ""
@@ -1585,6 +1597,7 @@ msgstr ""
 msgid "Start"
 msgstr ""
 
+#: lib/tabletap_web/live/cashier/pos_live.ex:77
 #: lib/tabletap_web/live/waiter/queue_live.ex:39
 #, elixir-autogen, elixir-format
 msgid "Start shift"
@@ -1636,6 +1649,7 @@ msgstr ""
 msgid "Suggested reorder"
 msgstr ""
 
+#: lib/tabletap_web/live/cashier/pos_live.ex:370
 #: lib/tabletap_web/live/kitchen/board_live.ex:231
 #: lib/tabletap_web/live/manager/orders_live.ex:133
 #: lib/tabletap_web/live/manager/table_print_live.ex:41
@@ -1662,15 +1676,16 @@ msgid "Table saved."
 msgstr ""
 
 #: lib/tabletap_web/components/layouts.ex:179
-#: lib/tabletap_web/components/layouts.ex:254
+#: lib/tabletap_web/components/layouts.ex:257
 #: lib/tabletap_web/live/manager/tables_live.ex:24
 #, elixir-autogen, elixir-format
 msgid "Tables"
 msgstr ""
 
+#: lib/tabletap_web/live/cashier/pos_live.ex:359
 #: lib/tabletap_web/live/kitchen/board_live.ex:473
 #: lib/tabletap_web/live/manager/orders_live.ex:260
-#: lib/tabletap_web/live/public/menu_live.ex:367
+#: lib/tabletap_web/live/public/menu_live.ex:371
 #: lib/tabletap_web/live/waiter/queue_live.ex:464
 #, elixir-autogen, elixir-format
 msgid "Takeaway"
@@ -1681,7 +1696,7 @@ msgstr ""
 msgid "Taking orders normally."
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:617
+#: lib/tabletap_web/live/public/menu_live.ex:664
 #, elixir-autogen, elixir-format
 msgid "That item is no longer available."
 msgstr ""
@@ -1724,17 +1739,17 @@ msgstr ""
 msgid "This menu is empty right now."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:327
+#: lib/tabletap_web/live/public/order_tracker_live.ex:349
 #, elixir-autogen, elixir-format
 msgid "This order expired before payment was confirmed."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:324
+#: lib/tabletap_web/live/public/order_tracker_live.ex:336
 #, elixir-autogen, elixir-format
 msgid "This order was cancelled."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:330
+#: lib/tabletap_web/live/public/order_tracker_live.ex:352
 #, elixir-autogen, elixir-format
 msgid "This order was refunded."
 msgstr ""
@@ -1744,14 +1759,9 @@ msgstr ""
 msgid "This screen has been running a long time — refresh to keep it snappy."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:51
+#: lib/tabletap_web/live/public/order_tracker_live.ex:63
 #, elixir-autogen, elixir-format
 msgid "This updates automatically — no need to refresh."
-msgstr ""
-
-#: lib/tabletap_web/live/public/menu_live.ex:396
-#, elixir-autogen, elixir-format
-msgid "This venue isn't set up to accept online payments yet — please ask staff."
 msgstr ""
 
 #: lib/tabletap_web/live/manager/restock_print_live.ex:39
@@ -1765,8 +1775,9 @@ msgstr ""
 msgid "Toggle new-ticket sound"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:387
-#: lib/tabletap_web/live/public/order_tracker_live.ex:125
+#: lib/tabletap_web/live/cashier/pos_live.ex:419
+#: lib/tabletap_web/live/public/menu_live.ex:391
+#: lib/tabletap_web/live/public/order_tracker_live.ex:137
 #, elixir-autogen, elixir-format
 msgid "Total"
 msgstr ""
@@ -1791,7 +1802,7 @@ msgstr ""
 msgid "Unsupported file type."
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:923
+#: lib/tabletap_web/live/public/menu_live.ex:993
 #, elixir-autogen, elixir-format
 msgid "Up to %{max}"
 msgstr ""
@@ -1816,17 +1827,17 @@ msgstr ""
 msgid "Variance report"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:526
+#: lib/tabletap_web/live/public/menu_live.ex:572
 #, elixir-autogen, elixir-format
 msgid "Venue not found."
 msgstr ""
 
-#: lib/tabletap_web/live/manager/payment_settings_live.ex:130
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:147
 #, elixir-autogen, elixir-format
 msgid "Verification failed — double-check the credentials and try again."
 msgstr ""
 
-#: lib/tabletap_web/live/manager/payment_settings_live.ex:123
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:140
 #, elixir-autogen, elixir-format
 msgid "Verified — this venue can now accept payments."
 msgstr ""
@@ -1836,7 +1847,7 @@ msgstr ""
 msgid "Verify"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:511
+#: lib/tabletap_web/live/public/menu_live.ex:557
 #, elixir-autogen, elixir-format
 msgid "View cart"
 msgstr ""
@@ -1851,7 +1862,7 @@ msgstr ""
 msgid "WaafiPay merchant credentials for this venue, from your offline registration with WaafiPay. Customer payments land directly in your own merchant account — we never hold your money."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:97
+#: lib/tabletap_web/live/public/order_tracker_live.ex:109
 #, elixir-autogen, elixir-format
 msgid "Waiter called — on the way"
 msgstr ""
@@ -1861,7 +1872,8 @@ msgstr ""
 msgid "Waiting for pickup"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:402
+#: lib/tabletap_web/live/cashier/pos_live.ex:540
+#: lib/tabletap_web/live/public/menu_live.ex:439
 #, elixir-autogen, elixir-format
 msgid "Wallet phone number"
 msgstr ""
@@ -1871,12 +1883,12 @@ msgstr ""
 msgid "Waste"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:588
+#: lib/tabletap_web/live/public/menu_live.ex:635
 #, elixir-autogen, elixir-format
 msgid "We're closed right now — please check back later."
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:866
+#: lib/tabletap_web/live/public/menu_live.ex:936
 #, elixir-autogen, elixir-format
 msgid "You already have several active orders — please wait for one to finish."
 msgstr ""
@@ -1886,18 +1898,19 @@ msgstr ""
 msgid "You have an active order →"
 msgstr ""
 
+#: lib/tabletap_web/live/cashier/pos_live.ex:74
 #: lib/tabletap_web/live/waiter/queue_live.ex:53
 #, elixir-autogen, elixir-format
 msgid "You're off shift"
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:378
-#: lib/tabletap_web/live/public/menu_live.ex:861
+#: lib/tabletap_web/live/public/menu_live.ex:382
+#: lib/tabletap_web/live/public/menu_live.ex:931
 #, elixir-autogen, elixir-format
 msgid "Your cart is empty."
 msgstr ""
 
-#: lib/tabletap_web/live/public/menu_live.ex:339
+#: lib/tabletap_web/live/public/menu_live.ex:343
 #, elixir-autogen, elixir-format
 msgid "Your order"
 msgstr ""
@@ -1981,7 +1994,444 @@ msgstr ""
 msgid "qty per serving"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:187
+#: lib/tabletap_web/live/public/order_tracker_live.ex:199
 #, elixir-autogen, elixir-format
 msgid "~%{minutes} min"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1269
+#, elixir-autogen, elixir-format
+msgid "%{item} sold out while the hold expired — rebuild the order with the customer."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:305
+#, elixir-autogen, elixir-format
+msgid "Add to ticket"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1255
+#, elixir-autogen, elixir-format
+msgid "An item's options changed — remove and re-add it."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:497
+#, elixir-autogen, elixir-format
+msgid "Apply"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:24
+#, elixir-autogen, elixir-format
+msgid "Back to register"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:567
+#, elixir-autogen, elixir-format
+msgid "Back to ticket"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:193
+#, elixir-autogen, elixir-format
+msgid "Business day closed."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:502
+#, elixir-autogen, elixir-format
+msgid "Cash"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:433
+#, elixir-autogen, elixir-format
+msgid "Cash at counter"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:515
+#, elixir-autogen, elixir-format
+msgid "Cash received"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:54
+#, elixir-autogen, elixir-format
+msgid "Cash reconciliation"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:88
+#, elixir-autogen, elixir-format
+msgid "Cash reconciliation — enter what's actually in the drawer"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:741
+#, elixir-autogen, elixir-format
+msgid "Cash taken"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:519
+#, elixir-autogen, elixir-format
+msgid "Change due:"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:432
+#, elixir-autogen, elixir-format
+msgid "Charge"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:368
+#, elixir-autogen, elixir-format
+msgid "Choose a table…"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:75
+#, elixir-autogen, elixir-format
+msgid "Clock in to open the register."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:111
+#, elixir-autogen, elixir-format
+msgid "Close business day"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:49
+#, elixir-autogen, elixir-format
+msgid "Closed"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:550
+#, elixir-autogen, elixir-format
+msgid "Comp"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:549
+#, elixir-autogen, elixir-format
+msgid "Comp reason"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:526
+#, elixir-autogen, elixir-format
+msgid "Confirm cash payment"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1183
+#, elixir-autogen, elixir-format
+msgid "Couldn't add that item — it may have just sold out."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:957
+#, elixir-autogen, elixir-format
+msgid "Couldn't apply that discount."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:200
+#, elixir-autogen, elixir-format
+msgid "Couldn't close — this business day may already be closed."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1008
+#, elixir-autogen, elixir-format
+msgid "Couldn't comp this order."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:976
+#, elixir-autogen, elixir-format
+msgid "Couldn't settle the cash payment."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1067
+#, elixir-autogen, elixir-format
+msgid "Couldn't verify this order."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:493
+#, elixir-autogen, elixir-format
+msgid "Discount"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:131
+#, elixir-autogen, elixir-format
+msgid "Discounts"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:413
+#, elixir-autogen, elixir-format
+msgid "Empty ticket — tap an item to add it."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1044
+#: lib/tabletap_web/live/cashier/pos_live.ex:1104
+#, elixir-autogen, elixir-format
+msgid "Enter a valid order number."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:99
+#, elixir-autogen, elixir-format
+msgid "Expected"
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:88
+#, elixir-autogen, elixir-format
+msgid "Let customers choose Cash at checkout — they walk to the counter with an order number, and your cashier verifies payment there (design-qa.md Q3)."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:603
+#: lib/tabletap_web/live/cashier/pos_live.ex:669
+#, elixir-autogen, elixir-format
+msgid "Look up"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:127
+#, elixir-autogen, elixir-format
+msgid "Net revenue"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:559
+#, elixir-autogen, elixir-format
+msgid "New ticket"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:91
+#, elixir-autogen, elixir-format
+msgid "No cash payments recorded yet today."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:230
+#, elixir-autogen, elixir-format
+msgid "No items match."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1037
+#: lib/tabletap_web/live/cashier/pos_live.ex:1089
+#, elixir-autogen, elixir-format
+msgid "No matching order today."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1005
+#, elixir-autogen, elixir-format
+msgid "Only a manager can comp an order."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:676
+#, elixir-autogen, elixir-format
+msgid "Order #%{number} has no payment to refund."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1058
+#, elixir-autogen, elixir-format
+msgid "Order #%{number} verified and fired."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:685
+#, elixir-autogen, elixir-format
+msgid "Order #%{number} was paid by %{provider} — only cash refunds are handled here; ask a manager for other refunds."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:599
+#: lib/tabletap_web/live/cashier/pos_live.ex:665
+#, elixir-autogen, elixir-format
+msgid "Order number"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1248
+#, elixir-autogen, elixir-format
+msgid "Ordering is paused right now."
+msgstr ""
+
+#: lib/tabletap_web/components/layouts.ex:202
+#: lib/tabletap_web/components/layouts.ex:266
+#, elixir-autogen, elixir-format
+msgid "POS"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:557
+#, elixir-autogen, elixir-format
+msgid "Paid — fired to the kitchen."
+msgstr ""
+
+#: lib/tabletap_web/live/manager/payment_settings_live.ex:86
+#, elixir-autogen, elixir-format
+msgid "Pay at counter"
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:452
+#, elixir-autogen, elixir-format
+msgid "Pay cash at the counter — you'll get an order number to show staff there."
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:52
+#, elixir-autogen, elixir-format
+msgid "Pay cash there and staff will fire your order."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:565
+#, elixir-autogen, elixir-format
+msgid "Payment did not go through."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:463
+#, elixir-autogen, elixir-format
+msgid "Place order — pay at counter"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:138
+#, elixir-autogen, elixir-format
+msgid "Point of sale"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:705
+#, elixir-autogen, elixir-format
+msgid "Refund amount"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:710
+#, elixir-autogen, elixir-format
+msgid "Refund cash"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1118
+#, elixir-autogen, elixir-format
+msgid "Refunded order #%{number}."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:135
+#, elixir-autogen, elixir-format
+msgid "Refunds"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:628
+#, elixir-autogen, elixir-format
+msgid "Revive & verify paid"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:192
+#, elixir-autogen, elixir-format
+msgid "Search items…"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:544
+#, elixir-autogen, elixir-format
+msgid "Send PIN prompt"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:148
+#, elixir-autogen, elixir-format
+msgid "Shift"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:730
+#, elixir-autogen, elixir-format
+msgid "Shift summary"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:49
+#, elixir-autogen, elixir-format
+msgid "Show this order number at the counter"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1265
+#, elixir-autogen, elixir-format
+msgid "Sold out while the hold expired — rebuild the order with the customer."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1257
+#, elixir-autogen, elixir-format
+msgid "Something on this ticket just sold out."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1129
+#, elixir-autogen, elixir-format
+msgid "That doesn't look like a valid amount."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:169
+#, elixir-autogen, elixir-format
+msgid "That doesn't look like a valid cash amount — please re-enter it."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1125
+#, elixir-autogen, elixir-format
+msgid "That's more than what's left to refund."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1249
+#, elixir-autogen, elixir-format
+msgid "The ticket is empty."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1247
+#, elixir-autogen, elixir-format
+msgid "The venue is closed right now."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:612
+#, elixir-autogen, elixir-format
+msgid "This order's hold expired — Revive to bring it back."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1260
+#, elixir-autogen, elixir-format
+msgid "This venue isn't set up for wallet payments yet."
+msgstr ""
+
+#: lib/tabletap_web/live/public/menu_live.ex:403
+#, elixir-autogen, elixir-format
+msgid "This venue isn't set up to accept payments yet — please ask staff."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:1252
+#, elixir-autogen, elixir-format
+msgid "Too many open orders for this ticket."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:477
+#, elixir-autogen, elixir-format
+msgid "Total due"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:737
+#, elixir-autogen, elixir-format
+msgid "Transactions today"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:237
+#, elixir-autogen, elixir-format
+msgid "Unknown"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:142
+#: lib/tabletap_web/live/cashier/pos_live.ex:587
+#, elixir-autogen, elixir-format
+msgid "Verify cash order"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:620
+#, elixir-autogen, elixir-format
+msgid "Verify paid"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:337
+#, elixir-autogen, elixir-format
+msgid "Walk-in"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:505
+#: lib/tabletap_web/live/public/menu_live.ex:422
+#, elixir-autogen, elixir-format
+msgid "Wallet"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:342
+#, elixir-autogen, elixir-format
+msgid "Your hold expired — show order number %{number} at the counter and staff can revive it."
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:151
+#, elixir-autogen, elixir-format
+msgid "Z-report"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/z_report_live.ex:22
+#, elixir-autogen, elixir-format
+msgid "Z-report — %{date}"
+msgstr ""
+
+#: lib/tabletap_web/live/cashier/pos_live.ex:265
+#, elixir-autogen, elixir-format
+msgid "pick %{min}-%{max}"
 msgstr ""

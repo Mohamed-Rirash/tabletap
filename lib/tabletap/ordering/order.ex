@@ -6,10 +6,11 @@ defmodule Tabletap.Ordering.Order do
   edits never change history (code-standards.md "Snapshots over joins").
 
   `waiter_membership_id` lands in Feature 10 (waiter assignment).
-  `placed_by_membership_id` (architecture.md's data-model row) stays
-  deferred — it belongs to Feature 15 (cashier POS), added in that
-  feature's own migration when a real caller exists, same deferral
-  `Tenants.Venue` used for its own not-yet-needed fields.
+  `placed_by_membership_id` (architecture.md's data-model row) is `nil`
+  for a customer's own QR order and set to the cashier's membership when
+  a staff member places it on a customer's behalf (build-plan.md Feature
+  15's "cashier as full customer proxy" — powers the Assisted Orders
+  report, owner-dashboard.md).
   `customer_user_id` is deferred to Feature 16, matching
   `Ordering.Cart`'s identical deferral.
 
@@ -51,6 +52,9 @@ defmodule Tabletap.Ordering.Order do
     belongs_to :venue, Tabletap.Tenants.Venue
     belongs_to :table, Tabletap.Tenants.Table
     belongs_to :waiter_membership, Tabletap.Tenants.Membership, foreign_key: :waiter_membership_id
+
+    belongs_to :placed_by_membership, Tabletap.Tenants.Membership,
+      foreign_key: :placed_by_membership_id
 
     field :guest_token, :string
     field :number, :integer
@@ -121,6 +125,20 @@ defmodule Tabletap.Ordering.Order do
   end
 
   def clear_flag_changeset(order), do: change(order, flag: nil, flagged_at: nil)
+
+  @doc """
+  Re-derives `discount_total`/`total` after an `order_discounts` row is
+  added or removed (build-plan.md Feature 15; design-qa.md Q36 — legal
+  only while the order is still `pending_payment`, enforced by the
+  caller, `Ordering.apply_discount/4`/`remove_discount/2`, not here).
+  `subtotal` never changes post-checkout — only what's deducted from it.
+  """
+  def recompute_totals_changeset(order, discount_total) do
+    change(order,
+      discount_total: discount_total,
+      total: Money.sub!(order.subtotal, discount_total)
+    )
+  end
 
   @doc """
   Unserveable-order resolution (build-plan.md Feature 11, design-qa.md

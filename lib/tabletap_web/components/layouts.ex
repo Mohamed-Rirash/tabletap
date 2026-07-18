@@ -198,6 +198,9 @@ defmodule TabletapWeb.Layouts do
           >
             {gettext("Inventory")}
           </.manager_nav_link>
+          <.manager_nav_link navigate={~p"/pos"} icon="hero-calculator" active={false}>
+            {gettext("POS")}
+          </.manager_nav_link>
           <.manager_nav_soon icon="hero-chart-bar">{gettext("Analytics")}</.manager_nav_soon>
 
           <p class="px-2 text-xs font-semibold uppercase tracking-wide text-base-content/50 mt-4 mb-1">
@@ -258,6 +261,9 @@ defmodule TabletapWeb.Layouts do
             </.link>
             <.link navigate={~p"/kitchen"}>
               {gettext("Kitchen")}
+            </.link>
+            <.link navigate={~p"/pos"}>
+              {gettext("POS")}
             </.link>
           </div>
           <.theme_toggle />

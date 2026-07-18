@@ -23,13 +23,14 @@ defmodule Tabletap.Ordering do
   alias Tabletap.Accounts.Scope
   alias Tabletap.Catalog
   alias Tabletap.Catalog.{DailyItemLimit, MenuItem}
-  alias Tabletap.Ordering.{Cart, CartItem, CartItemOption, Order, OrderItem, OrderItemModifier}
-  alias Tabletap.Ordering.{OrderNumberCounter, OrderStateMachine, Totals, WaiterCall}
+  alias Tabletap.Ordering.{Cart, CartItem, CartItemOption, Order, OrderDiscount, OrderItem}
+  alias Tabletap.Ordering.{OrderItemModifier, OrderNumberCounter, OrderStateMachine}
+  alias Tabletap.Ordering.{Totals, WaiterCall}
   alias Tabletap.Ordering.Workers.EscalateUnacceptedOrder
   alias Tabletap.Payments
   alias Tabletap.Repo
   alias Tabletap.Tenants
-  alias Tabletap.Tenants.Venue
+  alias Tabletap.Tenants.{Membership, Venue}
 
   ## Reading a guest's cart
 
@@ -169,8 +170,8 @@ defmodule Tabletap.Ordering do
     :ok
   end
 
-  @doc "Dine-in vs takeaway (build-plan.md Feature 07)."
-  def set_kind(%Scope{}, %Cart{} = cart, kind) when kind in [:dine_in, :takeaway] do
+  @doc "Dine-in vs takeaway (build-plan.md Feature 07) — plus `:counter` for a cashier-built walk-in ticket (Feature 15)."
+  def set_kind(%Scope{}, %Cart{} = cart, kind) when kind in [:dine_in, :takeaway, :counter] do
     cart |> Cart.kind_changeset(kind) |> Repo.update()
   end
 
@@ -319,7 +320,7 @@ defmodule Tabletap.Ordering do
       else: {:error, :items_changed}
   end
 
-  defp do_checkout(%Scope{org: org, venue: venue}, cart) do
+  defp do_checkout(%Scope{org: org, venue: venue, membership: membership}, cart) do
     business_date = Tenants.business_date(venue)
     totals = Totals.compute(cart.items, venue.currency)
 
@@ -338,6 +339,13 @@ defmodule Tabletap.Ordering do
         venue_id: venue.id,
         table_id: cart.table_id,
         guest_token: cart.guest_token,
+        # design-qa.md "cashier as full customer proxy": a staff member's
+        # own scope carries a membership, a customer's own scope never
+        # does (%Scope{role: :guest, membership: nil}) — so this is `nil`
+        # for a customer's own QR checkout and set automatically whenever
+        # staff place the order on someone's behalf (build-plan.md
+        # Feature 15's owner-dashboard.md "Assisted orders report").
+        placed_by_membership_id: membership && membership.id,
         number: number,
         business_date: business_date,
         kind: cart.kind,
@@ -369,6 +377,32 @@ defmodule Tabletap.Ordering do
     order = Repo.preload(order, :items)
     lines = Enum.map(order.items, &{&1.menu_item_id, &1.qty})
     reserve_holds(lines, order.venue_id, order.business_date)
+  end
+
+  @doc """
+  Display-only lookup for the Revive UI (design-qa.md Q26 "the POS says
+  exactly which item sold out") — separate from `reserve_holds_for_order/1`
+  itself so that function's `{:error, :sold_out}` contract (already relied
+  on by the Q21 late-success path) never has to change shape just to carry
+  a name. Best-effort: the first line whose daily limit has hit zero since
+  the order was placed, or `nil` if the exact cause can't be pinned down
+  (still a real sold-out, just not attributable to one line — the caller
+  falls back to a generic message).
+  """
+  def first_sold_out_item_name(%Scope{} = scope, %Order{} = order) do
+    order = Repo.preload(order, items: :menu_item)
+
+    order.items
+    |> Enum.find(fn item ->
+      case Catalog.get_daily_limit(scope, item.menu_item, order.business_date) do
+        nil -> false
+        limit -> DailyItemLimit.remaining(limit) < item.qty
+      end
+    end)
+    |> case do
+      nil -> nil
+      item -> item.name_snapshot
+    end
   end
 
   # Atomic per line — a zero-row match means either "sold out" (a limit
@@ -482,6 +516,81 @@ defmodule Tabletap.Ordering do
     })
   end
 
+  ## Discounts (build-plan.md Feature 15; design-qa.md Q36, architecture.md
+  ## "Manager/cashier applied, permission-gated, always attributed") —
+  ## pre-payment only. `Tabletap.Payments.charge_comp/4` builds on
+  ## `apply_discount/4` for the 100%-discount comp path (Q30); everything
+  ## else here is the ordinary partial-discount path either role can use.
+
+  @doc """
+  Attributes and applies a discount to a `pending_payment` order — either
+  whole-order (`order_item_id: nil`) or against one line. Recomputes
+  `discount_total`/`total` in the same transaction as the attribution row,
+  so the two can never drift. `{:error, :not_pending_payment}` once the
+  order has moved on (Q36 — a discount after payment is a refund, never
+  a mutation here).
+  """
+  def apply_discount(
+        %Scope{} = scope,
+        %Order{status: :pending_payment} = order,
+        attrs,
+        %Membership{} = staff_membership
+      ) do
+    changeset =
+      OrderDiscount.new_changeset(%{
+        org_id: order.org_id,
+        order_id: order.id,
+        order_item_id: attrs[:order_item_id],
+        staff_membership_id: staff_membership.id,
+        amount: attrs[:amount],
+        reason: attrs[:reason]
+      })
+
+    Ecto.Multi.new()
+    |> Ecto.Multi.insert(:discount, changeset)
+    |> Ecto.Multi.run(:order, fn _repo, _changes -> recompute_discount_total(scope, order) end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{order: order}} -> {:ok, order}
+      {:error, :discount, changeset, _changes} -> {:error, changeset}
+    end
+  end
+
+  def apply_discount(%Scope{}, %Order{}, _attrs, %Membership{}),
+    do: {:error, :not_pending_payment}
+
+  @doc "Reverses one discount row — same pre-payment guard as `apply_discount/4`."
+  def remove_discount(%Scope{} = scope, %OrderDiscount{} = discount) do
+    order = get_order(scope, discount.order_id)
+
+    if order.status == :pending_payment do
+      Ecto.Multi.new()
+      |> Ecto.Multi.delete(:discount, discount)
+      |> Ecto.Multi.run(:order, fn _repo, _changes -> recompute_discount_total(scope, order) end)
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{order: order}} -> {:ok, order}
+      end
+    else
+      {:error, :not_pending_payment}
+    end
+  end
+
+  @doc "Every discount attributed to `order`, oldest first — the POS payment screen's own itemized list."
+  def list_discounts(%Scope{}, %Order{} = order) do
+    Repo.all(from(d in OrderDiscount, where: d.order_id == ^order.id, order_by: d.inserted_at))
+  end
+
+  defp recompute_discount_total(%Scope{venue: venue}, order) do
+    zero = Money.new!(venue.currency, 0)
+
+    discount_total =
+      Repo.all(from(d in OrderDiscount, where: d.order_id == ^order.id, select: d.amount))
+      |> Enum.reduce(zero, &Money.add!(&2, &1))
+
+    order |> Order.recompute_totals_changeset(discount_total) |> Repo.update()
+  end
+
   ## Reading orders (the tracker, build-plan.md Feature 08)
 
   @terminal_statuses [:closed, :expired, :cancelled, :refunded]
@@ -492,6 +601,49 @@ defmodule Tabletap.Ordering do
     Repo.one(
       from(o in Order,
         where: o.id == ^id and o.venue_id == ^venue.id,
+        preload: [:table, items: [:menu_item, :modifiers]]
+      )
+    )
+  end
+
+  @doc """
+  Today's order at this venue by its short display `number` — the
+  cashier's pay-at-counter lookup (design-qa.md Q3: the customer's
+  tracker shows just the number, not a full id). Scoped to *today's*
+  business date since order numbers reset per business day (Q39) — the
+  same number means a different order tomorrow. `nil` for an unknown
+  number or one that already resolved to something other than
+  `pending_payment`/`expired` (paid, cancelled — nothing left to verify).
+  """
+  def get_order_by_number(%Scope{venue: venue}, number) when is_integer(number) do
+    business_date = Tenants.business_date(venue)
+
+    Repo.one(
+      from(o in Order,
+        where:
+          o.venue_id == ^venue.id and o.number == ^number and
+            o.business_date == ^business_date and o.status in [:pending_payment, :expired],
+        preload: [:table, items: [:menu_item, :modifiers]]
+      )
+    )
+  end
+
+  @doc """
+  Today's order at this venue by number, any status — the cashier's
+  refund lookup (build-plan.md Feature 15). Unlike `get_order_by_number/2`
+  (scoped to the still-settling `pending_payment`/`expired` pair for the
+  Q3 pay-at-counter flow), a refund is issued against an order that
+  already *has* a payment — placed, in the kitchen, served, whatever its
+  current status. Still scoped to today's business date: order numbers
+  reset daily (Q39), so a stale number from yesterday must not resolve.
+  """
+  def get_any_order_by_number(%Scope{venue: venue}, number) when is_integer(number) do
+    business_date = Tenants.business_date(venue)
+
+    Repo.one(
+      from(o in Order,
+        where:
+          o.venue_id == ^venue.id and o.number == ^number and o.business_date == ^business_date,
         preload: [:table, items: [:menu_item, :modifiers]]
       )
     )
@@ -569,11 +721,14 @@ defmodule Tabletap.Ordering do
   `TabletapWeb.Presence.alive?/2` (the default).
 
   Steps, in architecture.md's own order: pickup-mode venues skip
-  assignment entirely (Q18); same-table stickiness (Q8); candidates =
-  on-shift waiters (Staffing) ∩ Presence-alive; solo-waiter shortcut
-  auto-accepts (Q49); otherwise lowest open load with a
-  longest-since-last-assignment tiebreak, then a 90s escalation job.
-  No candidates at all → straight to the claim board + manager alert.
+  assignment entirely (Q18), as does any `:counter`-kind order regardless
+  of fulfillment mode (build-plan.md Feature 15 — a walk-in ticket has no
+  table and no delivery step; the cashier hands it straight over); same-
+  table stickiness (Q8); candidates = on-shift waiters (Staffing) ∩
+  Presence-alive; solo-waiter shortcut auto-accepts (Q49); otherwise
+  lowest open load with a longest-since-last-assignment tiebreak, then a
+  90s escalation job. No candidates at all → straight to the claim board
+  + manager alert.
 
   Idempotent: an order no longer `:placed`, or already assigned, is a
   no-op — Oban retries and duplicate jobs can never double-assign.
@@ -583,6 +738,7 @@ defmodule Tabletap.Ordering do
 
     cond do
       venue.fulfillment_mode == :pickup -> {:ok, :pickup_no_assignment}
+      order.kind == :counter -> {:ok, :counter_no_assignment}
       order.status != :placed -> {:ok, :already_resolved}
       order.waiter_membership_id != nil -> {:ok, :already_assigned}
       true -> do_assign(scope, venue, order, alive?)
