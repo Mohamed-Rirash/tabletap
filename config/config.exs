@@ -129,7 +129,14 @@ config :tabletap, Oban,
        {"* * * * *", Tabletap.Payments.Workers.ReconcilePendingPayments},
        # Shift auto-close has no tight latency requirement, unlike the
        # payment/hold sweeps above (design-qa.md Q45).
-       {"*/15 * * * *", Tabletap.Staffing.Workers.AutoCloseShifts}
+       {"*/15 * * * *", Tabletap.Staffing.Workers.AutoCloseShifts},
+       # Once nightly is plenty — every venue's business day rolls over
+       # at a different wall-clock instant (per-venue cutoff/timezone),
+       # but a UTC 02:00 run is well past midnight everywhere this app
+       # currently launches (build-plan.md Feature 18); the worker's own
+       # 7-day lookback (not just "yesterday") is what actually keeps
+       # rollups fresh, not this schedule's tightness.
+       {"0 2 * * *", Tabletap.Analytics.Workers.DailyRollup}
      ]}
   ]
 
