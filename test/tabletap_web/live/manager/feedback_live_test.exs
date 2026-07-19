@@ -88,5 +88,57 @@ defmodule TabletapWeb.Manager.FeedbackLiveTest do
       assert html =~ "Perfect"
       refute html =~ "No ratings yet."
     end
+
+    test "shows the rating rate, distribution, trend, and per-item list reconciling a real rating",
+         %{conn: conn, scope: scope, item: item} do
+      {order, order_item} = served_order_item(scope, item)
+      {:ok, _} = Feedback.rate_item(scope, order, order_item, 5, comment: "Perfect")
+
+      {:ok, _lv, html} = live(conn, ~p"/feedback?range=today")
+
+      assert html =~ "100%"
+      assert html =~ "5★ (1)"
+      assert html =~ "averaging 5.0★"
+      assert html =~ "5.0★"
+    end
+
+    test "a low-rated item (< 3.0 over its last 20) surfaces the low-rating alert", %{
+      conn: conn,
+      scope: scope,
+      item: item
+    } do
+      for _ <- 1..2 do
+        {order, order_item} = served_order_item(scope, item)
+        {:ok, _} = Feedback.rate_item(scope, order, order_item, 1)
+      end
+
+      {:ok, _lv, html} = live(conn, ~p"/feedback")
+
+      assert html =~ "Low-rating alert"
+      assert html =~ item.name
+    end
+
+    test "toggling the per-item sort flips worst/best first", %{
+      conn: conn,
+      scope: scope,
+      item: item
+    } do
+      {order, order_item} = served_order_item(scope, item)
+      {:ok, _} = Feedback.rate_item(scope, order, order_item, 2)
+
+      {:ok, lv, html} = live(conn, ~p"/feedback")
+      assert html =~ "Worst first"
+
+      html = lv |> element(~s(button[phx-click="toggle_item_sort"])) |> render_click()
+      assert html =~ "Best first"
+    end
+
+    test "switching the date range patches the URL", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/feedback")
+
+      html = lv |> element(~s(a[href="/feedback?range=30d"])) |> render_click()
+      assert html =~ "Feedback"
+      assert_patch(lv, ~p"/feedback?range=30d")
+    end
   end
 end

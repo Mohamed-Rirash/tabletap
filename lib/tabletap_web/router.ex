@@ -102,6 +102,7 @@ defmodule TabletapWeb.Router do
       live "/feedback", Manager.FeedbackLive, :index
       live "/analytics/revenue", Manager.Analytics.RevenueLive, :index
       live "/analytics/menu-performance", Manager.Analytics.MenuPerformanceLive, :index
+      live "/analytics/customers", Manager.Analytics.CustomersLive, :index
     end
 
     # Growth/Pro only (pricing.md) — split from :manager so PlanHooks can

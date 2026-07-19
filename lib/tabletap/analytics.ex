@@ -1012,4 +1012,289 @@ defmodule Tabletap.Analytics do
     |> Enum.flat_map(fn {category, items} -> Enum.map(items, &{&1.id, category.name}) end)
     |> Map.new()
   end
+
+  ## Screen 4 — Feedback, rich (build-plan.md Feature 18; owner-dashboard.md).
+  ## Ratings have no rollup dimension — `daily_rollups` carries none —
+  ## so every read here queries `item_ratings`/`order_items`/`orders`
+  ## directly for the requested range, windowed by the order's own
+  ## `business_date` (same choice `menu_performance/3` already made for
+  ## `items_sold`), not the rating's own `inserted_at` (a customer can
+  ## rate hours or days after being served).
+
+  defp ratings_in_range(venue, from_date, to_date) do
+    Repo.all(
+      from(r in ItemRating,
+        join: oi in OrderItem,
+        on: oi.id == r.order_item_id,
+        join: o in Order,
+        on: o.id == oi.order_id,
+        where:
+          r.venue_id == ^venue.id and o.business_date >= ^from_date and
+            o.business_date <= ^to_date,
+        select: %{
+          stars: r.stars,
+          business_date: o.business_date,
+          order_id: o.id,
+          waiter_membership_id: o.waiter_membership_id
+        }
+      )
+    )
+  end
+
+  @doc "Daily average stars for the range — the Screen 4 venue rating trend."
+  def feedback_trend(%Scope{venue: venue}, from_date, to_date) do
+    venue
+    |> ratings_in_range(from_date, to_date)
+    |> Enum.group_by(& &1.business_date, & &1.stars)
+    |> Enum.map(fn {date, stars} -> %{date: date, avg: average(stars), count: length(stars)} end)
+    |> Enum.sort_by(& &1.date, Date)
+  end
+
+  @doc "1-5 star histogram for the range."
+  def rating_distribution(%Scope{venue: venue}, from_date, to_date) do
+    ratings = ratings_in_range(venue, from_date, to_date)
+    Map.new(1..5, &{&1, Enum.count(ratings, fn r -> r.stars == &1 end)})
+  end
+
+  @doc "% of served/closed orders in the range that got at least one rating — low means the prompt isn't landing."
+  def rating_rate(%Scope{venue: venue}, from_date, to_date) do
+    servable_ids =
+      Repo.all(
+        from(o in Order,
+          where:
+            o.venue_id == ^venue.id and o.business_date >= ^from_date and
+              o.business_date <= ^to_date and
+              o.status in [:served, :closed],
+          select: o.id
+        )
+      )
+
+    if servable_ids == [] do
+      nil
+    else
+      rated_ids =
+        venue |> ratings_in_range(from_date, to_date) |> Enum.map(& &1.order_id) |> Enum.uniq()
+
+      length(rated_ids) / length(servable_ids)
+    end
+  end
+
+  @doc "Avg stars per waiter for the range — orders they served, not orders they were merely assigned (design-qa.md's fairness guardrail: always shown with venue averages and hours, never a naked leaderboard — the LiveView's own job)."
+  def per_waiter_ratings(%Scope{venue: venue}, from_date, to_date) do
+    venue
+    |> ratings_in_range(from_date, to_date)
+    |> Enum.reject(&is_nil(&1.waiter_membership_id))
+    |> Enum.group_by(& &1.waiter_membership_id, & &1.stars)
+    |> Enum.map(fn {membership_id, stars} ->
+      %{waiter_membership_id: membership_id, avg: average(stars), count: length(stars)}
+    end)
+    |> Enum.sort_by(& &1.avg, :desc)
+  end
+
+  @doc "Every rated menu item's all-time avg + count, worst-first — the Screen 4 sortable list."
+  def worst_rated_items(%Scope{} = scope) do
+    item_ids =
+      scope
+      |> Catalog.list_menu()
+      |> Enum.flat_map(fn {_category, items} -> items end)
+      |> Map.new(&{&1.id, &1.name})
+
+    scope
+    |> Feedback.ratings_summary_for_items(Map.keys(item_ids))
+    |> Enum.map(fn {item_id, summary} ->
+      Map.merge(summary, %{menu_item_id: item_id, name: item_ids[item_id]})
+    end)
+    |> Enum.sort_by(& &1.avg, Decimal)
+  end
+
+  @doc "Items whose last 20 ratings (all-time, not range-bound) average below 3.0 — owner-dashboard.md's own low-rating alert."
+  def low_rated_items(%Scope{venue: venue} = scope) do
+    item_ids =
+      Repo.all(
+        from(r in ItemRating,
+          where: r.venue_id == ^venue.id,
+          distinct: true,
+          select: r.menu_item_id
+        )
+      )
+
+    names =
+      scope
+      |> Catalog.list_menu()
+      |> Enum.flat_map(fn {_category, items} -> items end)
+      |> Map.new(&{&1.id, &1.name})
+
+    item_ids
+    |> Enum.map(&{&1, last_20_stars(venue, &1)})
+    |> Enum.filter(fn {_id, stars} -> stars != [] and average(stars) < 3.0 end)
+    |> Enum.map(fn {item_id, stars} ->
+      %{menu_item_id: item_id, name: names[item_id], avg: average(stars)}
+    end)
+  end
+
+  defp last_20_stars(venue, item_id) do
+    Repo.all(
+      from(r in ItemRating,
+        where: r.venue_id == ^venue.id and r.menu_item_id == ^item_id,
+        order_by: [desc: r.inserted_at],
+        limit: 20,
+        select: r.stars
+      )
+    )
+  end
+
+  ## Screen 7 — Customers (build-plan.md Feature 18; owner-dashboard.md,
+  ## "MVP-honest: we only know what our data supports"). Identity is
+  ## `customer_user_id` when the guest signed up (Feature 16), the raw
+  ## `guest_token` otherwise — two anonymous visits under two different
+  ## guest_tokens can't be linked (no PII to link them by, by design),
+  ## the same honesty owner-dashboard.md itself calls for. "New vs
+  ## returning" looks at each identity's very first order ever, not just
+  ## within the selected range, so a first-time visitor mid-range doesn't
+  ## get miscounted as "returning."
+
+  @history_statuses [:placed, :accepted, :preparing, :ready, :served, :closed, :refunded]
+
+  @doc """
+  New vs returning counts, a visit-frequency histogram (1× / 2-3× / 4+×),
+  and the 30-day repeat rate (design-qa.md's own "% of customers with
+  2+ orders in 30 days") for the range.
+  """
+  def customers_summary(%Scope{venue: venue}, from_date, to_date) do
+    orders = orders_with_identity(venue, from_date, to_date)
+    by_identity = Enum.group_by(orders, &identity_key/1)
+    identities = Map.keys(by_identity)
+    first_seen = first_seen_by_identity(venue, identities)
+
+    {new_count, returning_count} =
+      Enum.reduce(identities, {0, 0}, fn key, {new_acc, returning_acc} ->
+        if Date.compare(Map.fetch!(first_seen, key), from_date) != :lt do
+          {new_acc + 1, returning_acc}
+        else
+          {new_acc, returning_acc + 1}
+        end
+      end)
+
+    visit_counts = Map.new(by_identity, fn {key, orders} -> {key, length(orders)} end)
+
+    %{
+      new_count: new_count,
+      returning_count: returning_count,
+      visit_frequency: %{
+        "1" => Enum.count(visit_counts, fn {_k, c} -> c == 1 end),
+        "2-3" => Enum.count(visit_counts, fn {_k, c} -> c in 2..3 end),
+        "4+" => Enum.count(visit_counts, fn {_k, c} -> c >= 4 end)
+      },
+      repeat_rate: repeat_rate(venue, to_date)
+    }
+  end
+
+  defp orders_with_identity(venue, from_date, to_date) do
+    Repo.all(
+      from(o in Order,
+        where:
+          o.venue_id == ^venue.id and o.business_date >= ^from_date and
+            o.business_date <= ^to_date and
+            o.status in @history_statuses,
+        select: %{customer_user_id: o.customer_user_id, guest_token: o.guest_token}
+      )
+    )
+  end
+
+  defp identity_key(%{customer_user_id: nil, guest_token: guest_token}), do: {:guest, guest_token}
+  defp identity_key(%{customer_user_id: id}), do: {:account, id}
+
+  defp first_seen_by_identity(venue, identities) do
+    account_ids = for {:account, id} <- identities, do: id
+    guest_tokens = for {:guest, token} <- identities, do: token
+
+    accounts =
+      if account_ids == [] do
+        %{}
+      else
+        Repo.all(
+          from(o in Order,
+            where: o.venue_id == ^venue.id and o.customer_user_id in ^account_ids,
+            group_by: o.customer_user_id,
+            select: {o.customer_user_id, min(o.business_date)}
+          )
+        )
+        |> Map.new(fn {id, date} -> {{:account, id}, date} end)
+      end
+
+    guests =
+      if guest_tokens == [] do
+        %{}
+      else
+        Repo.all(
+          from(o in Order,
+            where: o.venue_id == ^venue.id and o.guest_token in ^guest_tokens,
+            group_by: o.guest_token,
+            select: {o.guest_token, min(o.business_date)}
+          )
+        )
+        |> Map.new(fn {token, date} -> {{:guest, token}, date} end)
+      end
+
+    Map.merge(accounts, guests)
+  end
+
+  defp repeat_rate(venue, to_date) do
+    from_date = Date.add(to_date, -29)
+
+    counts =
+      Repo.all(
+        from(o in Order,
+          where:
+            o.venue_id == ^venue.id and not is_nil(o.customer_user_id) and
+              o.business_date >= ^from_date and o.business_date <= ^to_date and
+              o.status in @history_statuses,
+          group_by: o.customer_user_id,
+          select: count(o.id)
+        )
+      )
+
+    case counts do
+      [] -> nil
+      _ -> Enum.count(counts, &(&1 >= 2)) / length(counts)
+    end
+  end
+
+  @doc "Top customers by spend in the range — account holders only (privacy-safe: no guest_token/anonymous rows), owner-dashboard.md's own scoping."
+  def top_customers(%Scope{venue: venue}, from_date, to_date, limit \\ 10) do
+    zero = Money.new!(venue.currency, 0)
+
+    rows =
+      Repo.all(
+        from(o in Order,
+          where:
+            o.venue_id == ^venue.id and not is_nil(o.customer_user_id) and
+              o.business_date >= ^from_date and o.business_date <= ^to_date and
+              o.status in @history_statuses,
+          select: {o.customer_user_id, o.total}
+        )
+      )
+
+    user_ids = rows |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
+
+    emails =
+      Repo.all(
+        from(u in Tabletap.Accounts.User, where: u.id in ^user_ids, select: {u.id, u.email}),
+        skip_org_id: true
+      )
+      |> Map.new()
+
+    rows
+    |> Enum.group_by(fn {user_id, _total} -> user_id end, fn {_user_id, total} -> total end)
+    |> Enum.map(fn {user_id, totals} ->
+      %{
+        customer_user_id: user_id,
+        email: Map.get(emails, user_id, "—"),
+        total: money_sum(totals, zero),
+        order_count: length(totals)
+      }
+    end)
+    |> Enum.sort_by(& &1.total, {:desc, Money})
+    |> Enum.take(limit)
+  end
 end

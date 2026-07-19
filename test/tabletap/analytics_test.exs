@@ -581,4 +581,151 @@ defmodule Tabletap.AnalyticsTest do
       assert Analytics.menu_quadrant([]) == %{stars: [], plowhorses: [], puzzles: [], dogs: []}
     end
   end
+
+  describe "feedback_trend/3, rating_distribution/3, rating_rate/3, per_waiter_ratings/3" do
+    test "reconciles a single day of mixed ratings", %{scope: scope, item: item} do
+      %{membership: waiter} = waiter_fixture(scope.org, scope.venue)
+      waiter_scope = %{scope | role: :waiter, membership: waiter}
+      {:ok, _} = Staffing.clock_in(waiter_scope)
+
+      order1 = checked_out(scope, item)
+      served1 = serve!(waiter_scope, order1)
+      # Real waiter auto-assignment needs a live Presence-tracked waiter
+      # (Ordering.assign_waiter/3's own default `alive?`), which this test
+      # process never establishes — assigning directly here tests
+      # per_waiter_ratings/3's own aggregation, not the assignment
+      # algorithm itself (already covered by ordering/assignment_test.exs).
+      served1 =
+        served1 |> Ecto.Changeset.change(waiter_membership_id: waiter.id) |> Repo.update!()
+
+      [oi1] = Repo.preload(served1, :items).items
+      {:ok, _} = Feedback.rate_item(scope, served1, oi1, 5)
+
+      order2 = checked_out(scope, item)
+      served2 = serve!(scope, order2)
+      [oi2] = Repo.preload(served2, :items).items
+      {:ok, _} = Feedback.rate_item(scope, served2, oi2, 3)
+
+      # A served-but-never-rated order counts against rating_rate/3.
+      order3 = checked_out(scope, item)
+      serve!(scope, order3)
+
+      today = today(scope)
+      [trend_day] = Analytics.feedback_trend(scope, today, today)
+      assert trend_day.count == 2
+      assert trend_day.avg == 4.0
+
+      distribution = Analytics.rating_distribution(scope, today, today)
+      assert distribution[5] == 1
+      assert distribution[3] == 1
+      assert distribution[1] == 0
+
+      assert Analytics.rating_rate(scope, today, today) == 2 / 3
+
+      [waiter_row] = Analytics.per_waiter_ratings(scope, today, today)
+      assert waiter_row.waiter_membership_id == served1.waiter_membership_id
+      assert waiter_row.count == 1
+      assert waiter_row.avg == 5.0
+    end
+
+    test "rating_rate/3 is nil when nothing was servable in the range", %{scope: scope} do
+      assert Analytics.rating_rate(scope, ~D[2020-01-01], ~D[2020-01-01]) == nil
+    end
+  end
+
+  describe "worst_rated_items/1 and low_rated_items/1" do
+    test "sorts worst-first and flags an item averaging below 3.0 over its last 20", %{
+      scope: scope,
+      item: item
+    } do
+      order1 = checked_out(scope, item)
+      served1 = serve!(scope, order1)
+      [oi1] = Repo.preload(served1, :items).items
+      {:ok, _} = Feedback.rate_item(scope, served1, oi1, 1)
+
+      {:ok, category2} = Catalog.create_category(scope, %{"name" => "Snacks"})
+
+      {:ok, muffin} =
+        Catalog.create_item(scope, category2, %{
+          "name" => "Muffin",
+          "price" => Money.new!(:USD, "2.00")
+        })
+
+      order2 = checked_out(scope, muffin)
+      served2 = serve!(scope, order2)
+      [oi2] = Repo.preload(served2, :items).items
+      {:ok, _} = Feedback.rate_item(scope, served2, oi2, 5)
+
+      [worst, best] = Analytics.worst_rated_items(scope)
+      assert worst.name == "Latte"
+      assert best.name == "Muffin"
+
+      low_rated = Analytics.low_rated_items(scope)
+      assert Enum.any?(low_rated, &(&1.name == "Latte"))
+      refute Enum.any?(low_rated, &(&1.name == "Muffin"))
+    end
+  end
+
+  describe "customers_summary/3 and top_customers/4" do
+    test "splits new vs returning by each identity's first-ever order, and buckets visit frequency",
+         %{
+           scope: scope,
+           item: item
+         } do
+      today = today(scope)
+      yesterday = Date.add(today, -1)
+
+      returning_user = Tabletap.AccountsFixtures.user_fixture()
+      earlier_order = checked_out(scope, item)
+      {:ok, _} = Ordering.link_guest_orders_to_customer(returning_user, earlier_order.guest_token)
+
+      earlier_order
+      |> Ecto.Changeset.change(business_date: yesterday, status: :served)
+      |> Repo.update!()
+
+      returning_order_today = checked_out(scope, item)
+
+      {:ok, _} =
+        Ordering.link_guest_orders_to_customer(returning_user, returning_order_today.guest_token)
+
+      returning_order_today |> Ecto.Changeset.change(status: :served) |> Repo.update!()
+
+      new_guest_order = checked_out(scope, item)
+      new_guest_order |> Ecto.Changeset.change(status: :served) |> Repo.update!()
+
+      summary = Analytics.customers_summary(scope, today, today)
+
+      assert summary.new_count == 1
+      assert summary.returning_count == 1
+      assert summary.visit_frequency["1"] == 2
+      assert summary.repeat_rate == 1.0
+
+      _ = new_guest_order
+    end
+
+    test "top_customers/4 ranks account holders only by spend, excluding guests", %{
+      scope: scope,
+      item: item
+    } do
+      big_spender = Tabletap.AccountsFixtures.user_fixture()
+      order1 = checked_out(scope, item, 2)
+      {:ok, _} = Ordering.link_guest_orders_to_customer(big_spender, order1.guest_token)
+      order1 |> Ecto.Changeset.change(status: :served) |> Repo.update!()
+
+      small_spender = Tabletap.AccountsFixtures.user_fixture()
+      order2 = checked_out(scope, item)
+      {:ok, _} = Ordering.link_guest_orders_to_customer(small_spender, order2.guest_token)
+      order2 |> Ecto.Changeset.change(status: :served) |> Repo.update!()
+
+      guest_order = checked_out(scope, item, 5)
+      guest_order |> Ecto.Changeset.change(status: :served) |> Repo.update!()
+
+      today = today(scope)
+      [top, second] = Analytics.top_customers(scope, today, today)
+
+      assert top.email == big_spender.email
+      assert Money.equal?(top.total, Money.new!(:USD, "7.00"))
+      assert second.email == small_spender.email
+    end
+  end
 end

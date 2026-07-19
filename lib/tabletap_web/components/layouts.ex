@@ -105,7 +105,7 @@ defmodule TabletapWeb.Layouts do
   attr :active_nav, :atom,
     required: true,
     doc:
-      ":dashboard, :orders, :menu, :modifiers, :tables, :inventory, :feedback, :analytics_revenue, :analytics_menu_performance, or :payments"
+      ":dashboard, :orders, :menu, :modifiers, :tables, :inventory, :feedback, :analytics_revenue, :analytics_menu_performance, :analytics_customers, or :payments"
 
   attr :venues, :list, default: []
 
@@ -223,6 +223,13 @@ defmodule TabletapWeb.Layouts do
             active={@active_nav == :analytics_menu_performance}
           >
             {gettext("Menu Performance")}
+          </.manager_nav_link>
+          <.manager_nav_link
+            navigate={~p"/analytics/customers"}
+            icon="hero-user-group"
+            active={@active_nav == :analytics_customers}
+          >
+            {gettext("Customers")}
           </.manager_nav_link>
 
           <p class="px-2 text-xs font-semibold uppercase tracking-wide text-base-content/50 mt-4 mb-1">

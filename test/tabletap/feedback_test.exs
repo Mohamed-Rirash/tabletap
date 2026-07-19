@@ -162,9 +162,11 @@ defmodule Tabletap.FeedbackTest do
       {:ok, second} = Feedback.rate_item(scope, order2, item2, 2, comment: "Meh")
 
       # `inserted_at` is second-precision, so two ratings in the same test
-      # can legitimately tie — assert the tie-broken-by-id order the query
-      # actually produces rather than assuming wall-clock insertion order.
-      expected = Enum.sort_by([first, second], & &1.id, :desc)
+      # can legitimately tie — sort by the exact same key
+      # `list_venue_feedback/1` orders by (desc inserted_at, desc id)
+      # rather than assuming either a tie or real wall-clock separation.
+      expected =
+        Enum.sort_by([first, second], &{DateTime.to_unix(&1.inserted_at), &1.id}, :desc)
 
       assert Feedback.list_venue_feedback(scope) |> Enum.map(& &1.id) ==
                Enum.map(expected, & &1.id)
