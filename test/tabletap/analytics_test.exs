@@ -370,4 +370,215 @@ defmodule Tabletap.AnalyticsTest do
       assert Analytics.today_alerts(%{scope | org: past_due_org}).subscription_issue == :past_due
     end
   end
+
+  describe "range_summary/3 and previous_period_range/2" do
+    test "gap-free series with today live, yesterday from a stored rollup, day before that zeroed",
+         %{
+           scope: scope,
+           item: item
+         } do
+      today = today(scope)
+      yesterday = Date.add(today, -1)
+      day_before = Date.add(today, -2)
+
+      computed_yesterday = Analytics.compute_rollup(scope, yesterday)
+      {:ok, _} = Analytics.upsert_rollup(computed_yesterday)
+
+      %{membership: cashier} = cashier_fixture(scope.org, scope.venue)
+      cashier_scope = %{scope | role: :cashier, membership: cashier}
+      order = checked_out(cashier_scope, item)
+      {:ok, _} = Payments.settle_cash_now(cashier_scope, order, cashier)
+
+      [day_before_row, yesterday_row, today_row] =
+        Analytics.range_summary(scope, day_before, today)
+
+      assert day_before_row.date == day_before
+      assert day_before_row.order_count == 0
+
+      assert yesterday_row.date == yesterday
+      assert yesterday_row.order_count == computed_yesterday.order_count
+
+      assert today_row.date == today
+      assert today_row.order_count == 1
+    end
+
+    test "previous_period_range/2 is the same-length window immediately before", %{scope: scope} do
+      from_date = ~D[2026-07-10]
+      to_date = ~D[2026-07-16]
+
+      assert Analytics.previous_period_range(from_date, to_date) ==
+               {~D[2026-07-03], ~D[2026-07-09]}
+
+      _ = scope
+    end
+  end
+
+  describe "discounts_breakdown/3 and comps_breakdown/3" do
+    test "an ordinary discount counts as a discount, a comp counts separately", %{
+      scope: scope,
+      owner: owner,
+      item: item
+    } do
+      order1 = checked_out(scope, item)
+
+      {:ok, _} =
+        Ordering.apply_discount(
+          scope,
+          order1,
+          %{amount: Money.new!(:USD, "1.00"), reason: "loyalty"},
+          owner
+        )
+
+      %{membership: cashier} = cashier_fixture(scope.org, scope.venue)
+      cashier_scope = %{scope | role: :cashier, membership: cashier}
+      {:ok, _} = Payments.settle_cash_now(cashier_scope, order1, cashier)
+
+      order2 = checked_out(scope, item)
+      {:ok, _} = Payments.charge_comp(scope, order2, "Friend of the house", owner)
+
+      today = today(scope)
+
+      discounts = Analytics.discounts_breakdown(scope, today, today)
+      assert Money.equal?(discounts.total, Money.new!(:USD, "1.00"))
+      assert discounts.count == 1
+
+      comps = Analytics.comps_breakdown(scope, today, today)
+      assert Money.equal?(comps.total, Money.new!(:USD, "3.50"))
+      assert comps.count == 1
+      assert Enum.any?(comps.by_reason, &(&1.reason == "Friend of the house"))
+    end
+  end
+
+  describe "refunds_breakdown/3" do
+    test "totals, counts, and computes a rate against the period's own order count", %{
+      scope: scope,
+      owner_user: owner_user,
+      item: item
+    } do
+      %{membership: cashier} = cashier_fixture(scope.org, scope.venue)
+      cashier_scope = %{scope | role: :cashier, membership: cashier}
+      order = checked_out(cashier_scope, item)
+      {:ok, payment} = Payments.settle_cash_now(cashier_scope, order, cashier)
+
+      {:ok, _} =
+        Payments.refund(scope, payment, Money.new!(:USD, "1.00"), "cold coffee", owner_user.id)
+
+      today = today(scope)
+      refunds = Analytics.refunds_breakdown(scope, today, today)
+
+      assert Money.equal?(refunds.total, Money.new!(:USD, "1.00"))
+      assert refunds.count == 1
+      assert refunds.rate == 1.0
+      assert Enum.any?(refunds.by_reason, &(&1.reason == "cold coffee"))
+    end
+  end
+
+  describe "platform_fees_paid/3" do
+    test "sums accrued platform_fee_ledger entries in the window", %{
+      scope: scope,
+      venue: venue,
+      item: item
+    } do
+      today = today(scope)
+      order = checked_out(scope, item)
+
+      %Tabletap.Payments.PlatformFeeLedgerEntry{}
+      |> Ecto.Changeset.change(%{
+        org_id: scope.org.id,
+        venue_id: venue.id,
+        order_id: order.id,
+        amount: Money.new!(:USD, "0.09"),
+        accrued_at: DateTime.utc_now(:second)
+      })
+      |> Repo.insert!()
+
+      assert Money.equal?(
+               Analytics.platform_fees_paid(scope, today, today),
+               Money.new!(:USD, "0.09")
+             )
+    end
+  end
+
+  describe "hourly_totals/3" do
+    test "sums hourly_orders across the range", %{scope: scope, item: item} do
+      %{membership: cashier} = cashier_fixture(scope.org, scope.venue)
+      cashier_scope = %{scope | role: :cashier, membership: cashier}
+      order = checked_out(cashier_scope, item)
+      {:ok, _} = Payments.settle_cash_now(cashier_scope, order, cashier)
+
+      today = today(scope)
+      totals = Analytics.hourly_totals(scope, today, today)
+      assert Enum.sum(Map.values(totals)) == 1
+    end
+  end
+
+  describe "menu_performance/3, menu_quadrant/1, category_mix/3" do
+    test "reconciles sold/revenue/margin/rating/sellout-days and classifies the quadrant", %{
+      scope: scope,
+      item: item
+    } do
+      {:ok, milk} =
+        Inventory.create_ingredient(scope, %{
+          "name" => "Milk",
+          "unit" => "ml",
+          "cost_per_unit" => Money.new!(:USD, "0.05")
+        })
+
+      {:ok, _} = Inventory.add_recipe_line(scope, item, milk, Decimal.new(10))
+
+      order = checked_out(scope, item, 10)
+      served = serve!(scope, order)
+      [order_item] = Repo.preload(served, :items).items
+      {:ok, _} = Feedback.rate_item(scope, served, order_item, 4)
+
+      {:ok, category2} = Catalog.create_category(scope, %{"name" => "Snacks"})
+
+      {:ok, muffin} =
+        Catalog.create_item(scope, category2, %{
+          "name" => "Muffin",
+          "price" => Money.new!(:USD, "2.00")
+        })
+
+      {:ok, expensive_ingredient} =
+        Inventory.create_ingredient(scope, %{
+          "name" => "Blueberries",
+          "unit" => "g",
+          "cost_per_unit" => Money.new!(:USD, "0.18")
+        })
+
+      {:ok, _} = Inventory.add_recipe_line(scope, muffin, expensive_ingredient, Decimal.new(10))
+      {:ok, _} = Catalog.set_daily_limit(scope, muffin, 1)
+
+      muffin_order = checked_out(scope, muffin)
+      serve!(scope, muffin_order)
+
+      today = today(scope)
+      rows = Analytics.menu_performance(scope, today, today)
+
+      latte_row = Enum.find(rows, &(&1.name == "Latte"))
+      assert latte_row.sold == 10
+      assert Money.equal?(latte_row.revenue, Money.new!(:USD, "35.00"))
+      assert Money.equal?(latte_row.food_cost, Money.new!(:USD, "5.00"))
+      assert Money.equal?(latte_row.margin, Money.new!(:USD, "30.00"))
+      assert latte_row.rating.avg |> Decimal.equal?(Decimal.new(4))
+      assert latte_row.sellout_days == 0
+
+      muffin_row = Enum.find(rows, &(&1.name == "Muffin"))
+      assert muffin_row.sold == 1
+      assert Money.equal?(muffin_row.food_cost, Money.new!(:USD, "1.80"))
+      assert muffin_row.sellout_days == 1
+
+      quadrant = Analytics.menu_quadrant(rows)
+      assert Enum.any?(quadrant.stars, &(&1.name == "Latte"))
+      assert Enum.any?(quadrant.dogs, &(&1.name == "Muffin"))
+
+      mix = Analytics.category_mix(scope, today, today)
+      assert Money.equal?(mix["Drinks"], Money.new!(:USD, "35.00"))
+      assert Money.equal?(mix["Snacks"], Money.new!(:USD, "2.00"))
+    end
+
+    test "an empty range returns an empty quadrant, not an error", %{scope: _scope} do
+      assert Analytics.menu_quadrant([]) == %{stars: [], plowhorses: [], puzzles: [], dogs: []}
+    end
+  end
 end

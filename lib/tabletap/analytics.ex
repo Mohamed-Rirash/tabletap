@@ -49,6 +49,7 @@ defmodule Tabletap.Analytics do
   alias Tabletap.Analytics.DailyRollup
   alias Tabletap.Catalog
   alias Tabletap.Catalog.DailyItemLimit
+  alias Tabletap.Feedback
   alias Tabletap.Feedback.ItemRating
   alias Tabletap.Inventory
   alias Tabletap.Inventory.{Ingredient, RecipeLine, StockMovement}
@@ -625,4 +626,390 @@ defmodule Tabletap.Analytics do
     do: status
 
   defp subscription_issue(_org), do: nil
+
+  ## Screen 2 — Revenue & Sales (build-plan.md Feature 18; owner-dashboard.md).
+  ## Every trend reads `range_summary/3` — closed days from `daily_rollups`,
+  ## today (if in range) live via `today_summary/1` — so a chart and the
+  ## Report Center's own CSV of the same range can never disagree.
+
+  @doc """
+  One row per calendar day in `[from_date, to_date]` — stored rollups
+  where they exist, `today_summary/1` for today if it falls in range
+  (never rolled up yet), and an honest all-zero row for any date with
+  neither (a venue too new to have that day's data). Always the full
+  range, gap-free, so a trend chart never has to special-case a
+  missing day.
+  """
+  def range_summary(%Scope{venue: venue} = scope, from_date, to_date) do
+    by_date = scope |> list_rollups(from_date, to_date) |> Map.new(&{&1.date, rollup_row(&1)})
+    today = Tenants.business_date(venue)
+
+    by_date =
+      if Date.compare(today, from_date) != :lt and Date.compare(today, to_date) != :gt and
+           not Map.has_key?(by_date, today) do
+        Map.put(by_date, today, Map.put(today_summary(scope), :date, today))
+      else
+        by_date
+      end
+
+    from_date
+    |> Date.range(to_date)
+    |> Enum.map(&Map.get(by_date, &1, empty_day(&1, venue)))
+  end
+
+  defp rollup_row(%DailyRollup{} = r) do
+    %{
+      date: r.date,
+      gross_sales: r.gross_sales,
+      discounts: r.discounts,
+      refunds: r.refunds,
+      net_revenue: r.net_revenue,
+      order_count: r.order_count,
+      avg_check: r.avg_check,
+      food_cost: r.food_cost,
+      channel_mix: r.channel_mix,
+      payment_mix: r.payment_mix,
+      hourly_orders: r.hourly_orders,
+      items_sold: r.items_sold,
+      ingredient_usage: r.ingredient_usage,
+      staff_metrics: r.staff_metrics,
+      recompute_count: r.recompute_count
+    }
+  end
+
+  defp empty_day(date, venue) do
+    zero = Money.new!(venue.currency, 0)
+
+    %{
+      date: date,
+      gross_sales: zero,
+      discounts: zero,
+      refunds: zero,
+      net_revenue: zero,
+      order_count: 0,
+      avg_check: nil,
+      food_cost: zero,
+      channel_mix: %{},
+      payment_mix: %{},
+      hourly_orders: %{},
+      items_sold: %{},
+      ingredient_usage: %{},
+      staff_metrics: %{"waiters" => %{}, "kitchen_avg_prep_seconds" => nil},
+      recompute_count: 0
+    }
+  end
+
+  @doc "The immediately-preceding period of the same length — the comparison range every Screen 2 chart ghosts against."
+  def previous_period_range(from_date, to_date) do
+    days = Date.diff(to_date, from_date) + 1
+    {Date.add(from_date, -days), Date.add(from_date, -1)}
+  end
+
+  @doc """
+  Ordinary discounts in the period (`Ordering.OrderDiscount` rows,
+  windowed by the order's own `business_date` — same field
+  `discount_total_for_day/3` already windows on), grouped by the staff
+  member who applied them. Comp orders (100%-discount, `provider: :comp`
+  payments) are excluded here and counted in `comps_breakdown/3` instead
+  — design-qa.md Q30 tracks comps as their own category, not folded into
+  ordinary discount totals.
+  """
+  def discounts_breakdown(%Scope{venue: venue}, from_date, to_date) do
+    zero = Money.new!(venue.currency, 0)
+    comp_order_ids = comp_order_ids(venue, from_date, to_date)
+
+    rows =
+      Repo.all(
+        from(d in OrderDiscount,
+          join: o in Order,
+          on: o.id == d.order_id,
+          left_join: m in Membership,
+          on: m.id == d.staff_membership_id,
+          left_join: u in Tabletap.Accounts.User,
+          on: u.id == m.user_id,
+          where:
+            o.venue_id == ^venue.id and o.business_date >= ^from_date and
+              o.business_date <= ^to_date,
+          select: {d.order_id, d.amount, d.staff_membership_id, u.email}
+        )
+      )
+      |> Enum.reject(fn {order_id, _amount, _staff_id, _email} -> order_id in comp_order_ids end)
+
+    %{
+      total: rows |> Enum.map(&elem(&1, 1)) |> money_sum(zero),
+      count: length(rows),
+      by_staff: group_money_by_staff(rows, zero)
+    }
+  end
+
+  @doc "Comp (100%-discount, `provider: :comp`) orders in the period — count, value at menu price, by staff and by reason (design-qa.md Q30: free food is tracked food)."
+  def comps_breakdown(%Scope{venue: venue}, from_date, to_date) do
+    zero = Money.new!(venue.currency, 0)
+    {start_at, _} = business_date_bounds(venue, from_date)
+    {_, end_at} = business_date_bounds(venue, to_date)
+
+    rows =
+      Repo.all(
+        from(p in Payment,
+          join: d in OrderDiscount,
+          on: d.order_id == p.order_id,
+          left_join: m in Membership,
+          on: m.id == d.staff_membership_id,
+          left_join: u in Tabletap.Accounts.User,
+          on: u.id == m.user_id,
+          where:
+            p.venue_id == ^venue.id and p.provider == :comp and p.status == :succeeded and
+              p.inserted_at >= ^start_at and p.inserted_at < ^end_at,
+          select: {p.order_id, d.amount, d.staff_membership_id, u.email, d.reason}
+        )
+      )
+
+    %{
+      total: rows |> Enum.map(&elem(&1, 1)) |> money_sum(zero),
+      count: length(rows),
+      by_staff: group_money_by_staff(rows, zero),
+      by_reason: group_money_by_reason(rows, zero)
+    }
+  end
+
+  defp comp_order_ids(venue, from_date, to_date) do
+    {start_at, _} = business_date_bounds(venue, from_date)
+    {_, end_at} = business_date_bounds(venue, to_date)
+
+    Repo.all(
+      from(p in Payment,
+        where:
+          p.venue_id == ^venue.id and p.provider == :comp and p.status == :succeeded and
+            p.inserted_at >= ^start_at and p.inserted_at < ^end_at,
+        select: p.order_id
+      )
+    )
+    |> MapSet.new()
+  end
+
+  defp group_money_by_staff(rows, zero) do
+    rows
+    |> Enum.group_by(fn row -> {elem(row, 2), elem(row, 3)} end)
+    |> Enum.map(fn {{staff_id, email}, staff_rows} ->
+      %{
+        staff_membership_id: staff_id,
+        email: email || gettext_no_staff(),
+        count: length(staff_rows),
+        total: staff_rows |> Enum.map(&elem(&1, 1)) |> money_sum(zero)
+      }
+    end)
+    |> Enum.sort_by(& &1.total, {:desc, Money})
+  end
+
+  defp group_money_by_reason(rows, zero) do
+    rows
+    |> Enum.group_by(&elem(&1, 4))
+    |> Enum.map(fn {reason, reason_rows} ->
+      %{
+        reason: reason || gettext_no_reason(),
+        count: length(reason_rows),
+        total: reason_rows |> Enum.map(&elem(&1, 1)) |> money_sum(zero)
+      }
+    end)
+    |> Enum.sort_by(& &1.total, {:desc, Money})
+  end
+
+  defp gettext_no_staff, do: "—"
+  defp gettext_no_reason, do: "—"
+
+  @doc """
+  Refund total + rate (% of orders refunded) + reasons for the period —
+  a rising rate is design-qa.md's own "ops fire alarm." Windowed the
+  same way `succeeded_refunds_for_day/2` windows a single day, just
+  across the whole range.
+  """
+  def refunds_breakdown(%Scope{venue: venue} = scope, from_date, to_date) do
+    zero = Money.new!(venue.currency, 0)
+    {start_at, _} = business_date_bounds(venue, from_date)
+    {_, end_at} = business_date_bounds(venue, to_date)
+
+    rows =
+      Repo.all(
+        from(r in Refund,
+          join: p in Payment,
+          on: p.id == r.payment_id,
+          where:
+            p.venue_id == ^venue.id and r.status == :succeeded and r.inserted_at >= ^start_at and
+              r.inserted_at < ^end_at,
+          select: {r.amount, r.reason}
+        )
+      )
+
+    order_count =
+      range_summary(scope, from_date, to_date) |> Enum.map(& &1.order_count) |> Enum.sum()
+
+    %{
+      total: rows |> Enum.map(&elem(&1, 0)) |> money_sum(zero),
+      count: length(rows),
+      rate: if(order_count > 0, do: length(rows) / order_count, else: nil),
+      by_reason:
+        group_money_by_reason(
+          Enum.map(rows, fn {amount, reason} -> {nil, amount, nil, nil, reason} end),
+          zero
+        )
+    }
+  end
+
+  @doc "Platform fees accrued in the period (`platform_fee_ledger`) — full-cost transparency, owner-dashboard.md Screen 2."
+  def platform_fees_paid(%Scope{venue: venue}, from_date, to_date) do
+    zero = Money.new!(venue.currency, 0)
+    {start_at, _} = business_date_bounds(venue, from_date)
+    {_, end_at} = business_date_bounds(venue, to_date)
+
+    Repo.all(
+      from(f in Tabletap.Payments.PlatformFeeLedgerEntry,
+        where: f.venue_id == ^venue.id and f.accrued_at >= ^start_at and f.accrued_at < ^end_at,
+        select: f.amount
+      )
+    )
+    |> money_sum(zero)
+  end
+
+  @doc "Hour-of-day order counts summed across the whole range — the simplest honest version of owner-dashboard.md's peak-hours heatmap (a full weekday × hour matrix would need raw per-order weekday grouping the rollup doesn't carry; deferred, not silently faked)."
+  def hourly_totals(%Scope{} = scope, from_date, to_date) do
+    scope
+    |> range_summary(from_date, to_date)
+    |> Enum.flat_map(& &1.hourly_orders)
+    |> Enum.reduce(%{}, fn {hour, count}, acc -> Map.update(acc, hour, count, &(&1 + count)) end)
+  end
+
+  ## Screen 3 — Menu Performance (build-plan.md Feature 18; owner-dashboard.md).
+  ## Aggregates `range_summary/3`'s own `items_sold` jsonb across the
+  ## range — never a second raw-order query — plus a live rating join,
+  ## since `Feedback` has no range-filtered aggregate today.
+
+  @doc """
+  One row per menu item sold in the range: sold qty, revenue, food cost
+  (recipe-base estimate, see this module's own moduledoc), margin
+  (absolute + %), avg rating + count, and sellout days (business days
+  in range where the item's own `DailyItemLimit` hit zero remaining).
+  Modifier attach rate isn't tracked anywhere in the schema today
+  (`items_sold` has no modifier dimension) — out of scope until it is,
+  not silently guessed at.
+  """
+  def menu_performance(%Scope{venue: venue} = scope, from_date, to_date) do
+    zero = Money.new!(venue.currency, 0)
+    days = range_summary(scope, from_date, to_date)
+
+    item_rows =
+      days
+      |> Enum.flat_map(& &1.items_sold)
+      |> Enum.group_by(fn {id, _row} -> id end, fn {_id, row} -> row end)
+
+    item_ids = Map.keys(item_rows)
+    ratings = Feedback.ratings_summary_for_items(scope, item_ids)
+    sellout_counts = sellout_days_by_item(venue, item_ids, from_date, to_date)
+
+    item_rows
+    |> Enum.map(fn {menu_item_id, rows} ->
+      revenue = rows |> Enum.map(&money_from_storage(&1["revenue"])) |> money_sum(zero)
+      food_cost = rows |> Enum.map(&money_from_storage(&1["food_cost"])) |> money_sum(zero)
+      margin = Money.sub!(revenue, food_cost)
+
+      %{
+        menu_item_id: menu_item_id,
+        name: hd(rows)["name"],
+        sold: rows |> Enum.map(& &1["qty"]) |> Enum.sum(),
+        revenue: revenue,
+        food_cost: food_cost,
+        margin: margin,
+        margin_pct: margin_pct(margin, revenue),
+        rating: Map.get(ratings, menu_item_id),
+        sellout_days: Map.get(sellout_counts, menu_item_id, 0)
+      }
+    end)
+    |> Enum.sort_by(& &1.revenue, {:desc, Money})
+  end
+
+  defp money_from_storage(%{"amount" => amount, "currency" => currency}) do
+    Money.new!(String.to_existing_atom(currency), amount)
+  end
+
+  defp margin_pct(_margin, %Money{amount: amount}) when amount == 0, do: nil
+
+  defp margin_pct(margin, revenue) do
+    margin |> Money.to_decimal() |> Decimal.div(Money.to_decimal(revenue)) |> Decimal.mult(100)
+  end
+
+  defp sellout_days_by_item(venue, item_ids, from_date, to_date) do
+    Repo.all(
+      from(l in DailyItemLimit,
+        where:
+          l.venue_id == ^venue.id and l.item_id in ^item_ids and l.date >= ^from_date and
+            l.date <= ^to_date,
+        select: l
+      )
+    )
+    |> Enum.filter(&(DailyItemLimit.remaining(&1) <= 0))
+    |> Enum.group_by(& &1.item_id)
+    |> Map.new(fn {item_id, rows} -> {item_id, length(rows)} end)
+  end
+
+  @doc """
+  Classic BCG-style menu-engineering quadrant (owner-dashboard.md Screen
+  3): each item is above/below the range's own average sold-volume and
+  average margin-%, giving **Stars** (high volume, high margin),
+  **Plowhorses** (high volume, low margin), **Puzzles** (low volume,
+  high margin), **Dogs** (low volume, low margin). Items with no
+  computable margin % (zero revenue) are excluded — there's nothing to
+  classify.
+  """
+  def menu_quadrant(item_rows) do
+    case Enum.filter(item_rows, &(&1.margin_pct != nil)) do
+      [] ->
+        %{stars: [], plowhorses: [], puzzles: [], dogs: []}
+
+      classifiable ->
+        avg_volume = average(Enum.map(classifiable, & &1.sold))
+        avg_margin_pct = average(Enum.map(classifiable, &Decimal.to_float(&1.margin_pct)))
+
+        classifiable
+        |> Enum.group_by(&classify(&1, avg_volume, avg_margin_pct))
+        |> then(&Map.merge(%{stars: [], plowhorses: [], puzzles: [], dogs: []}, &1))
+    end
+  end
+
+  defp classify(item, avg_volume, avg_margin_pct) do
+    high_volume = item.sold >= avg_volume
+    high_margin = Decimal.to_float(item.margin_pct) >= avg_margin_pct
+
+    case {high_volume, high_margin} do
+      {true, true} -> :stars
+      {true, false} -> :plowhorses
+      {false, true} -> :puzzles
+      {false, false} -> :dogs
+    end
+  end
+
+  defp average([]), do: 0
+  defp average(numbers), do: Enum.sum(numbers) / length(numbers)
+
+  @doc "Revenue grouped by category for the range — the Screen 3 category-mix pie, one query joining Catalog's own category ownership onto the menu-performance rows."
+  def category_mix(%Scope{venue: venue} = scope, from_date, to_date) do
+    zero = Money.new!(venue.currency, 0)
+    item_rows = menu_performance(scope, from_date, to_date)
+    category_by_item = category_by_item_id(scope)
+
+    item_rows
+    |> Enum.group_by(fn row ->
+      Map.get(category_by_item, row.menu_item_id, gettext_no_category())
+    end)
+    |> Map.new(fn {category_name, rows} ->
+      {category_name, rows |> Enum.map(& &1.revenue) |> money_sum(zero)}
+    end)
+  end
+
+  defp gettext_no_category, do: "—"
+
+  defp category_by_item_id(%Scope{} = scope) do
+    scope
+    |> Catalog.list_menu()
+    |> Enum.flat_map(fn {category, items} -> Enum.map(items, &{&1.id, category.name}) end)
+    |> Map.new()
+  end
 end

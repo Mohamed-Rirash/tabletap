@@ -99,11 +99,23 @@ defmodule TabletapWeb.Router do
       live "/menu/modifiers", Manager.ModifiersLive, :index
       live "/tables", Manager.TablesLive, :index
       live "/tables/print", Manager.TablePrintLive, :index
+      live "/feedback", Manager.FeedbackLive, :index
+      live "/analytics/revenue", Manager.Analytics.RevenueLive, :index
+      live "/analytics/menu-performance", Manager.Analytics.MenuPerformanceLive, :index
+    end
+
+    # Growth/Pro only (pricing.md) — split from :manager so PlanHooks can
+    # gate it without touching the always-available manager routes above.
+    live_session :manager_inventory,
+      on_mount: [
+        {TabletapWeb.UserAuth, :require_authenticated},
+        {TabletapWeb.ScopeHooks, :require_manager},
+        {TabletapWeb.PlanHooks, :inventory}
+      ] do
       live "/inventory", Manager.IngredientsLive, :index
       live "/inventory/restock", Manager.RestockReportLive, :index
       live "/inventory/restock/print", Manager.RestockPrintLive, :index
       live "/inventory/stocktake", Manager.StocktakeLive, :index
-      live "/feedback", Manager.FeedbackLive, :index
     end
 
     # role-features.md: "Payment account" is Owner back-office, not
@@ -150,9 +162,25 @@ defmodule TabletapWeb.Router do
   # (user_auth.ex's controller-plug equivalent of ScopeHooks) never leaks
   # onto the owner/waiter routes above or the public ones below.
   scope "/", TabletapWeb do
-    pipe_through [:browser, :require_authenticated_user, :require_manager]
+    pipe_through [
+      :browser,
+      :require_authenticated_user,
+      :require_manager,
+      :require_inventory_feature
+    ]
 
     get "/inventory/restock.csv", Manager.RestockCsvController, :show
+  end
+
+  # Same raw-CSV-response reasoning as the restock export above, but
+  # ungated (Feature 18 doesn't do plan gating — see Analytics.RevenueLive's
+  # own moduledoc; Feature 19 retrofits it here the same way it did for
+  # /inventory/restock.csv).
+  scope "/", TabletapWeb do
+    pipe_through [:browser, :require_authenticated_user, :require_manager]
+
+    get "/analytics/revenue.csv", Manager.Analytics.RevenueCsvController, :show
+    get "/analytics/menu-performance.csv", Manager.Analytics.MenuPerformanceCsvController, :show
   end
 
   scope "/", TabletapWeb do

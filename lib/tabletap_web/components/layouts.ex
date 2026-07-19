@@ -5,6 +5,8 @@ defmodule TabletapWeb.Layouts do
   """
   use TabletapWeb, :html
 
+  alias Tabletap.Plans
+
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
   # skeleton of your application, namely HTML headers
@@ -87,10 +89,8 @@ defmodule TabletapWeb.Layouts do
   true)` so root.html.heex's sitewide utility bar doesn't render a second,
   competing set of Settings/Log out links).
 
-  Nav entries for surfaces that don't exist yet (Analytics) render
-  disabled with a "Soon" badge rather than linking anywhere — no dead
-  links. Kitchen links out to the KDS (`/kitchen`) — it renders its own
-  dark full-bleed shell (`Layouts.kds/1`), not this sidebar.
+  Kitchen links out to the KDS (`/kitchen`) — it renders its own dark
+  full-bleed shell (`Layouts.kds/1`), not this sidebar.
 
   ## Examples
 
@@ -104,7 +104,8 @@ defmodule TabletapWeb.Layouts do
 
   attr :active_nav, :atom,
     required: true,
-    doc: ":dashboard, :orders, :menu, :modifiers, :tables, :inventory, :feedback, or :payments"
+    doc:
+      ":dashboard, :orders, :menu, :modifiers, :tables, :inventory, :feedback, :analytics_revenue, :analytics_menu_performance, or :payments"
 
   attr :venues, :list, default: []
 
@@ -192,6 +193,7 @@ defmodule TabletapWeb.Layouts do
             {gettext("Modifiers")}
           </.manager_nav_link>
           <.manager_nav_link
+            :if={Plans.feature_enabled?(@current_scope.org, :inventory)}
             navigate={~p"/inventory"}
             icon="hero-cube"
             active={@active_nav == :inventory}
@@ -208,7 +210,20 @@ defmodule TabletapWeb.Layouts do
           >
             {gettext("Feedback")}
           </.manager_nav_link>
-          <.manager_nav_soon icon="hero-chart-bar">{gettext("Analytics")}</.manager_nav_soon>
+          <.manager_nav_link
+            navigate={~p"/analytics/revenue"}
+            icon="hero-chart-bar"
+            active={@active_nav == :analytics_revenue}
+          >
+            {gettext("Revenue & Sales")}
+          </.manager_nav_link>
+          <.manager_nav_link
+            navigate={~p"/analytics/menu-performance"}
+            icon="hero-squares-plus"
+            active={@active_nav == :analytics_menu_performance}
+          >
+            {gettext("Menu Performance")}
+          </.manager_nav_link>
 
           <p class="px-2 text-xs font-semibold uppercase tracking-wide text-base-content/50 mt-4 mb-1">
             {gettext("Others")}
@@ -263,7 +278,11 @@ defmodule TabletapWeb.Layouts do
             <.link navigate={~p"/tables"} class={@active_nav == :tables && "font-semibold"}>
               {gettext("Tables")}
             </.link>
-            <.link navigate={~p"/inventory"} class={@active_nav == :inventory && "font-semibold"}>
+            <.link
+              :if={Plans.feature_enabled?(@current_scope.org, :inventory)}
+              navigate={~p"/inventory"}
+              class={@active_nav == :inventory && "font-semibold"}
+            >
               {gettext("Inventory")}
             </.link>
             <.link navigate={~p"/kitchen"}>
@@ -307,19 +326,6 @@ defmodule TabletapWeb.Layouts do
     >
       <.icon name={@icon} class="size-4 shrink-0" /> {render_slot(@inner_block)}
     </.link>
-    """
-  end
-
-  attr :icon, :string, required: true
-  slot :inner_block, required: true
-
-  defp manager_nav_soon(assigns) do
-    ~H"""
-    <div class="flex items-center gap-2 rounded-field px-3 py-2 text-sm font-medium text-base-content/30">
-      <.icon name={@icon} class="size-4 shrink-0" />
-      <span class="flex-1">{render_slot(@inner_block)}</span>
-      <span class="badge badge-ghost badge-xs">{gettext("Soon")}</span>
-    </div>
     """
   end
 
