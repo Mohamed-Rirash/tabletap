@@ -26,7 +26,16 @@ defmodule TabletapWeb.Manager.DashboardLiveTest do
       assert html =~ venue.name
       assert html =~ org.name
       assert html =~ "Owner"
-      assert html =~ "Your venue is set up"
+    end
+
+    test "shows the Today tiles, an empty floor, and no alerts on a fresh venue", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/dashboard")
+
+      assert html =~ "Revenue today"
+      assert html =~ "Orders today"
+      assert html =~ "Open orders now"
+      assert html =~ "No open orders right now."
+      assert html =~ "Nothing needs your attention."
     end
 
     test "renders TableTap's own chrome, not the Phoenix generator's placeholder header",

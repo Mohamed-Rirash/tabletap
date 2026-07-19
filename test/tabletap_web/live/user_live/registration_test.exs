@@ -94,7 +94,9 @@ defmodule TabletapWeb.UserLive.RegistrationTest do
       conn = follow_trigger_action(form, conn)
 
       conn = get(conn, ~p"/dashboard")
-      assert html_response(conn, 200) =~ "Your venue is set up"
+      html = html_response(conn, 200)
+      assert html =~ "Cadaani Coffee"
+      assert html =~ "Revenue today"
     end
 
     test "renders an error for a duplicate email", %{conn: conn} do

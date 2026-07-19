@@ -274,4 +274,100 @@ defmodule Tabletap.AnalyticsTest do
       assert Analytics.get_rollup(scope, yesterday)
     end
   end
+
+  describe "today_summary/1" do
+    test "is the same shape/numbers compute_rollup/2 would give for today", %{
+      scope: scope,
+      item: item
+    } do
+      %{membership: cashier} = cashier_fixture(scope.org, scope.venue)
+      cashier_scope = %{scope | role: :cashier, membership: cashier}
+      order = checked_out(cashier_scope, item)
+      {:ok, _} = Payments.settle_cash_now(cashier_scope, order, cashier)
+
+      assert Analytics.today_summary(scope) == Analytics.compute_rollup(scope, today(scope))
+      assert Analytics.today_summary(scope).order_count == 1
+    end
+  end
+
+  describe "today_operations/1" do
+    test "counts open orders, oldest age, quoted ETA, and on-shift staff", %{
+      scope: scope,
+      item: item
+    } do
+      %{membership: cashier} = cashier_fixture(scope.org, scope.venue)
+      cashier_scope = %{scope | role: :cashier, membership: cashier}
+      {:ok, _} = Staffing.clock_in(cashier_scope)
+
+      order = checked_out(cashier_scope, item)
+      {:ok, _} = Payments.settle_cash_now(cashier_scope, order, cashier)
+
+      ops = Analytics.today_operations(scope)
+
+      assert ops.open_order_count == 1
+      assert ops.oldest_open_order_minutes == 0
+      assert ops.quoted_eta_minutes > 0
+      assert ops.on_shift.cashiers == 1
+      assert ops.on_shift.waiters == 0
+    end
+
+    test "an empty floor has no oldest order and zero on-shift", %{scope: scope} do
+      ops = Analytics.today_operations(scope)
+      assert ops.open_order_count == 0
+      assert ops.oldest_open_order_minutes == nil
+      assert ops.on_shift == %{waiters: 0, cashiers: 0, kitchen: 0}
+    end
+  end
+
+  describe "today_alerts/1" do
+    test "low stock, flagged orders, and sold-out items all surface", %{scope: scope, item: item} do
+      {:ok, flour} =
+        Inventory.create_ingredient(scope, %{
+          "name" => "Flour",
+          "unit" => "g",
+          "min_threshold" => Decimal.new(100)
+        })
+
+      {:ok, _movement} =
+        Inventory.restock(scope, flour, Decimal.new(50), Money.new!(:USD, "0.01"), nil)
+
+      {:ok, category2} = Catalog.create_category(scope, %{"name" => "Snacks"})
+
+      {:ok, sold_out_item} =
+        Catalog.create_item(scope, category2, %{
+          "name" => "Muffin",
+          "price" => Money.new!(:USD, "2.00")
+        })
+
+      {:ok, _} = Catalog.set_daily_limit(scope, sold_out_item, 1)
+      order = checked_out(scope, sold_out_item)
+      {:ok, _} = OrderStateMachine.transition(scope, order, :placed)
+
+      alerts = Analytics.today_alerts(scope)
+
+      assert Enum.any?(alerts.low_stock, &(&1.id == flour.id))
+      assert Enum.any?(alerts.sold_out_items, &(&1.id == sold_out_item.id))
+      assert item.id not in Enum.map(alerts.sold_out_items, & &1.id)
+    end
+
+    test "a stuck placed order shows up as unaccepted, not delayed", %{scope: scope, item: item} do
+      order = checked_out(scope, item)
+      {:ok, order} = OrderStateMachine.transition(scope, order, :placed)
+
+      stale_placed_at = DateTime.add(DateTime.utc_now(:second), -200, :second)
+      order |> Ecto.Changeset.change(placed_at: stale_placed_at) |> Repo.update!()
+
+      alerts = Analytics.today_alerts(scope)
+      assert Enum.any?(alerts.unaccepted_orders, &(&1.id == order.id))
+    end
+
+    test "a canceled/past_due org surfaces a subscription issue", %{scope: scope} do
+      assert Analytics.today_alerts(scope).subscription_issue == nil
+
+      {:ok, past_due_org} =
+        scope.org |> Ecto.Changeset.change(subscription_status: :past_due) |> Repo.update()
+
+      assert Analytics.today_alerts(%{scope | org: past_due_org}).subscription_issue == :past_due
+    end
+  end
 end

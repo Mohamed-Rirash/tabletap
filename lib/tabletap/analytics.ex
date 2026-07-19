@@ -47,13 +47,18 @@ defmodule Tabletap.Analytics do
 
   alias Tabletap.Accounts.Scope
   alias Tabletap.Analytics.DailyRollup
+  alias Tabletap.Catalog
+  alias Tabletap.Catalog.DailyItemLimit
   alias Tabletap.Feedback.ItemRating
+  alias Tabletap.Inventory
   alias Tabletap.Inventory.{Ingredient, RecipeLine, StockMovement}
+  alias Tabletap.Ordering
   alias Tabletap.Ordering.{Order, OrderDiscount, OrderItem}
   alias Tabletap.Payments.{Payment, Refund}
   alias Tabletap.Repo
   alias Tabletap.Staffing.Shift
   alias Tabletap.Tenants
+  alias Tabletap.Tenants.Membership
 
   @done_statuses [:served, :closed]
   @counted_statuses [:placed, :accepted, :preparing, :ready, :served, :closed, :refunded]
@@ -443,4 +448,181 @@ defmodule Tabletap.Analytics do
     today = Tenants.business_date(venue)
     Enum.map(0..(count - 1), &Date.add(today, -&1 - 1))
   end
+
+  ## Screen 1 — Today (build-plan.md Feature 18; owner-dashboard.md's own
+  ## "walk in the door and know everything" view). Live queries only —
+  ## today isn't a closed business day, so nothing here is ever read
+  ## from `daily_rollups`.
+
+  @doc """
+  Today's revenue/order/channel/payment numbers — reuses `compute_rollup/2`
+  outright rather than a second hand-written query, since "today" is
+  just an in-progress business day with the identical shape. The
+  dashboard and the eventual rollup for the same day can never disagree
+  because they're the same function call.
+  """
+  def today_summary(%Scope{venue: venue} = scope) do
+    compute_rollup(scope, Tenants.business_date(venue))
+  end
+
+  @doc """
+  The operational tiles that only make sense live and are never rolled
+  up: open order count + oldest order's age, the ETA a new order would
+  be quoted right now, and who's on shift. Waiter presence is
+  Presence-confirmed (`TabletapWeb.Presence`, the same liveness source
+  `Ordering`'s own assignment algorithm trusts); cashier/kitchen "on
+  shift" falls back to the DB-backed `Shift` row, since neither role's
+  LiveView tracks Presence today — a real gap, not silently hidden.
+  """
+  def today_operations(%Scope{venue: venue}) do
+    open = open_orders(venue)
+
+    %{
+      open_order_count: length(open),
+      oldest_open_order_minutes: oldest_age_minutes(open),
+      quoted_eta_minutes: quoted_eta_minutes(venue),
+      on_shift: %{
+        waiters: TabletapWeb.Presence.alive_membership_ids(venue.id) |> length(),
+        cashiers: count_open_shifts(venue.id, :cashier),
+        kitchen: count_open_shifts(venue.id, :kitchen)
+      }
+    }
+  end
+
+  @open_statuses [:placed, :accepted, :preparing, :ready]
+
+  defp open_orders(venue) do
+    Repo.all(from(o in Order, where: o.venue_id == ^venue.id and o.status in @open_statuses))
+  end
+
+  defp oldest_age_minutes([]), do: nil
+
+  defp oldest_age_minutes(orders) do
+    case orders |> Enum.map(& &1.placed_at) |> Enum.reject(&is_nil/1) do
+      [] -> nil
+      placed_ats -> div(DateTime.diff(DateTime.utc_now(), Enum.min(placed_ats, DateTime)), 60)
+    end
+  end
+
+  # Mirrors `Ordering.estimated_minutes/2`'s own formula, but for a
+  # not-yet-placed order — the same 10-minute default
+  # `Ordering.expected_prep_minutes/1` falls back to for an order with
+  # no items yet.
+  defp quoted_eta_minutes(venue) do
+    queue_depth =
+      max(
+        Repo.aggregate(
+          from(o in Order,
+            where: o.venue_id == ^venue.id and o.status in [:placed, :accepted, :preparing]
+          ),
+          :count
+        ),
+        1
+      )
+
+    inflation = venue.eta_inflation_factor || Decimal.new(1)
+
+    (10 * queue_depth)
+    |> Decimal.new()
+    |> Decimal.mult(inflation)
+    |> Decimal.round(0, :up)
+    |> Decimal.to_integer()
+  end
+
+  defp count_open_shifts(venue_id, role) do
+    Repo.aggregate(
+      from(s in Shift,
+        join: m in Membership,
+        on: m.id == s.membership_id,
+        where: s.venue_id == ^venue_id and is_nil(s.ended_at) and m.role == ^role and m.active
+      ),
+      :count
+    )
+  end
+
+  @doc """
+  The Today screen's alert feed — every check owner-dashboard.md's
+  Screen 1 lists, reusing each concern's own existing context function
+  rather than a parallel query (`Inventory.list_low_stock/1`,
+  `Ordering.list_flagged_orders/1`). Delayed/unaccepted orders reuse
+  `Ordering.expected_prep_minutes/1` and the same 90s accept window
+  `Ordering`'s own assignment algorithm uses. `sold_out_items` has no
+  "time it happened" (owner-dashboard.md asks for one) — no timestamp
+  is recorded anywhere for a limit being hit or an item being toggled
+  off, so that detail is out of scope until one exists, matching
+  owner-dashboard.md's own "if a metric can't be derived, it doesn't
+  belong" principle.
+  """
+  def today_alerts(%Scope{org: org, venue: venue} = scope) do
+    now = DateTime.utc_now()
+    queue = queue_orders_with_items(venue.id)
+
+    %{
+      low_stock: Inventory.list_low_stock(scope),
+      delayed_orders: Enum.filter(queue, &delayed?(&1, now)),
+      unaccepted_orders: Enum.filter(queue, &unaccepted?(&1, now)),
+      flagged_orders: Ordering.list_flagged_orders(scope),
+      sold_out_items: sold_out_items(scope),
+      failed_payments: failed_payments_today(venue),
+      subscription_issue: subscription_issue(org)
+    }
+  end
+
+  defp queue_orders_with_items(venue_id) do
+    Repo.all(
+      from(o in Order,
+        where: o.venue_id == ^venue_id and o.status in [:placed, :accepted, :preparing],
+        preload: [items: :menu_item]
+      )
+    )
+  end
+
+  defp delayed?(%Order{placed_at: nil}, _now), do: false
+
+  defp delayed?(%Order{placed_at: placed_at} = order, now) do
+    DateTime.diff(now, placed_at, :second) > Ordering.expected_prep_minutes(order) * 60
+  end
+
+  # Same accept window `Ordering`'s own assignment algorithm treats as
+  # "should have been claimed by now" — see that module's
+  # `@accept_window_seconds`.
+  @accept_window_seconds 90
+
+  defp unaccepted?(%Order{status: :placed, placed_at: placed_at}, now)
+       when not is_nil(placed_at) do
+    DateTime.diff(now, placed_at, :second) > @accept_window_seconds
+  end
+
+  defp unaccepted?(_order, _now), do: false
+
+  defp sold_out_items(%Scope{} = scope) do
+    limits = Catalog.list_daily_limits(scope)
+
+    scope
+    |> Catalog.list_menu()
+    |> Enum.flat_map(fn {_category, items} -> items end)
+    |> Enum.filter(fn item ->
+      !item.available_today or hit_limit?(limits[item.id])
+    end)
+  end
+
+  defp hit_limit?(nil), do: false
+  defp hit_limit?(limit), do: DailyItemLimit.remaining(limit) <= 0
+
+  defp failed_payments_today(venue) do
+    {start_at, end_at} = business_date_bounds(venue, Tenants.business_date(venue))
+
+    Repo.all(
+      from(p in Payment,
+        where:
+          p.venue_id == ^venue.id and p.status == :failed and p.inserted_at >= ^start_at and
+            p.inserted_at < ^end_at
+      )
+    )
+  end
+
+  defp subscription_issue(%{subscription_status: status}) when status in [:past_due, :canceled],
+    do: status
+
+  defp subscription_issue(_org), do: nil
 end
