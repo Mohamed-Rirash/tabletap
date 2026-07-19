@@ -18,13 +18,13 @@ defmodule TabletapWeb.UserSessionControllerTest do
         })
 
       assert get_session(conn, :user_token)
-      assert redirected_to(conn) == ~p"/"
+      # A bare user_fixture/0 has no staff membership — a customer
+      # account (build-plan.md Feature 16) — signed_in_path/1 sends them
+      # to their own order history.
+      assert redirected_to(conn) == ~p"/me/history"
 
-      # Now do a logged in request and assert on the menu. The marketing
-      # home page ("/") suppresses the sitewide utility bar in favor of its
-      # own dark nav (@hide_utility_bar, PageController.home/2) and doesn't
-      # show auth state — settings is where a logged-in bare user's session
-      # is actually visible.
+      # A separate logged-in request against settings, still the most
+      # reliable place to assert the session actually stuck.
       conn = get(conn, ~p"/users/settings")
       response = html_response(conn, 200)
       assert response =~ user.email
@@ -45,7 +45,7 @@ defmodule TabletapWeb.UserSessionControllerTest do
         })
 
       assert conn.resp_cookies["_tabletap_web_user_remember_me"]
-      assert redirected_to(conn) == ~p"/"
+      assert redirected_to(conn) == ~p"/me/history"
     end
 
     test "logs the user in with return to", %{conn: conn, user: user} do
@@ -86,13 +86,13 @@ defmodule TabletapWeb.UserSessionControllerTest do
         })
 
       assert get_session(conn, :user_token)
-      assert redirected_to(conn) == ~p"/"
+      # A bare user_fixture/0 has no staff membership — a customer
+      # account (build-plan.md Feature 16) — signed_in_path/1 sends them
+      # to their own order history.
+      assert redirected_to(conn) == ~p"/me/history"
 
-      # Now do a logged in request and assert on the menu. The marketing
-      # home page ("/") suppresses the sitewide utility bar in favor of its
-      # own dark nav (@hide_utility_bar, PageController.home/2) and doesn't
-      # show auth state — settings is where a logged-in bare user's session
-      # is actually visible.
+      # A separate logged-in request against settings, still the most
+      # reliable place to assert the session actually stuck.
       conn = get(conn, ~p"/users/settings")
       response = html_response(conn, 200)
       assert response =~ user.email
@@ -111,7 +111,7 @@ defmodule TabletapWeb.UserSessionControllerTest do
         })
 
       assert get_session(conn, :user_token)
-      assert redirected_to(conn) == ~p"/"
+      assert redirected_to(conn) == ~p"/me/history"
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "User confirmed successfully."
 
       assert Accounts.get_user!(user.id).confirmed_at

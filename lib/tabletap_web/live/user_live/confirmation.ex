@@ -1,7 +1,21 @@
 defmodule TabletapWeb.UserLive.Confirmation do
+  @moduledoc """
+  The magic-link landing page — every role lands here (staff and
+  customers alike): resolves the emailed token, then either confirms a
+  brand-new account or logs an existing one in via the trigger-action
+  form below (the actual session write happens in
+  `UserSessionController`, a native POST, not this LiveView process).
+
+  A `guest_token` query param (build-plan.md Feature 16's "Save your
+  history" flow, appended only by `Public.OrderTrackerLive`'s own
+  signup prompt) triggers `Ordering.link_guest_orders_to_customer/2` the
+  moment the token resolves — reaching this page with a *valid,
+  unexpired* magic-link token already proves the visitor owns this
+  email, so the link doesn't wait for the "Confirm" button tap.
+  """
   use TabletapWeb, :live_view
 
-  alias Tabletap.Accounts
+  alias Tabletap.{Accounts, Ordering}
 
   @impl true
   def render(assigns) do
@@ -73,8 +87,12 @@ defmodule TabletapWeb.UserLive.Confirmation do
   end
 
   @impl true
-  def mount(%{"token" => token}, _session, socket) do
+  def mount(%{"token" => token} = params, _session, socket) do
     if user = Accounts.get_user_by_magic_link_token(token) do
+      if guest_token = params["guest_token"] do
+        Ordering.link_guest_orders_to_customer(user, guest_token)
+      end
+
       form = to_form(%{"token" => token}, as: "user")
 
       {:ok, assign(socket, user: user, form: form, trigger_submit: false),

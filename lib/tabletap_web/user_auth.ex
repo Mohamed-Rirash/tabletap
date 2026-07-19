@@ -297,10 +297,7 @@ defmodule TabletapWeb.UserAuth do
   # type so both callers hit the real clause instead of always falling
   # through to the catch-all.
   #
-  # Owner/manager land on their venue dashboard. Everyone else authenticated
-  # but not staff (a bare Accounts user with no membership — today only
-  # reachable in tests; customer accounts land here for real starting
-  # Feature 16) falls back to "/" until they have a surface of their own.
+  # Owner/manager land on their venue dashboard.
   def signed_in_path(%{assigns: %{current_scope: %Scope{role: role}}})
       when role in [:owner, :manager] do
     ~p"/dashboard"
@@ -309,6 +306,16 @@ defmodule TabletapWeb.UserAuth do
   def signed_in_path(%{assigns: %{current_scope: %Scope{role: :kitchen}}}), do: ~p"/kitchen"
   def signed_in_path(%{assigns: %{current_scope: %Scope{role: :waiter}}}), do: ~p"/waiter"
   def signed_in_path(%{assigns: %{current_scope: %Scope{role: :cashier}}}), do: ~p"/pos"
+
+  # A bare Accounts user with no staff membership (`role: nil`) — since
+  # Feature 16, that's exactly what a customer account is (`Tenants.build_scope/2`'s
+  # own moduledoc anticipated this: "a future customer account, Feature 16").
+  # Not reachable for staff any other way — a deactivated membership still
+  # leaves the row (and role) in place, it just stops granting access.
+  def signed_in_path(%{assigns: %{current_scope: %Scope{role: nil, user: user}}})
+      when not is_nil(user) do
+    ~p"/me/history"
+  end
 
   def signed_in_path(_), do: ~p"/"
 

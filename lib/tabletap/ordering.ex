@@ -20,6 +20,7 @@ defmodule Tabletap.Ordering do
 
   import Ecto.Query, warn: false
 
+  alias Tabletap.Accounts
   alias Tabletap.Accounts.Scope
   alias Tabletap.Catalog
   alias Tabletap.Catalog.{DailyItemLimit, MenuItem}
@@ -1351,4 +1352,66 @@ defmodule Tabletap.Ordering do
   end
 
   defp broadcast_order_updated(error, %Scope{}), do: error
+
+  ## Customer accounts & cross-venue history (build-plan.md Feature 16;
+  ## architecture.md "Customer data is NOT tenant-owned" — a customer's
+  ## own orders span every org they've ever visited, so neither of these
+  ## takes a `%Scope{}` (there is no single org/venue to scope to). Same
+  ## cross-tenant shape as `Workers.SweepAbandonedCarts`: loop
+  ## `Tenants.list_org_ids/0`, `Repo.put_org_id/1` per org, then a normal
+  ## tenant-scoped query — never `skip_org_id: true` (`Ordering` isn't on
+  ## that exception list, code-standards.md "Tenancy Rules").
+
+  @history_statuses Order.statuses() -- [:pending_payment, :cancelled, :expired]
+
+  @doc """
+  Stamps `customer_user_id` on every order (across every org) matching
+  `guest_token` — the write side of design-qa.md's "Save your history"
+  flow: `guest_token` persists in a 30-day cookie across venues, so one
+  signup can retroactively claim every order that guest_token ever
+  placed, at any venue, in one pass. Idempotent (a second call is a
+  harmless no-op) — safe to call from `UserLive.Confirmation` on every
+  visit to a valid magic-link, not just the first.
+  """
+  def link_guest_orders_to_customer(%Accounts.User{} = user, guest_token)
+      when is_binary(guest_token) do
+    total =
+      Tenants.list_org_ids()
+      |> Enum.reduce(0, fn org_id, acc ->
+        Repo.put_org_id(org_id)
+
+        {count, _} =
+          Repo.update_all(
+            from(o in Order, where: o.guest_token == ^guest_token),
+            set: [customer_user_id: user.id]
+          )
+
+        acc + count
+      end)
+
+    {:ok, total}
+  end
+
+  @doc """
+  Every order across every org attributed to `user` — the `/me/history`
+  read. Excludes orders that never really happened
+  (`pending_payment`/`cancelled`/`expired` — nothing was made, nothing
+  was paid); a `refunded` order still shows (food was made, money moved).
+  Newest first; `venue` preloaded for cross-venue display.
+  """
+  def list_orders_for_customer(%Accounts.User{} = user) do
+    Tenants.list_org_ids()
+    |> Enum.flat_map(fn org_id ->
+      Repo.put_org_id(org_id)
+
+      Repo.all(
+        from(o in Order,
+          where: o.customer_user_id == ^user.id and o.status in ^@history_statuses,
+          order_by: [desc: o.placed_at],
+          preload: :venue
+        )
+      )
+    end)
+    |> Enum.sort_by(& &1.placed_at, {:desc, DateTime})
+  end
 end

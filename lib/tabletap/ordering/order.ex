@@ -11,8 +11,12 @@ defmodule Tabletap.Ordering.Order do
   a staff member places it on a customer's behalf (build-plan.md Feature
   15's "cashier as full customer proxy" — powers the Assisted Orders
   report, owner-dashboard.md).
-  `customer_user_id` is deferred to Feature 16, matching
-  `Ordering.Cart`'s identical deferral.
+  `customer_user_id` (build-plan.md Feature 16) is `nil` for a guest who
+  never signed up; `Ordering.link_guest_orders_to_customer/2` stamps it
+  across every org matching a `guest_token` at post-order magic-link
+  signup — the mechanism behind design-qa.md's "cross-venue history":
+  the same customer's orders at different venues (different orgs) share
+  no other identity, only this column.
 
   `flag` (design-qa.md Q9 "Can't find customer" / Q32 pickup no-show /
   Q27 "contains an 86'd item") — one shared column rather than three
@@ -55,6 +59,8 @@ defmodule Tabletap.Ordering.Order do
 
     belongs_to :placed_by_membership, Tabletap.Tenants.Membership,
       foreign_key: :placed_by_membership_id
+
+    belongs_to :customer_user, Tabletap.Accounts.User, foreign_key: :customer_user_id
 
     field :guest_token, :string
     field :number, :integer

@@ -20,6 +20,7 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
   """
   use TabletapWeb, :live_view
 
+  alias Tabletap.Accounts
   alias Tabletap.Accounts.Scope
   alias Tabletap.{Ordering, Payments, Repo, Tenants}
   alias Tabletap.Ordering.Order
@@ -117,6 +118,12 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
         </p>
       </div>
 
+      <.signup_prompt
+        :if={is_nil(@order.customer_user_id) and @order.status != :pending_payment}
+        form={@signup_form}
+        requested={@signup_requested}
+      />
+
       <div class="mt-6 rounded-box bg-base-100 border border-base-300 p-4">
         <h2 class="font-semibold mb-3">{gettext("Order details")}</h2>
         <div class="divide-y divide-base-300">
@@ -203,6 +210,42 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
     """
   end
 
+  # design-qa.md's "Save your history" flow (build-plan.md Feature 16):
+  # a guest never has to sign up to order, but every order they place
+  # under this `guest_token` becomes claimable the moment they do —
+  # `Ordering.link_guest_orders_to_customer/2` finds them all at once by
+  # `guest_token`, not just this one.
+  attr :form, :any, required: true
+  attr :requested, :boolean, required: true
+
+  defp signup_prompt(assigns) do
+    ~H"""
+    <div class="mt-6 rounded-box bg-base-100 border border-base-300 p-4">
+      <div :if={!@requested}>
+        <h2 class="font-semibold">{gettext("Save your order history")}</h2>
+        <p class="text-sm text-base-content/60 mb-3">
+          {gettext("Get a magic link to see every order, at every venue, in one place.")}
+        </p>
+        <.form for={@form} id="signup-form" phx-submit="request_signup" class="flex gap-2">
+          <input
+            type="email"
+            name={@form[:email].name}
+            value={@form[:email].value}
+            placeholder={gettext("you@example.com")}
+            required
+            class="input flex-1"
+          />
+          <button type="submit" class="btn btn-primary shrink-0">{gettext("Save")}</button>
+        </.form>
+      </div>
+      <div :if={@requested} class="flex items-center gap-2 text-sm text-base-content/70">
+        <.icon name="hero-envelope" class="size-4 shrink-0" />
+        {gettext("If that email works, a magic link is on its way — click it to save this history.")}
+      </div>
+    </div>
+    """
+  end
+
   @impl true
   def mount(%{"guest_token" => guest_token}, _session, socket) do
     case Tenants.get_order_by_guest_token(guest_token) do
@@ -221,6 +264,8 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
           Phoenix.PubSub.subscribe(Tabletap.PubSub, "order:#{order.id}")
         end
 
+        client_ip = if connected?(socket), do: TabletapWeb.RateLimiter.client_ip(socket)
+
         {:ok,
          socket
          |> assign(:hide_utility_bar, true)
@@ -232,7 +277,10 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
          |> assign(:terminal_non_timeline_status, @terminal_non_timeline)
          |> assign(:active_service_statuses, @active_service_statuses)
          |> assign(:waiter_called, false)
-         |> assign(:serve_qr_svg, serve_qr_svg(scope, order))}
+         |> assign(:serve_qr_svg, serve_qr_svg(scope, order))
+         |> assign(:signup_form, to_form(%{"email" => nil}, as: "signup"))
+         |> assign(:signup_requested, false)
+         |> assign(:client_ip, client_ip)}
     end
   end
 
@@ -248,6 +296,37 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
       # this is a stale/forged event; a graceful no-op, not a crash.
       {:error, _reason} ->
         {:noreply, socket}
+    end
+  end
+
+  def handle_event("request_signup", %{"signup" => %{"email" => email}}, socket) do
+    # Same non-enumeration shape as UserLive.Login's own magic-link
+    # request (design-qa.md Q47) — identical response whether the email
+    # is new, already has an account, or the request got rate-limited.
+    if TabletapWeb.RateLimiter.check({:auth_email, socket.assigns.client_ip}) == :ok do
+      if user = find_or_register_customer(email) do
+        guest_token = socket.assigns.order.guest_token
+
+        Accounts.deliver_login_instructions(
+          user,
+          &url(~p"/users/log-in/#{&1}?#{%{guest_token: guest_token}}")
+        )
+      end
+    end
+
+    {:noreply, assign(socket, :signup_requested, true)}
+  end
+
+  defp find_or_register_customer(email) do
+    case Accounts.get_user_by_email(email) do
+      %Accounts.User{} = user ->
+        user
+
+      nil ->
+        case Accounts.register_user(%{"email" => email}) do
+          {:ok, user} -> user
+          {:error, _changeset} -> nil
+        end
     end
   end
 

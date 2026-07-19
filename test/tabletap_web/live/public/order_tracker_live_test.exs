@@ -160,4 +160,60 @@ defmodule TabletapWeb.Public.OrderTrackerLiveTest do
     assert html =~ "sold out while your payment was confirming"
     refute html =~ "expired before payment was confirmed"
   end
+
+  describe "save your history (build-plan.md Feature 16)" do
+    test "hidden while the order is still pending_payment", %{
+      conn: conn,
+      scope: scope,
+      item: item
+    } do
+      order = checked_out_order(scope, item)
+      {:ok, _lv, html} = live(conn, ~p"/orders/#{order.guest_token}")
+
+      refute html =~ "Save your order history"
+    end
+
+    test "shown once the order has placed, and hidden again once linked", %{
+      conn: conn,
+      scope: scope,
+      item: item
+    } do
+      order = checked_out_order(scope, item)
+      {:ok, order} = OrderStateMachine.transition(scope, order, :placed)
+
+      {:ok, _lv, html} = live(conn, ~p"/orders/#{order.guest_token}")
+      assert html =~ "Save your order history"
+
+      user = Tabletap.AccountsFixtures.user_fixture()
+      {:ok, _} = Ordering.link_guest_orders_to_customer(user, order.guest_token)
+
+      {:ok, _lv, html} = live(conn, ~p"/orders/#{order.guest_token}")
+      refute html =~ "Save your order history"
+    end
+
+    test "submitting a new email finds-or-registers the account and confirms the generic message",
+         %{conn: conn, scope: scope, item: item} do
+      order = checked_out_order(scope, item)
+      {:ok, order} = OrderStateMachine.transition(scope, order, :placed)
+
+      {:ok, lv, _html} = live(conn, ~p"/orders/#{order.guest_token}")
+
+      email = "customer-#{System.unique_integer([:positive])}@example.com"
+
+      html =
+        lv
+        |> form("#signup-form", signup: %{"email" => email})
+        |> render_submit()
+
+      assert html =~ "a magic link is on its way"
+
+      # find-or-register happened — the account exists, unconfirmed, ready
+      # for whatever magic link was just sent to claim it. The actual
+      # confirm-triggers-linking round trip is covered end to end by
+      # confirmation_test.exs's own "guest order linking" tests.
+      user = Tabletap.Accounts.get_user_by_email(email)
+      assert user
+      refute user.confirmed_at
+    end
+  end
 end

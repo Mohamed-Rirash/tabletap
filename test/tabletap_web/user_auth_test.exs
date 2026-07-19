@@ -25,7 +25,10 @@ defmodule TabletapWeb.UserAuthTest do
       conn = UserAuth.log_in_user(conn, user)
       assert token = get_session(conn, :user_token)
       assert get_session(conn, :live_socket_id) == "users_sessions:#{Base.url_encode64(token)}"
-      assert redirected_to(conn) == ~p"/"
+      # A bare user_fixture/0 has no staff membership — a customer
+      # account (build-plan.md Feature 16) — signed_in_path/1 sends them
+      # to their own order history, not the marketing homepage.
+      assert redirected_to(conn) == ~p"/me/history"
       assert Accounts.get_user_by_session_token(token)
     end
 
@@ -74,7 +77,7 @@ defmodule TabletapWeb.UserAuthTest do
       assert max_age == @remember_me_cookie_max_age
     end
 
-    test "redirects to / for a user with no staff membership, regardless of what was pre-assigned",
+    test "redirects to their own order history for a user with no staff membership (a customer account, build-plan.md Feature 16), regardless of what was pre-assigned",
          %{conn: conn, user: user} do
       # log_in_user/2 always rebuilds current_scope fresh from the
       # just-authenticated user (Feature 03) — whatever was assigned before
@@ -84,7 +87,7 @@ defmodule TabletapWeb.UserAuthTest do
         |> assign(:current_scope, Scope.for_user(user))
         |> UserAuth.log_in_user(user)
 
-      assert redirected_to(conn) == ~p"/"
+      assert redirected_to(conn) == ~p"/me/history"
     end
 
     test "redirects an owner straight to their venue dashboard", %{conn: conn} do

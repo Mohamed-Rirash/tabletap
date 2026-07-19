@@ -233,7 +233,7 @@ msgstr ""
 msgid "Accept"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:316
+#: lib/tabletap_web/live/public/order_tracker_live.ex:395
 #: lib/tabletap_web/live/waiter/queue_live.ex:469
 #, elixir-autogen, elixir-format
 msgid "Accepted"
@@ -400,7 +400,7 @@ msgstr ""
 msgid "Busy Mode"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:110
+#: lib/tabletap_web/live/public/order_tracker_live.ex:111
 #, elixir-autogen, elixir-format
 msgid "Call waiter"
 msgstr ""
@@ -494,7 +494,7 @@ msgstr ""
 msgid "Closed."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:61
+#: lib/tabletap_web/live/public/order_tracker_live.ex:62
 #, elixir-autogen, elixir-format
 msgid "Confirming your payment…"
 msgstr ""
@@ -902,7 +902,7 @@ msgstr ""
 msgid "Name"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:116
+#: lib/tabletap_web/live/public/order_tracker_live.ex:117
 #, elixir-autogen, elixir-format
 msgid "Need help? Ask at the counter."
 msgstr ""
@@ -1141,7 +1141,7 @@ msgstr ""
 #: lib/tabletap_web/live/cashier/pos_live.ex:609
 #: lib/tabletap_web/live/cashier/pos_live.ex:697
 #: lib/tabletap_web/live/manager/orders_live.ex:131
-#: lib/tabletap_web/live/public/order_tracker_live.ex:40
+#: lib/tabletap_web/live/public/order_tracker_live.ex:41
 #: lib/tabletap_web/live/waiter/queue_live.ex:174
 #, elixir-autogen, elixir-format
 msgid "Order #%{number}"
@@ -1152,12 +1152,12 @@ msgstr ""
 msgid "Order #%{number} is ready for pickup!"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:121
+#: lib/tabletap_web/live/public/order_tracker_live.ex:128
 #, elixir-autogen, elixir-format
 msgid "Order details"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:212
+#: lib/tabletap_web/live/public/order_tracker_live.ex:255
 #, elixir-autogen, elixir-format
 msgid "Order not found."
 msgstr ""
@@ -1167,7 +1167,7 @@ msgstr ""
 msgid "Order qty"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:80
+#: lib/tabletap_web/live/public/order_tracker_live.ex:81
 #, elixir-autogen, elixir-format
 msgid "Order served — enjoy!"
 msgstr ""
@@ -1258,7 +1258,7 @@ msgstr ""
 msgid "Place order"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:315
+#: lib/tabletap_web/live/public/order_tracker_live.ex:394
 #, elixir-autogen, elixir-format
 msgid "Placed"
 msgstr ""
@@ -1280,7 +1280,7 @@ msgid "Prep time (minutes)"
 msgstr ""
 
 #: lib/tabletap_web/live/kitchen/board_live.ex:66
-#: lib/tabletap_web/live/public/order_tracker_live.ex:317
+#: lib/tabletap_web/live/public/order_tracker_live.ex:396
 #: lib/tabletap_web/live/waiter/queue_live.ex:470
 #, elixir-autogen, elixir-format
 msgid "Preparing"
@@ -1359,7 +1359,7 @@ msgstr ""
 
 #: lib/tabletap_web/live/kitchen/board_live.ex:74
 #: lib/tabletap_web/live/kitchen/board_live.ex:299
-#: lib/tabletap_web/live/public/order_tracker_live.ex:318
+#: lib/tabletap_web/live/public/order_tracker_live.ex:397
 #: lib/tabletap_web/live/waiter/queue_live.ex:471
 #, elixir-autogen, elixir-format
 msgid "Ready"
@@ -1456,6 +1456,7 @@ msgstr ""
 
 #: lib/tabletap_web/live/manager/ingredients_live.ex:299
 #: lib/tabletap_web/live/manager/menu_live.ex:128
+#: lib/tabletap_web/live/public/order_tracker_live.ex:238
 #, elixir-autogen, elixir-format
 msgid "Save"
 msgstr ""
@@ -1498,7 +1499,8 @@ msgstr ""
 msgid "Search category or menu..."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:319
+#: lib/tabletap_web/live/public/order_tracker_live.ex:398
+#: lib/tabletap_web/live/user_live/history.ex:129
 #, elixir-autogen, elixir-format
 msgid "Served"
 msgstr ""
@@ -1520,7 +1522,7 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:87
+#: lib/tabletap_web/live/public/order_tracker_live.ex:88
 #, elixir-autogen, elixir-format
 msgid "Show this to staff to collect your order"
 msgstr ""
@@ -1562,7 +1564,7 @@ msgstr ""
 msgid "Soon"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:332
+#: lib/tabletap_web/live/public/order_tracker_live.ex:411
 #, elixir-autogen, elixir-format
 msgid "Sorry — this item sold out while your payment was confirming. You've been refunded."
 msgstr ""
@@ -1739,17 +1741,17 @@ msgstr ""
 msgid "This menu is empty right now."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:349
+#: lib/tabletap_web/live/public/order_tracker_live.ex:428
 #, elixir-autogen, elixir-format
 msgid "This order expired before payment was confirmed."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:336
+#: lib/tabletap_web/live/public/order_tracker_live.ex:415
 #, elixir-autogen, elixir-format
 msgid "This order was cancelled."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:352
+#: lib/tabletap_web/live/public/order_tracker_live.ex:431
 #, elixir-autogen, elixir-format
 msgid "This order was refunded."
 msgstr ""
@@ -1759,7 +1761,7 @@ msgstr ""
 msgid "This screen has been running a long time — refresh to keep it snappy."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:63
+#: lib/tabletap_web/live/public/order_tracker_live.ex:64
 #, elixir-autogen, elixir-format
 msgid "This updates automatically — no need to refresh."
 msgstr ""
@@ -1777,7 +1779,7 @@ msgstr ""
 
 #: lib/tabletap_web/live/cashier/pos_live.ex:419
 #: lib/tabletap_web/live/public/menu_live.ex:391
-#: lib/tabletap_web/live/public/order_tracker_live.ex:137
+#: lib/tabletap_web/live/public/order_tracker_live.ex:144
 #, elixir-autogen, elixir-format
 msgid "Total"
 msgstr ""
@@ -1862,7 +1864,7 @@ msgstr ""
 msgid "WaafiPay merchant credentials for this venue, from your offline registration with WaafiPay. Customer payments land directly in your own merchant account — we never hold your money."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:109
+#: lib/tabletap_web/live/public/order_tracker_live.ex:110
 #, elixir-autogen, elixir-format
 msgid "Waiter called — on the way"
 msgstr ""
@@ -1994,7 +1996,7 @@ msgstr ""
 msgid "qty per serving"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:199
+#: lib/tabletap_web/live/public/order_tracker_live.ex:206
 #, elixir-autogen, elixir-format
 msgid "~%{minutes} min"
 msgstr ""
@@ -2090,6 +2092,7 @@ msgid "Close business day"
 msgstr ""
 
 #: lib/tabletap_web/live/cashier/z_report_live.ex:49
+#: lib/tabletap_web/live/user_live/history.ex:128
 #, elixir-autogen, elixir-format
 msgid "Closed"
 msgstr ""
@@ -2254,7 +2257,7 @@ msgstr ""
 msgid "Pay cash at the counter — you'll get an order number to show staff there."
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:52
+#: lib/tabletap_web/live/public/order_tracker_live.ex:53
 #, elixir-autogen, elixir-format
 msgid "Pay cash there and staff will fire your order."
 msgstr ""
@@ -2319,7 +2322,7 @@ msgstr ""
 msgid "Shift summary"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:49
+#: lib/tabletap_web/live/public/order_tracker_live.ex:50
 #, elixir-autogen, elixir-format
 msgid "Show this order number at the counter"
 msgstr ""
@@ -2416,7 +2419,7 @@ msgstr ""
 msgid "Wallet"
 msgstr ""
 
-#: lib/tabletap_web/live/public/order_tracker_live.ex:342
+#: lib/tabletap_web/live/public/order_tracker_live.ex:421
 #, elixir-autogen, elixir-format
 msgid "Your hold expired — show order number %{number} at the counter and staff can revive it."
 msgstr ""
@@ -2434,4 +2437,54 @@ msgstr ""
 #: lib/tabletap_web/live/cashier/pos_live.ex:265
 #, elixir-autogen, elixir-format
 msgid "pick %{min}-%{max}"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/history.ex:43
+#, elixir-autogen, elixir-format
+msgid "By venue"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:227
+#, elixir-autogen, elixir-format
+msgid "Get a magic link to see every order, at every venue, in one place."
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:243
+#, elixir-autogen, elixir-format
+msgid "If that email works, a magic link is on its way — click it to save this history."
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/history.ex:25
+#, elixir-autogen, elixir-format
+msgid "No orders yet — once you order somewhere, it'll show up here."
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/history.ex:66
+#, elixir-autogen, elixir-format
+msgid "Order #%{number} — %{date}"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/history.ex:130
+#, elixir-autogen, elixir-format
+msgid "Refunded"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:225
+#, elixir-autogen, elixir-format
+msgid "Save your order history"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/history.ex:30
+#, elixir-autogen, elixir-format
+msgid "Spend by month"
+msgstr ""
+
+#: lib/tabletap_web/live/user_live/history.ex:22
+#, elixir-autogen, elixir-format
+msgid "Your order history"
+msgstr ""
+
+#: lib/tabletap_web/live/public/order_tracker_live.ex:234
+#, elixir-autogen, elixir-format
+msgid "you@example.com"
 msgstr ""
