@@ -104,7 +104,7 @@ defmodule TabletapWeb.Layouts do
 
   attr :active_nav, :atom,
     required: true,
-    doc: ":dashboard, :orders, :menu, :modifiers, :tables, :inventory, or :payments"
+    doc: ":dashboard, :orders, :menu, :modifiers, :tables, :inventory, :feedback, or :payments"
 
   attr :venues, :list, default: []
 
@@ -201,6 +201,13 @@ defmodule TabletapWeb.Layouts do
           <.manager_nav_link navigate={~p"/pos"} icon="hero-calculator" active={false}>
             {gettext("POS")}
           </.manager_nav_link>
+          <.manager_nav_link
+            navigate={~p"/feedback"}
+            icon="hero-chat-bubble-left-right"
+            active={@active_nav == :feedback}
+          >
+            {gettext("Feedback")}
+          </.manager_nav_link>
           <.manager_nav_soon icon="hero-chart-bar">{gettext("Analytics")}</.manager_nav_soon>
 
           <p class="px-2 text-xs font-semibold uppercase tracking-wide text-base-content/50 mt-4 mb-1">
@@ -264,6 +271,9 @@ defmodule TabletapWeb.Layouts do
             </.link>
             <.link navigate={~p"/pos"}>
               {gettext("POS")}
+            </.link>
+            <.link navigate={~p"/feedback"} class={@active_nav == :feedback && "font-semibold"}>
+              {gettext("Feedback")}
             </.link>
           </div>
           <.theme_toggle />

@@ -15,6 +15,7 @@ defmodule TabletapWeb.Public.OrderTrackerLiveTest do
 
   alias Tabletap.Accounts.Scope
   alias Tabletap.Catalog
+  alias Tabletap.Feedback
   alias Tabletap.Ordering
   alias Tabletap.Ordering.{Cart, OrderStateMachine}
   alias Tabletap.Payments
@@ -45,6 +46,20 @@ defmodule TabletapWeb.Public.OrderTrackerLiveTest do
     {:ok, cart} = Ordering.add_to_cart(scope, token, nil, item, [], 1, nil)
     {:ok, order} = Ordering.checkout(scope, cart)
     order
+  end
+
+  @forward_path [:placed, :accepted, :preparing, :ready, :served]
+
+  defp served_order(scope, item) do
+    order = checked_out_order(scope, item)
+
+    order =
+      Enum.reduce(@forward_path, order, fn status, acc ->
+        {:ok, moved} = OrderStateMachine.transition(scope, acc, status)
+        moved
+      end)
+
+    Repo.preload(order, :items)
   end
 
   test "redirects to / for an unknown guest_token", %{conn: conn} do
@@ -214,6 +229,90 @@ defmodule TabletapWeb.Public.OrderTrackerLiveTest do
       user = Tabletap.Accounts.get_user_by_email(email)
       assert user
       refute user.confirmed_at
+    end
+  end
+
+  describe "rate an order item (build-plan.md Feature 17)" do
+    test "hidden while the order hasn't been served yet", %{conn: conn, scope: scope, item: item} do
+      order = checked_out_order(scope, item)
+      {:ok, order} = OrderStateMachine.transition(scope, order, :placed)
+
+      {:ok, _lv, html} = live(conn, ~p"/orders/#{order.guest_token}")
+
+      refute html =~ "select_stars"
+    end
+
+    test "shown once served, comment box gated behind a star pick, and submitting rates it", %{
+      conn: conn,
+      scope: scope,
+      item: item
+    } do
+      order = served_order(scope, item)
+      [order_item] = order.items
+
+      {:ok, lv, html} = live(conn, ~p"/orders/#{order.guest_token}")
+      assert html =~ "select_stars"
+      refute html =~ "Optional comment"
+
+      html =
+        lv
+        |> element(~s(button[phx-value-item_id="#{order_item.id}"][phx-value-stars="4"]))
+        |> render_click()
+
+      assert html =~ "Optional comment"
+
+      html =
+        lv
+        |> form("form[phx-submit=\"submit_rating\"]", %{
+          "item_id" => order_item.id,
+          "comment" => "Great!"
+        })
+        |> render_submit()
+
+      assert html =~ "Thanks for rating this!"
+      refute html =~ "Optional comment"
+
+      [rating] = Feedback.list_venue_feedback(scope)
+      assert rating.stars == 4
+      assert rating.comment == "Great!"
+      assert rating.order_item_id == order_item.id
+    end
+
+    test "re-rendering after a rating hides the widget on reload", %{
+      conn: conn,
+      scope: scope,
+      item: item
+    } do
+      order = served_order(scope, item)
+      [order_item] = order.items
+      {:ok, _} = Feedback.rate_item(scope, order, order_item, 5)
+
+      {:ok, _lv, html} = live(conn, ~p"/orders/#{order.guest_token}")
+
+      assert html =~ "Thanks for rating this!"
+      refute html =~ "select_stars"
+    end
+
+    test "the widget appears live when the order transitions to served in the same connection", %{
+      conn: conn,
+      scope: scope,
+      item: item
+    } do
+      order = checked_out_order(scope, item)
+      {:ok, order} = OrderStateMachine.transition(scope, order, :placed)
+      order = Repo.preload(order, :items)
+
+      {:ok, lv, html} = live(conn, ~p"/orders/#{order.guest_token}")
+      refute html =~ "select_stars"
+
+      order =
+        Enum.reduce([:accepted, :preparing, :ready, :served], order, fn status, acc ->
+          {:ok, moved} = OrderStateMachine.transition(scope, acc, status)
+          moved
+        end)
+
+      assert render(lv) =~ "select_stars"
+      _ = order
     end
   end
 end

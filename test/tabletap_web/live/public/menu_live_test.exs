@@ -7,7 +7,8 @@ defmodule TabletapWeb.Public.MenuLiveTest do
   import Tabletap.TenantsFixtures
 
   alias Tabletap.Accounts.Scope
-  alias Tabletap.{Catalog, Ordering, Repo, Tenants}
+  alias Tabletap.{Catalog, Feedback, Ordering, Repo, Tenants}
+  alias Tabletap.Ordering.OrderStateMachine
 
   setup do
     %{org: org, venue: venue} = org_fixture()
@@ -730,6 +731,56 @@ defmodule TabletapWeb.Public.MenuLiveTest do
     |> case do
       nil -> nil
       cart -> Repo.preload(cart, items: [:menu_item, options: :group])
+    end
+  end
+
+  @forward_path [:placed, :accepted, :preparing, :ready, :served]
+
+  defp served_order_item(scope, item) do
+    token = Ordering.Cart.generate_guest_token()
+    {:ok, cart} = Ordering.add_to_cart(scope, token, nil, item, [], 1, nil)
+    {:ok, order} = Ordering.checkout(scope, cart)
+
+    order =
+      Enum.reduce(@forward_path, order, fn status, acc ->
+        {:ok, moved} = OrderStateMachine.transition(scope, acc, status)
+        moved
+      end)
+
+    [order_item] = Repo.preload(order, :items).items
+    {order, order_item}
+  end
+
+  describe "rating aggregates (build-plan.md Feature 17)" do
+    test "an item with no ratings shows no star line", %{conn: conn, venue: venue, item: item} do
+      {:ok, _lv, html} = live(conn, ~p"/venues/#{venue.slug}/menu")
+
+      assert html =~ item.name
+      refute html =~ "hero-star-solid"
+    end
+
+    test "shows the live avg + count once an item has ratings", %{
+      conn: conn,
+      venue: venue,
+      scope: scope,
+      item: item
+    } do
+      {order1, order_item1} = served_order_item(scope, item)
+      {order2, order_item2} = served_order_item(scope, item)
+
+      {:ok, _} = Feedback.rate_item(scope, order1, order_item1, 5)
+      {:ok, lv, html} = live(conn, ~p"/venues/#{venue.slug}/menu")
+
+      assert html =~ "5.0"
+      assert html =~ "(1)"
+
+      # A second rating arrives from another customer's tracker while this
+      # menu page stays open — the average should update without a reload.
+      {:ok, _} = Feedback.rate_item(scope, order2, order_item2, 3)
+
+      html = render(lv)
+      assert html =~ "4.0"
+      assert html =~ "(2)"
     end
   end
 end

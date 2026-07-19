@@ -31,7 +31,7 @@ defmodule TabletapWeb.Public.MenuLive do
   require Logger
 
   alias Tabletap.Accounts.Scope
-  alias Tabletap.{Catalog, Ordering, Payments, Repo, Tenants}
+  alias Tabletap.{Catalog, Feedback, Ordering, Payments, Repo, Tenants}
   alias Tabletap.Ordering.{Cart, CartItem}
   alias Tabletap.Tenants.Venue
   alias TabletapWeb.GuestToken
@@ -76,6 +76,7 @@ defmodule TabletapWeb.Public.MenuLive do
               item={item}
               remaining={remaining_for(item, @daily_limits)}
               locale={@venue.locale}
+              rating={Map.get(@ratings_summary, item.id)}
             />
           </div>
         </div>
@@ -153,6 +154,10 @@ defmodule TabletapWeb.Public.MenuLive do
   attr :remaining, :any, required: true, doc: ":unlimited | integer"
   attr :locale, :string, required: true
 
+  attr :rating, :any,
+    default: nil,
+    doc: "%{avg: Decimal, count: integer} | nil — nil renders nothing (build-plan.md Feature 17)"
+
   defp item_card(assigns) do
     sold_out = assigns.remaining != :unlimited and assigns.remaining <= 0
     assigns = assign(assigns, :sold_out, sold_out)
@@ -170,6 +175,10 @@ defmodule TabletapWeb.Public.MenuLive do
     >
       <div class="flex-1 min-w-0">
         <p class="font-semibold">{@item.name}</p>
+        <p :if={@rating} class="text-xs text-base-content/60 flex items-center gap-1">
+          <.icon name="hero-star-solid" class="size-3.5 text-warning" />
+          {format_avg_stars(@rating.avg)} <span class="text-base-content/40">({@rating.count})</span>
+        </p>
         <p :if={@item.description} class="text-sm text-base-content/60 line-clamp-2">
           {@item.description}
         </p>
@@ -578,17 +587,23 @@ defmodule TabletapWeb.Public.MenuLive do
 
         if connected?(socket) do
           Phoenix.PubSub.subscribe(Tabletap.PubSub, "venue:#{venue.id}:menu")
+          Phoenix.PubSub.subscribe(Tabletap.PubSub, "venue:#{venue.id}:ratings")
         end
 
         guest_token = session["guest_token"]
+        menu = Catalog.list_public_menu(scope)
 
         {:ok,
          socket
          |> assign(:venue, venue)
          |> assign(:current_scope, scope)
          |> assign(:table, resolve_table(scope, session["table_id"]))
-         |> assign(:menu, Catalog.list_public_menu(scope))
+         |> assign(:menu, menu)
          |> assign(:daily_limits, Catalog.list_daily_limits(scope))
+         |> assign(
+           :ratings_summary,
+           Feedback.ratings_summary_for_items(scope, menu_item_ids(menu))
+         )
          |> assign(:guest_token, guest_token)
          |> assign(:cart, guest_token && Ordering.get_active_cart(scope, guest_token))
          |> assign(
@@ -614,6 +629,11 @@ defmodule TabletapWeb.Public.MenuLive do
       limit -> Catalog.DailyItemLimit.remaining(limit)
     end
   end
+
+  # Postgres's avg() over an integer column returns a Decimal — "4.3",
+  # never a locale/currency concern like Money, so a plain round + string
+  # conversion is all this needs (no <.money>-style locale machinery).
+  defp format_avg_stars(avg), do: avg |> Decimal.round(1) |> Decimal.to_string()
 
   # design-qa.md Q2: "Menu shows an honest 'Ordering paused — please
   # order at the counter' state instead of silently failing" — this is
@@ -649,6 +669,20 @@ defmodule TabletapWeb.Public.MenuLive do
      |> assign(:daily_limits, Catalog.list_daily_limits(scope))
      |> assign(:ordering_status, ordering_status(venue))}
   end
+
+  # build-plan.md Feature 17's own verify step: a rating from a customer
+  # phone "updates the item's public average" live, on every OTHER
+  # customer's already-open menu page too — a dedicated topic, never
+  # piggybacked on :menu_updated (that one's about stock/menu edits, an
+  # unrelated concern that happens to reload similar assigns).
+  def handle_info({:rating_submitted, _menu_item_id}, socket) do
+    scope = socket.assigns.current_scope
+    summary = Feedback.ratings_summary_for_items(scope, menu_item_ids(socket.assigns.menu))
+    {:noreply, assign(socket, :ratings_summary, summary)}
+  end
+
+  defp menu_item_ids(menu),
+    do: Enum.flat_map(menu, fn {_category, items} -> Enum.map(items, & &1.id) end)
 
   ## Item detail sheet
 

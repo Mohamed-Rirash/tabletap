@@ -103,6 +103,7 @@ defmodule TabletapWeb.Router do
       live "/inventory/restock", Manager.RestockReportLive, :index
       live "/inventory/restock/print", Manager.RestockPrintLive, :index
       live "/inventory/stocktake", Manager.StocktakeLive, :index
+      live "/feedback", Manager.FeedbackLive, :index
     end
 
     # role-features.md: "Payment account" is Owner back-office, not

@@ -22,7 +22,7 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
 
   alias Tabletap.Accounts
   alias Tabletap.Accounts.Scope
-  alias Tabletap.{Ordering, Payments, Repo, Tenants}
+  alias Tabletap.{Feedback, Ordering, Payments, Repo, Tenants}
   alias Tabletap.Ordering.Order
 
   @step_order [:placed, :accepted, :preparing, :ready, :served]
@@ -138,6 +138,13 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
               </div>
               <.money amount={item.line_total} locale={@venue.locale} class="whitespace-nowrap" />
             </div>
+
+            <.rating_widget
+              :if={@order.status in [:served, :closed]}
+              item={item}
+              rated={MapSet.member?(@rated_item_ids, item.id)}
+              draft={Map.get(@draft_ratings, item.id, %{stars: 0, comment: ""})}
+            />
           </div>
         </div>
         <div class="flex items-center justify-between mt-3 pt-3 border-t border-base-300">
@@ -146,6 +153,63 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
         </div>
       </div>
     </Layouts.app>
+    """
+  end
+
+  # build-plan.md Feature 17 — "stars per item + optional comment, one
+  # per order item." Tapping a star only stages it (`select_stars`, a
+  # plain assign update — no write yet); the comment box only appears
+  # once something's staged, and the actual `Feedback.rate_item/5` call
+  # happens on the explicit submit, so a customer reconsidering their
+  # star pick before hitting Submit never creates a stray row (the DB
+  # unique index on `order_item_id` means that stray row would then
+  # block their real rating).
+  attr :item, :any, required: true
+  attr :rated, :boolean, required: true
+  attr :draft, :map, required: true
+
+  defp rating_widget(assigns) do
+    ~H"""
+    <div :if={@rated} class="mt-2 text-sm text-success flex items-center gap-1">
+      <.icon name="hero-check-circle" class="size-4" /> {gettext("Thanks for rating this!")}
+    </div>
+
+    <div :if={!@rated} class="mt-2">
+      <div class="flex items-center gap-1">
+        <button
+          :for={n <- 1..5}
+          type="button"
+          phx-click="select_stars"
+          phx-value-item_id={@item.id}
+          phx-value-stars={n}
+          class="p-0.5"
+          aria-label={gettext("Rate %{n} stars", n: n)}
+        >
+          <.icon
+            name={if n <= @draft.stars, do: "hero-star-solid", else: "hero-star"}
+            class={["size-5", n <= @draft.stars && "text-warning"]}
+          />
+        </button>
+      </div>
+
+      <.form
+        :if={@draft.stars > 0}
+        for={%{}}
+        as={:rating}
+        phx-submit="submit_rating"
+        class="flex gap-2 mt-2"
+      >
+        <input type="hidden" name="item_id" value={@item.id} />
+        <input
+          type="text"
+          name="comment"
+          value={@draft.comment}
+          placeholder={gettext("Optional comment…")}
+          class="input input-sm flex-1"
+        />
+        <button type="submit" class="btn btn-sm btn-primary shrink-0">{gettext("Submit")}</button>
+      </.form>
+    </div>
     """
   end
 
@@ -280,7 +344,9 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
          |> assign(:serve_qr_svg, serve_qr_svg(scope, order))
          |> assign(:signup_form, to_form(%{"email" => nil}, as: "signup"))
          |> assign(:signup_requested, false)
-         |> assign(:client_ip, client_ip)}
+         |> assign(:client_ip, client_ip)
+         |> assign(:draft_ratings, %{})
+         |> assign_rated_item_ids()}
     end
   end
 
@@ -317,6 +383,40 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
     {:noreply, assign(socket, :signup_requested, true)}
   end
 
+  # build-plan.md Feature 17 — a star tap only stages the pick locally;
+  # nothing is written until "submit_rating" (see rating_widget/1's own
+  # moduledoc-style comment for why).
+  def handle_event("select_stars", %{"item_id" => item_id, "stars" => stars}, socket) do
+    draft = Map.get(socket.assigns.draft_ratings, item_id, %{stars: 0, comment: ""})
+    updated = %{draft | stars: String.to_integer(stars)}
+
+    {:noreply, update(socket, :draft_ratings, &Map.put(&1, item_id, updated))}
+  end
+
+  def handle_event("submit_rating", %{"item_id" => item_id, "comment" => comment}, socket) do
+    scope = socket.assigns.current_scope
+    order = socket.assigns.order
+    order_item = Enum.find(order.items, &(&1.id == item_id))
+    stars = socket.assigns.draft_ratings |> Map.get(item_id, %{}) |> Map.get(:stars, 0)
+
+    opts = [comment: normalize_notes(comment)]
+
+    case Feedback.rate_item(scope, order, order_item, stars, opts) do
+      {:ok, _rating} ->
+        {:noreply,
+         socket
+         |> update(:draft_ratings, &Map.delete(&1, item_id))
+         |> update(:rated_item_ids, &MapSet.put(&1, item_id))}
+
+      # A double-tapped submit, or a stray retry after the order moved
+      # past :served/:closed mid-visit — reload the real state rather
+      # than trusting the stale local draft either way.
+      {:error, _reason} ->
+        {:noreply,
+         socket |> update(:draft_ratings, &Map.delete(&1, item_id)) |> assign_rated_item_ids()}
+    end
+  end
+
   defp find_or_register_customer(email) do
     case Accounts.get_user_by_email(email) do
       %Accounts.User{} = user ->
@@ -330,6 +430,15 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
     end
   end
 
+  defp assign_rated_item_ids(socket) do
+    scope = socket.assigns.current_scope
+    item_ids = Enum.map(socket.assigns.order.items, & &1.id)
+    assign(socket, :rated_item_ids, Feedback.rated_order_item_ids(scope, item_ids))
+  end
+
+  defp normalize_notes(""), do: nil
+  defp normalize_notes(notes), do: notes
+
   @impl true
   def handle_info(:order_updated, socket) do
     scope = socket.assigns.current_scope
@@ -340,7 +449,8 @@ defmodule TabletapWeb.Public.OrderTrackerLive do
      |> assign(:order, order)
      |> assign(:eta_minutes, Ordering.estimated_minutes(scope, order))
      |> assign(:latest_payment, Payments.get_latest_payment_for_order(scope, order.id))
-     |> assign(:serve_qr_svg, serve_qr_svg(scope, order))}
+     |> assign(:serve_qr_svg, serve_qr_svg(scope, order))
+     |> assign_rated_item_ids()}
   end
 
   # Q46: pickup venues get "Ask at the counter", never a call button;
