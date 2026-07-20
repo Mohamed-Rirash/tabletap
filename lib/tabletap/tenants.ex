@@ -19,6 +19,7 @@ defmodule Tabletap.Tenants do
 
   alias Tabletap.Accounts
   alias Tabletap.Accounts.{Scope, User}
+  alias Tabletap.Plans
   alias Tabletap.Repo
   alias Tabletap.Tenants.{Membership, Org, StaffInvite, Table, Venue}
 
@@ -341,6 +342,66 @@ defmodule Tabletap.Tenants do
   # which /dashboard has but this action doesn't) — a bare user hitting it
   # gets the same "not found" any other invalid venue_id would, not a crash.
   def switch_venue(%Scope{org: nil}, _venue_id), do: {:error, :not_found}
+
+  @doc """
+  Adds a second (or further) venue to the current org (build-plan.md
+  Feature 19) — the self-serve counterpart to `venue_fixture/2` (a
+  test-only bypass; no such flow existed anywhere in the app before
+  this). Blocked once the org's active venue count already meets its
+  plan's cap (pricing.md's own downgrade rule extended to creation: a
+  Essentials/Growth org can't create a 2nd venue any more than a
+  5-venue Pro org can downgrade to Essentials — same cap, same
+  reasoning, design-qa.md Q48). `attrs` — `name`, `city` (one of
+  `city_options/0`'s names, same picker the org-signup form uses, not
+  raw currency/timezone entry).
+  """
+  def create_venue(%Scope{org: %Org{} = org} = scope, attrs) do
+    if length(list_venues(scope)) >= Plans.venue_cap(org.plan) do
+      {:error, :venue_cap_reached}
+    else
+      case resolve_city(attrs["city"] || attrs[:city]) do
+        {:ok, {currency, timezone}} ->
+          %Venue{org_id: org.id}
+          |> Venue.registration_changeset(
+            Map.merge(attrs, %{"currency" => currency, "timezone" => timezone})
+          )
+          |> Repo.insert()
+
+        :error ->
+          {:error, invalid_venue_city_changeset(attrs)}
+      end
+    end
+  end
+
+  defp invalid_venue_city_changeset(attrs) do
+    %Venue{}
+    |> Venue.registration_changeset(%{"name" => attrs["name"] || attrs[:name]})
+    |> Ecto.Changeset.add_error(:city, "is not a supported launch city")
+  end
+
+  @doc """
+  Changes the org's plan tier (build-plan.md Feature 19). Upgrade is
+  unrestricted; downgrade is blocked while the org's active venue
+  count exceeds the target plan's cap (design-qa.md Q48; pricing.md
+  "Downgrade & tier-change rules" — the owner deactivates venues first,
+  the system never chooses which ones die). Gated feature data
+  (inventory, reports) is never deleted by a downgrade —
+  `Plans.feature_enabled?/2` simply stops returning true for it until
+  the org upgrades again, same archive-never-delete discipline
+  code-standards.md documents elsewhere.
+  """
+  def change_plan(%Scope{org: org} = scope, new_plan) do
+    cond do
+      new_plan not in Plans.tiers() ->
+        {:error, :invalid_plan}
+
+      length(list_venues(scope)) > Plans.venue_cap(new_plan) ->
+        {:error, :venue_cap_exceeded}
+
+      true ->
+        org |> Ecto.Changeset.change(plan: new_plan) |> Repo.update()
+    end
+  end
 
   ## Tables (venue floor — build-plan.md Feature 06). Venue-scoped like
   ## Catalog: `Repo`'s org filter isn't enough on its own since an org can

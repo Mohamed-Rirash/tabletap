@@ -112,6 +112,48 @@ defmodule Tabletap.TenantsTest do
     end
   end
 
+  describe "create_venue/2" do
+    setup do
+      %{org: org, venue: venue, membership: owner} = org_fixture()
+      Repo.put_org_id(org.id)
+
+      %{
+        org: org,
+        venue: venue,
+        scope: %Scope{org: org, venue: venue, role: :owner, membership: owner}
+      }
+    end
+
+    test "adds a second venue while under the plan's cap", %{org: org, scope: scope} do
+      org = org |> Ecto.Changeset.change(plan: :pro) |> Repo.update!()
+      scope = %{scope | org: org}
+
+      assert {:ok, %Venue{} = venue} =
+               Tenants.create_venue(scope, %{"name" => "Second Spot", "city" => "Mogadishu"})
+
+      assert venue.org_id == org.id
+      assert venue.currency == "USD"
+      assert Enum.map(Tenants.list_venues(scope), & &1.id) |> Enum.member?(venue.id)
+    end
+
+    test "blocked once venue count meets the plan's cap (Essentials/Growth cap at 1)", %{
+      scope: scope
+    } do
+      assert {:error, :venue_cap_reached} =
+               Tenants.create_venue(scope, %{"name" => "Second Spot", "city" => "Mogadishu"})
+    end
+
+    test "rejects an unrecognized city, same as org signup", %{org: org, scope: scope} do
+      org = org |> Ecto.Changeset.change(plan: :pro) |> Repo.update!()
+      scope = %{scope | org: org}
+
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               Tenants.create_venue(scope, %{"name" => "Second Spot", "city" => "Nairobi"})
+
+      assert "is not a supported launch city" in errors_on(changeset).city
+    end
+  end
+
   describe "tenant isolation" do
     test "two seeded orgs cannot see each other's venues through list_venues/1" do
       %{org_a: org_a, venue_a: venue_a, org_b: org_b, venue_b: venue_b} = two_orgs()

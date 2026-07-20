@@ -28,9 +28,11 @@ defmodule TabletapWeb.CoreComponents do
   """
   use Phoenix.Component
   use Gettext, backend: TabletapWeb.Gettext
+  use TabletapWeb, :verified_routes
 
   alias Phoenix.HTML.Form
   alias Phoenix.LiveView.JS
+  alias Tabletap.Tenants.Org
 
   @doc """
   Renders flash notices.
@@ -488,6 +490,61 @@ defmodule TabletapWeb.CoreComponents do
       {:ok, formatted} -> formatted
       {:error, _} -> Money.to_string!(amount, locale: Localize.default_locale())
     end
+  end
+
+  @doc """
+  Trial status, shared between `Manager.DashboardLive` and
+  `Manager.BillingLive` (build-plan.md Feature 19; pricing.md "Trial" —
+  14 days, no card required). A small badge while more than 4 days
+  remain; a prominent alert-style banner with a "choose a plan" link
+  once **day 10** hits (`days_left <= 4`, pricing.md's own "countdown
+  from day 10"), since the trial's expiry becomes a real billing wall
+  at that point (design-qa.md Q40 — enforced at the venue's own next
+  business-day cutoff, not the raw timestamp, so there's no
+  second-by-second urgency, just a growing nudge). Renders nothing for
+  an org that isn't trialing.
+
+  ## Examples
+
+      <.trial_banner org={@current_scope.org} />
+  """
+  attr :org, Org, required: true
+
+  def trial_banner(assigns) do
+    assigns = assign(assigns, :days_left, trial_days_left(assigns.org))
+
+    ~H"""
+    <div :if={@days_left && @days_left <= 4} class="alert alert-warning mb-4">
+      <.icon name="hero-exclamation-triangle" class="size-5" />
+      <span>{trial_urgent_label(@days_left)}</span>
+      <.link navigate={~p"/settings/billing"} class="btn btn-sm btn-primary">
+        {gettext("Choose a plan")}
+      </.link>
+    </div>
+    <div :if={@days_left && @days_left > 4} class="badge badge-outline">
+      {trial_days_left_label(@days_left)}
+    </div>
+    """
+  end
+
+  defp trial_days_left(%Org{subscription_status: :trialing, trial_ends_at: trial_ends_at}) do
+    trial_ends_at |> DateTime.diff(DateTime.utc_now(), :day) |> max(0)
+  end
+
+  defp trial_days_left(%Org{}), do: nil
+
+  defp trial_days_left_label(days),
+    do: ngettext("%{count} day left in trial", "%{count} days left in trial", days)
+
+  defp trial_urgent_label(0),
+    do: gettext("Your trial ends today — choose a plan to keep ordering live.")
+
+  defp trial_urgent_label(days) do
+    ngettext(
+      "%{count} day left in trial — choose a plan to avoid interruption.",
+      "%{count} days left in trial — choose a plan to avoid interruption.",
+      days
+    )
   end
 
   ## JS Commands

@@ -237,6 +237,32 @@ defmodule Tabletap.Payments do
     |> Repo.update()
   end
 
+  @doc """
+  Every `platform_fee_ledger` row for the current org not yet attached
+  to a settled invoice (`settled_at: nil`), summed **per currency**
+  (build-plan.md Feature 19's billing screen preview) — never blindly
+  summed across currencies, same discipline `Analytics.org_comparison/3`
+  already follows for the same reason (design-qa.md Q53: a Pro-tier org
+  can run venues in different currencies). Returns one
+  `%{currency:, amount:}` row per currency actually present, empty list
+  if nothing's accrued yet.
+  """
+  def unsettled_platform_fees_by_currency(%Scope{org: org}) do
+    Repo.all(
+      from(e in PlatformFeeLedgerEntry,
+        where: e.org_id == ^org.id and is_nil(e.settled_at),
+        select: e.amount
+      )
+    )
+    |> Enum.group_by(& &1.currency)
+    |> Enum.map(fn {currency, amounts} ->
+      %{
+        currency: currency,
+        amount: Enum.reduce(amounts, Money.new!(currency, 0), &Money.add!(&2, &1))
+      }
+    end)
+  end
+
   defp accrue_platform_fee(%Scope{org: org}, %Order{} = order) do
     %PlatformFeeLedgerEntry{}
     |> Ecto.Changeset.change(%{

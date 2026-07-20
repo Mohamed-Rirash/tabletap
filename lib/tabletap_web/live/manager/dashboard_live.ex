@@ -46,11 +46,9 @@ defmodule TabletapWeb.Manager.DashboardLive do
           </p>
           <h1 class="text-2xl font-bold">{@current_scope.venue.name}</h1>
         </div>
-
-        <div :if={@trial_days_left} class="flex items-center gap-3">
-          <span class="badge badge-outline">{trial_days_left_label(@trial_days_left)}</span>
-        </div>
       </div>
+
+      <.trial_banner org={@current_scope.org} />
 
       <.today_tiles today={@today} ops={@ops} locale={@current_scope.venue.locale} />
 
@@ -344,7 +342,6 @@ defmodule TabletapWeb.Manager.DashboardLive do
      socket
      |> assign(:hide_utility_bar, true)
      |> assign(:venues, Tenants.list_venues(scope))
-     |> assign(:trial_days_left, trial_days_left(scope.org))
      |> assign(:eta_factors, @eta_factors)
      |> load_today()}
   end
@@ -438,22 +435,11 @@ defmodule TabletapWeb.Manager.DashboardLive do
     |> Calendar.strftime("%H:%M")
   end
 
-  defp trial_days_left(%{subscription_status: :trialing, trial_ends_at: trial_ends_at}) do
-    days = DateTime.diff(trial_ends_at, DateTime.utc_now(), :day)
-    max(days, 0)
-  end
-
-  defp trial_days_left(_org), do: nil
-
   defp role_label(:owner), do: gettext("Owner")
   defp role_label(:manager), do: gettext("Manager")
   defp role_label(:waiter), do: gettext("Waiter")
   defp role_label(:cashier), do: gettext("Cashier")
   defp role_label(:kitchen), do: gettext("Kitchen")
-
-  defp trial_days_left_label(days) do
-    ngettext("%{count} day left in trial", "%{count} days left in trial", days)
-  end
 
   ## Screen 1 data loading
 

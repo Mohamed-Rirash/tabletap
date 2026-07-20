@@ -143,6 +143,7 @@ defmodule TabletapWeb.Router do
         {TabletapWeb.ScopeHooks, :require_owner}
       ] do
       live "/settings/payments", Manager.PaymentSettingsLive, :show
+      live "/settings/billing", Manager.BillingLive, :show
     end
 
     # Pro only (pricing.md "Cross-venue comparison") — stacks both the

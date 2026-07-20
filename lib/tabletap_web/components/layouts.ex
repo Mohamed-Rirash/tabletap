@@ -105,7 +105,7 @@ defmodule TabletapWeb.Layouts do
   attr :active_nav, :atom,
     required: true,
     doc:
-      ":dashboard, :orders, :menu, :modifiers, :tables, :inventory, :feedback, :analytics_reports, :analytics_revenue, :analytics_menu_performance, :analytics_customers, :analytics_staff, :analytics_inventory_cost, :analytics_org, or :payments"
+      ":dashboard, :orders, :menu, :modifiers, :tables, :inventory, :feedback, :analytics_reports, :analytics_revenue, :analytics_menu_performance, :analytics_customers, :analytics_staff, :analytics_inventory_cost, :analytics_org, :payments, or :billing"
 
   attr :venues, :list, default: []
 
@@ -275,6 +275,14 @@ defmodule TabletapWeb.Layouts do
             active={@active_nav == :payments}
           >
             {gettext("Payment account")}
+          </.manager_nav_link>
+          <.manager_nav_link
+            :if={@current_scope.role == :owner}
+            navigate={~p"/settings/billing"}
+            icon="hero-banknotes"
+            active={@active_nav == :billing}
+          >
+            {gettext("Billing")}
           </.manager_nav_link>
           <.manager_nav_link navigate={~p"/users/settings"} icon="hero-cog-6-tooth" active={false}>
             {gettext("Settings")}
