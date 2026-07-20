@@ -105,7 +105,7 @@ defmodule TabletapWeb.Layouts do
   attr :active_nav, :atom,
     required: true,
     doc:
-      ":dashboard, :orders, :menu, :modifiers, :tables, :inventory, :feedback, :analytics_revenue, :analytics_menu_performance, :analytics_customers, :analytics_staff, :analytics_inventory_cost, :analytics_org, or :payments"
+      ":dashboard, :orders, :menu, :modifiers, :tables, :inventory, :feedback, :analytics_reports, :analytics_revenue, :analytics_menu_performance, :analytics_customers, :analytics_staff, :analytics_inventory_cost, :analytics_org, or :payments"
 
   attr :venues, :list, default: []
 
@@ -209,6 +209,13 @@ defmodule TabletapWeb.Layouts do
             active={@active_nav == :feedback}
           >
             {gettext("Feedback")}
+          </.manager_nav_link>
+          <.manager_nav_link
+            navigate={~p"/reports"}
+            icon="hero-document-chart-bar"
+            active={@active_nav == :analytics_reports}
+          >
+            {gettext("Reports")}
           </.manager_nav_link>
           <.manager_nav_link
             navigate={~p"/analytics/revenue"}

@@ -24,6 +24,7 @@ defmodule Tabletap.Payments do
   alias Tabletap.Ordering
   alias Tabletap.Ordering.{Order, OrderDiscount, OrderStateMachine}
   alias Tabletap.Payments.{Payment, PlatformFeeLedgerEntry, Refund, ZReport, ZReportCashCount}
+  alias Tabletap.Plans
   alias Tabletap.Payments.Workers.ChargeOrder
   alias Tabletap.Repo
   alias Tabletap.Tenants
@@ -242,19 +243,11 @@ defmodule Tabletap.Payments do
       org_id: order.org_id,
       venue_id: order.venue_id,
       order_id: order.id,
-      amount: Money.mult!(order.total, fee_rate(org)),
+      amount: Money.mult!(order.total, Plans.fee_rate(org)),
       accrued_at: DateTime.utc_now(:second)
     })
     |> Repo.insert()
   end
-
-  # pricing.md — Essentials 2.5%, Growth 1.5%, Pro 1.0%; a trialing org
-  # accrues at the Essentials rate (the trial waives the subscription
-  # fee, never the per-order fee — pricing.md "Billing").
-  defp fee_rate(%Org{subscription_status: :trialing}), do: Decimal.new("0.025")
-  defp fee_rate(%Org{plan: :essentials}), do: Decimal.new("0.025")
-  defp fee_rate(%Org{plan: :growth}), do: Decimal.new("0.015")
-  defp fee_rate(%Org{plan: :pro}), do: Decimal.new("0.010")
 
   @doc """
   Definitive failure (a decline WaafiPay actually told us about, not a

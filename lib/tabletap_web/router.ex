@@ -100,6 +100,7 @@ defmodule TabletapWeb.Router do
       live "/tables", Manager.TablesLive, :index
       live "/tables/print", Manager.TablePrintLive, :index
       live "/feedback", Manager.FeedbackLive, :index
+      live "/reports", Manager.Analytics.ReportsLive, :index
       live "/analytics/revenue", Manager.Analytics.RevenueLive, :index
       live "/analytics/menu-performance", Manager.Analytics.MenuPerformanceLive, :index
       live "/analytics/customers", Manager.Analytics.CustomersLive, :index
@@ -185,6 +186,7 @@ defmodule TabletapWeb.Router do
 
     get "/analytics/revenue.csv", Manager.Analytics.RevenueCsvController, :show
     get "/analytics/menu-performance.csv", Manager.Analytics.MenuPerformanceCsvController, :show
+    get "/reports.csv", Manager.Analytics.ReportsCsvController, :show
   end
 
   scope "/", TabletapWeb do

@@ -12,6 +12,7 @@ defmodule TabletapWeb.UserAuth do
 
   alias Tabletap.Accounts
   alias Tabletap.Accounts.Scope
+  alias Tabletap.Plans
   alias Tabletap.Repo
   alias Tabletap.Tenants
 
@@ -350,6 +351,31 @@ defmodule TabletapWeb.UserAuth do
       conn
       |> put_flash(:error, "You don't have access to that page.")
       |> redirect(to: ~p"/")
+      |> halt()
+    end
+  end
+
+  @doc """
+  Plug for **controller** (non-LiveView) routes gated behind a plan
+  feature — `PlanHooks`'s `on_mount` equivalent for routes that can't
+  be a LiveView (e.g. the restock CSV download). Must run after
+  `require_authenticated_user`. `router.ex`'s `pipe_through` resolves
+  each name to a same-named 2-arity plug function directly (no way to
+  thread a feature atom through as plug opts there), hence one
+  concretely-named function per gated feature rather than a generic
+  `require_feature(conn, feature)`.
+  """
+  def require_inventory_feature(conn, _opts), do: require_feature(conn, :inventory)
+
+  defp require_feature(conn, feature) do
+    org = conn.assigns.current_scope && conn.assigns.current_scope.org
+
+    if org && Plans.feature_enabled?(org, feature) do
+      conn
+    else
+      conn
+      |> put_flash(:error, Plans.upgrade_message(feature))
+      |> redirect(to: ~p"/dashboard")
       |> halt()
     end
   end

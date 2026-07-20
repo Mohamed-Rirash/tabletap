@@ -136,7 +136,11 @@ config :tabletap, Oban,
        # currently launches (build-plan.md Feature 18); the worker's own
        # 7-day lookback (not just "yesterday") is what actually keeps
        # rollups fresh, not this schedule's tightness.
-       {"0 2 * * *", Tabletap.Analytics.Workers.DailyRollup}
+       {"0 2 * * *", Tabletap.Analytics.Workers.DailyRollup},
+       # An hour after the rollup run above — scheduled reports read
+       # `daily_rollups` for their "yesterday" numbers (Analytics.range_summary/3),
+       # so this has to trail DailyRollup, not race it.
+       {"0 3 * * *", Tabletap.Analytics.Workers.SendScheduledReports}
      ]}
   ]
 
@@ -167,6 +171,9 @@ config :tabletap, Tabletap.Vault,
 # where test.exs swaps in Tabletap.Payments.ProviderMock (Mox;
 # code-standards.md: no test ever hits a real provider API).
 config :tabletap, Tabletap.Payments, provider: Tabletap.Payments.Adapters.WaafiPay
+
+# Plan definitions (build-plan.md Feature 19) — see config/plans.exs.
+import_config "plans.exs"
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
