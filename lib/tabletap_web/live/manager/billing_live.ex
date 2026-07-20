@@ -9,9 +9,13 @@ defmodule TabletapWeb.Manager.BillingLive do
   PIN prompt to, a monthly itemized preview (plan price + accrued
   `platform_fee_ledger` fees), a plan-change action (upgrade
   unrestricted; downgrade blocked while venue count exceeds the target
-  plan's cap, per `Tenants.change_plan/2`), and a minimal "add venue"
-  form (`Tenants.create_venue/2` — the only self-serve way to create a
-  second venue anywhere in the app).
+  plan's cap, per `Tenants.change_plan/2`), a minimal "add venue" form
+  (`Tenants.create_venue/2` — the only self-serve way to create a
+  second venue anywhere in the app), and a danger zone (design-qa.md
+  Q15) — a full data export and self-serve offboarding
+  (`Tenants.initiate_offboarding/1`; the actual 90-day archive +
+  hard-delete is `Tabletap.Offboarding.Workers.PurgeOffboardedTenants`'s
+  job, not this page's).
   """
   use TabletapWeb, :live_view
 
@@ -149,6 +153,35 @@ defmodule TabletapWeb.Manager.BillingLive do
           )}
         </p>
       </div>
+
+      <div class="rounded-box border border-error/30 bg-base-100 shadow-sm p-5 mt-6">
+        <h2 class="font-medium mb-3 text-error">{gettext("Danger zone")}</h2>
+        <p class="text-sm text-base-content/60 mb-3 max-w-prose">
+          {gettext(
+            "Export everything first — menu, orders, inventory. Offboarding archives your customers' own order history, then permanently deletes everything else 90 days from now."
+          )}
+        </p>
+        <div class="flex items-center gap-2 flex-wrap">
+          <a href={~p"/settings/billing/export.zip"} class="btn btn-sm btn-outline">
+            {gettext("Export all data")}
+          </a>
+          <button
+            :if={!@current_scope.org.offboarding_requested_at}
+            phx-click="initiate_offboarding"
+            data-confirm={
+              gettext("Start offboarding? Your data will be permanently deleted in 90 days.")
+            }
+            class="btn btn-sm btn-error btn-outline"
+          >
+            {gettext("Offboard this organization")}
+          </button>
+          <span :if={@current_scope.org.offboarding_requested_at} class="text-sm text-error">
+            {gettext("Offboarding started %{date} — data will be deleted 90 days from then.",
+              date: Date.to_string(DateTime.to_date(@current_scope.org.offboarding_requested_at))
+            )}
+          </span>
+        </div>
+      </div>
     </Layouts.manager>
     """
   end
@@ -225,6 +258,17 @@ defmodule TabletapWeb.Manager.BillingLive do
       {:error, %Ecto.Changeset{}} ->
         {:noreply, put_flash(socket, :error, gettext("Couldn't add that venue."))}
     end
+  end
+
+  def handle_event("initiate_offboarding", _params, socket) do
+    scope = socket.assigns.current_scope
+
+    {:ok, org} = Tenants.initiate_offboarding(scope)
+
+    {:noreply,
+     socket
+     |> assign(:current_scope, %{scope | org: org})
+     |> put_flash(:info, gettext("Offboarding started."))}
   end
 
   defp subscription_status_label(:trialing), do: gettext("Trialing")

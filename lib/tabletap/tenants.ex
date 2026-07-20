@@ -19,6 +19,9 @@ defmodule Tabletap.Tenants do
 
   alias Tabletap.Accounts
   alias Tabletap.Accounts.{Scope, User}
+  alias Tabletap.Analytics.Reports
+  alias Tabletap.Analytics.Reports.Csv
+  alias Tabletap.{Catalog, Inventory}
   alias Tabletap.Plans
   alias Tabletap.Repo
   alias Tabletap.Tenants.{Membership, Org, StaffInvite, Table, Venue}
@@ -165,6 +168,20 @@ defmodule Tabletap.Tenants do
       %Membership{} = m ->
         %Scope{user: user, org: m.org, venue: m.venue, membership: m, role: m.role}
     end
+  end
+
+  @doc """
+  Whether `user_id` holds any membership at all, active or not
+  (build-plan.md Feature 19) — `Accounts.delete_account/1`'s own guard
+  against cascading a customer-deletion request through
+  `memberships.user_id`'s `on_delete: :delete_all` and silently
+  orphaning a venue's staff or owner. Cross-tenant by design
+  (`skip_org_id: true` — `Tenants` is on code-standards.md's
+  allow-list), since a customer's own deletion request carries no
+  tenant scope to check against.
+  """
+  def any_memberships?(user_id) do
+    Repo.exists?(from(m in Membership, where: m.user_id == ^user_id), skip_org_id: true)
   end
 
   defp list_active_memberships_for_user(user) do
@@ -408,6 +425,112 @@ defmodule Tabletap.Tenants do
     org
     |> Org.billing_wallet_changeset(%{"billing_wallet_msisdn" => wallet_msisdn})
     |> Repo.update()
+  end
+
+  @doc """
+  Starts tenant offboarding (build-plan.md Feature 19; design-qa.md
+  Q15) — owner-initiated, idempotent (a second call is a no-op once
+  already set, never resets the clock).
+  `Tabletap.Offboarding.Workers.PurgeOffboardedTenants` is what
+  actually acts on this timestamp, 90 and 180 days later.
+  """
+  def initiate_offboarding(%Scope{org: %Org{offboarding_requested_at: nil} = org}) do
+    org
+    |> Ecto.Changeset.change(offboarding_requested_at: DateTime.utc_now(:second))
+    |> Repo.update()
+  end
+
+  def initiate_offboarding(%Scope{org: %Org{} = org}), do: {:ok, org}
+
+  @doc """
+  Full data export for tenant offboarding (build-plan.md Feature 19;
+  design-qa.md Q15 — "menu, orders, inventory, reports as CSV"). One
+  CSV per entity, across every one of the org's venues (a Pro-tier org
+  can have several) — orders reuse `Analytics.Reports.orders_report/3`
+  + `Reports.Csv` so the export can never show different numbers than
+  the Report Center's own download.
+  """
+  def export_org_data(%Scope{org: org} = scope) do
+    venues = list_venues(scope)
+    from_date = DateTime.to_date(org.inserted_at)
+    to_date = Date.utc_today()
+
+    %{
+      "menu.csv" => menu_export_csv(venues, scope),
+      "orders.csv" => orders_export_csv(venues, scope, from_date, to_date),
+      "ingredients.csv" => ingredients_export_csv(venues, scope)
+    }
+  end
+
+  defp menu_export_csv(venues, scope) do
+    header = ["Venue", "Category", "Item", "Price", "Archived"]
+
+    rows =
+      Enum.flat_map(venues, fn venue ->
+        venue
+        |> venue_scope(scope)
+        |> Catalog.list_menu()
+        |> Enum.flat_map(fn {category, items} ->
+          Enum.map(items, fn item ->
+            [
+              venue.name,
+              category.name,
+              item.name,
+              Money.to_decimal(item.price) |> Decimal.to_string(),
+              to_string(item.archived_at != nil)
+            ]
+          end)
+        end)
+      end)
+
+    export_csv(header, rows)
+  end
+
+  defp orders_export_csv(venues, scope, from_date, to_date) do
+    orders =
+      Enum.flat_map(venues, fn venue ->
+        venue_scope(venue, scope) |> Reports.orders_report(from_date, to_date)
+      end)
+
+    Csv.render(:orders, orders)
+  end
+
+  defp ingredients_export_csv(venues, scope) do
+    header = ["Venue", "Ingredient", "Unit", "Cost per unit", "Stock qty"]
+
+    rows =
+      Enum.flat_map(venues, fn venue ->
+        venue
+        |> venue_scope(scope)
+        |> Inventory.list_ingredients()
+        |> Enum.map(fn ing ->
+          [
+            venue.name,
+            ing.name,
+            to_string(ing.unit),
+            Money.to_decimal(ing.cost_per_unit) |> Decimal.to_string(),
+            Decimal.to_string(ing.stock_qty)
+          ]
+        end)
+      end)
+
+    export_csv(header, rows)
+  end
+
+  defp venue_scope(venue, %Scope{org: org}), do: %Scope{org: org, venue: venue}
+
+  defp export_csv(header, rows) do
+    [header | rows] |> Enum.map_join("", &export_csv_line/1)
+  end
+
+  defp export_csv_line(fields), do: Enum.map_join(fields, ",", &export_csv_escape/1) <> "\r\n"
+
+  defp export_csv_escape(field) do
+    if String.contains?(field, [",", "\"", "\n"]) do
+      "\"" <> String.replace(field, "\"", "\"\"") <> "\""
+    else
+      field
+    end
   end
 
   ## Tables (venue floor — build-plan.md Feature 06). Venue-scoped like

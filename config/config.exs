@@ -145,7 +145,12 @@ config :tabletap, Oban,
        # (build-plan.md Feature 19) — a fixed daily run is what actually
        # keeps this "never mid-dinner" (design-qa.md Q40), not per-venue
        # cutoff math for an org-wide status transition.
-       {"0 4 * * *", Tabletap.Billing.Workers.CollectMonthlyInvoices}
+       {"0 4 * * *", Tabletap.Billing.Workers.CollectMonthlyInvoices},
+       # After the billing sweep above — offboarding hard-deletes are
+       # unrelated to billing timing, just sequenced after it so a
+       # not-yet-canceled org's last invoice attempt (if any) runs
+       # before its data could ever be purged (build-plan.md Feature 19).
+       {"0 5 * * *", Tabletap.Offboarding.Workers.PurgeOffboardedTenants}
      ]}
   ]
 

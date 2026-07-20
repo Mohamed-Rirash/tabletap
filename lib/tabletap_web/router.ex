@@ -225,6 +225,14 @@ defmodule TabletapWeb.Router do
     get "/analytics/menu-performance.csv", Manager.Analytics.MenuPerformanceCsvController, :show
   end
 
+  # Owner-only (role-features.md "SaaS subscription" is owner
+  # back-office) — the org data export, build-plan.md Feature 19.
+  scope "/", TabletapWeb do
+    pipe_through [:browser, :require_authenticated_user, :require_owner]
+
+    get "/settings/billing/export.zip", Manager.OrgExportController, :show
+  end
+
   # Platform admin (build-plan.md Feature 19; role-features.md "us
   # only") — own scope, `:require_authenticated_user` only (no
   # `:require_manager`: an admin isn't necessarily a member of any

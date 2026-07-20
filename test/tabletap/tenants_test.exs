@@ -2,6 +2,7 @@ defmodule Tabletap.TenantsTest do
   use Tabletap.DataCase, async: true
 
   alias Tabletap.Accounts.Scope
+  alias Tabletap.Ordering.Cart
   alias Tabletap.Tenants
   alias Tabletap.Tenants.{Membership, Org, StaffInvite, Venue}
 
@@ -151,6 +152,58 @@ defmodule Tabletap.TenantsTest do
                Tenants.create_venue(scope, %{"name" => "Second Spot", "city" => "Nairobi"})
 
       assert "is not a supported launch city" in errors_on(changeset).city
+    end
+  end
+
+  describe "initiate_offboarding/1" do
+    test "sets offboarding_requested_at once, idempotently" do
+      %{org: org, venue: venue, membership: owner} = org_fixture()
+      Repo.put_org_id(org.id)
+      scope = %Scope{org: org, venue: venue, role: :owner, membership: owner}
+
+      assert {:ok, org} = Tenants.initiate_offboarding(scope)
+      assert org.offboarding_requested_at != nil
+      first_timestamp = org.offboarding_requested_at
+
+      assert {:ok, org_again} = Tenants.initiate_offboarding(%{scope | org: org})
+      assert org_again.offboarding_requested_at == first_timestamp
+    end
+  end
+
+  describe "export_org_data/1" do
+    test "returns menu, orders, and ingredients CSVs reconciling real data" do
+      %{org: org, venue: venue, membership: owner} = org_fixture()
+      Repo.put_org_id(org.id)
+      scope = %Scope{org: org, venue: venue, role: :owner, membership: owner}
+
+      {:ok, category} = Tabletap.Catalog.create_category(scope, %{"name" => "Drinks"})
+
+      {:ok, item} =
+        Tabletap.Catalog.create_item(scope, category, %{
+          "name" => "Latte",
+          "price" => Money.new!(:USD, "3.50")
+        })
+
+      {:ok, ingredient} =
+        Tabletap.Inventory.create_ingredient(scope, %{
+          "name" => "Milk",
+          "unit" => "ml",
+          "cost_per_unit" => Money.new!(:USD, "0.01")
+        })
+
+      %{membership: cashier} = cashier_fixture(org, venue)
+      cashier_scope = %{scope | role: :cashier, membership: cashier}
+      token = Cart.generate_guest_token()
+      {:ok, cart} = Tabletap.Ordering.add_to_cart(cashier_scope, token, nil, item, [], 1, nil)
+      {:ok, order} = Tabletap.Ordering.checkout(cashier_scope, cart)
+      {:ok, _} = Tabletap.Payments.settle_cash_now(cashier_scope, order, cashier)
+
+      files = Tenants.export_org_data(scope)
+
+      assert files["menu.csv"] =~ venue.name
+      assert files["menu.csv"] =~ item.name
+      assert files["orders.csv"] =~ to_string(order.number)
+      assert files["ingredients.csv"] =~ ingredient.name
     end
   end
 

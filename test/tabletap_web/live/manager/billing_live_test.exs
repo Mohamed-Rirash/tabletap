@@ -111,5 +111,21 @@ defmodule TabletapWeb.Manager.BillingLiveTest do
 
       assert html =~ "can&#39;t be blank"
     end
+
+    test "the export link is always present in the danger zone", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/settings/billing")
+
+      assert html =~ ~s(href="/settings/billing/export.zip")
+    end
+
+    test "starting offboarding shows the confirmation and hides the button", %{conn: conn} do
+      {:ok, lv, html} = live(conn, ~p"/settings/billing")
+      assert html =~ "Offboard this organization"
+
+      html = lv |> element(~s(button[phx-click="initiate_offboarding"])) |> render_click()
+
+      assert html =~ "Offboarding started"
+      refute html =~ "Offboard this organization"
+    end
   end
 end

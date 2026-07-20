@@ -385,6 +385,74 @@ defmodule Tabletap.AccountsTest do
     end
   end
 
+  describe "delete_account/1" do
+    alias Tabletap.Accounts.Scope
+    alias Tabletap.Feedback
+    alias Tabletap.Ordering
+    alias Tabletap.Ordering.{Cart, OrderStateMachine}
+    alias Tabletap.Repo
+    alias Tabletap.TenantsFixtures
+
+    setup do
+      %{org: org, venue: venue} = TenantsFixtures.org_fixture()
+      Repo.put_org_id(org.id)
+      scope = %Scope{org: org, venue: venue}
+
+      {:ok, category} = Tabletap.Catalog.create_category(scope, %{"name" => "Drinks"})
+
+      {:ok, item} =
+        Tabletap.Catalog.create_item(scope, category, %{
+          "name" => "Latte",
+          "price" => Money.new!(:USD, "3.50")
+        })
+
+      %{scope: scope, item: item}
+    end
+
+    test "deletes the account, anonymizing (not deleting) their orders and ratings", %{
+      scope: scope,
+      item: item
+    } do
+      customer = user_fixture()
+      guest_token = Cart.generate_guest_token()
+
+      {:ok, cart} = Ordering.add_to_cart(scope, guest_token, nil, item, [], 1, nil)
+      {:ok, order} = Ordering.checkout(scope, cart)
+
+      order =
+        Enum.reduce([:placed, :accepted, :preparing, :ready, :served], order, fn status, acc ->
+          {:ok, moved} = OrderStateMachine.transition(scope, acc, status)
+          moved
+        end)
+
+      {:ok, _count} = Ordering.link_guest_orders_to_customer(customer, guest_token)
+
+      [order_item] = Repo.preload(order, :items).items
+
+      {:ok, rating} =
+        Feedback.rate_item(scope, order, order_item, 5, customer_user_id: customer.id)
+
+      assert {:ok, _deleted} = Accounts.delete_account(customer)
+
+      refute Accounts.get_user_by_email(customer.email)
+
+      reloaded_order = Ordering.get_order(scope, order.id)
+      assert reloaded_order.customer_user_id == nil
+      assert reloaded_order.status == :served
+
+      reloaded_rating = Repo.get!(Tabletap.Feedback.ItemRating, rating.id)
+      assert reloaded_rating.customer_user_id == nil
+      assert reloaded_rating.stars == 5
+    end
+
+    test "refuses to delete an account that holds a staff membership" do
+      %{user: owner_user} = TenantsFixtures.org_fixture()
+
+      assert {:error, :has_staff_membership} = Accounts.delete_account(owner_user)
+      assert Accounts.get_user_by_email(owner_user.email)
+    end
+  end
+
   describe "deliver_login_instructions/2" do
     setup do
       %{user: unconfirmed_user_fixture()}

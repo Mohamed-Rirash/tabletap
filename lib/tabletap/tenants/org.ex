@@ -34,6 +34,13 @@ defmodule Tabletap.Tenants.Org do
     # customer payments).
     field :billing_wallet_msisdn, :string
 
+    # build-plan.md Feature 19 / design-qa.md Q15 — owner-initiated
+    # offboarding start; nil for every org that hasn't asked to leave.
+    # `Tabletap.Offboarding.Workers.PurgeOffboardedTenants` hard-deletes
+    # this org (Q31/Q54's archival happens first) once 90 days have
+    # passed since this timestamp.
+    field :offboarding_requested_at, :utc_datetime
+
     has_many :venues, Tabletap.Tenants.Venue
     has_many :memberships, Tabletap.Tenants.Membership
 

@@ -12,6 +12,7 @@ defmodule Tabletap.Accounts do
 
   import Ecto.Query, warn: false
   alias Tabletap.Repo
+  alias Tabletap.Tenants
 
   alias Tabletap.Accounts.{User, UserNotifier, UserToken}
 
@@ -66,6 +67,33 @@ defmodule Tabletap.Accounts do
 
   """
   def get_user!(id), do: Repo.get!(User, id, skip_org_id: true)
+
+  @doc """
+  GDPR customer account deletion (build-plan.md Feature 19;
+  design-qa.md Q15: "account + PII erased; orders anonymized
+  (customer_user_id nulled, guest linkage severed) but retained;
+  ratings kept aggregate-only; push tokens purged"). Deleting the
+  `User` row is the entire mechanism — `orders.customer_user_id` and
+  `item_ratings.customer_user_id` both already carry `on_delete:
+  :nilify_all` (their own migrations anticipated exactly this), so
+  order/rating history survives, severed from the identity that
+  created it, with no extra code needed here. Push-token purge is a
+  no-op today — no `push_tokens` table exists yet (Feature 20's web
+  push hasn't landed).
+
+  Refuses to delete an account holding any staff membership —
+  `memberships.user_id` is `on_delete: :delete_all`, so cascading
+  through it would silently orphan a venue's staff or, worse, its
+  owner. This is customer self-deletion (Q15's own framing: "a
+  customer demands deletion"), not a staff offboarding flow.
+  """
+  def delete_account(%User{} = user) do
+    if Tenants.any_memberships?(user.id) do
+      {:error, :has_staff_membership}
+    else
+      Repo.delete(user)
+    end
+  end
 
   ## User registration
 

@@ -3,7 +3,7 @@ defmodule TabletapWeb.UserLive.Settings do
 
   on_mount {TabletapWeb.UserAuth, :require_sudo_mode}
 
-  alias Tabletap.Accounts
+  alias Tabletap.{Accounts, Tenants}
 
   @impl true
   def render(assigns) do
@@ -65,6 +65,23 @@ defmodule TabletapWeb.UserLive.Settings do
           Save Password
         </.button>
       </.form>
+
+      <div :if={@can_delete_account} class="divider" />
+
+      <div :if={@can_delete_account} class="text-center">
+        <.header>Danger zone</.header>
+        <p class="text-sm text-base-content/60 mb-2">
+          {gettext(
+            "Permanently deletes your account. Your past orders and ratings stay on the venues' own records, no longer linked to you (design-qa.md Q15)."
+          )}
+        </p>
+        <.button
+          phx-click="delete_account"
+          data-confirm={gettext("Delete your account? This can't be undone.")}
+        >
+          {gettext("Delete my account")}
+        </.button>
+      </div>
     </Layouts.app>
     """
   end
@@ -94,6 +111,7 @@ defmodule TabletapWeb.UserLive.Settings do
       |> assign(:email_form, to_form(email_changeset))
       |> assign(:password_form, to_form(password_changeset))
       |> assign(:trigger_submit, false)
+      |> assign(:can_delete_account, not Tenants.any_memberships?(user.id))
 
     {:ok, socket}
   end
@@ -155,6 +173,26 @@ defmodule TabletapWeb.UserLive.Settings do
 
       changeset ->
         {:noreply, assign(socket, password_form: to_form(changeset, action: :insert))}
+    end
+  end
+
+  def handle_event("delete_account", _params, socket) do
+    user = socket.assigns.current_scope.user
+
+    case Accounts.delete_account(user) do
+      {:ok, _user} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, gettext("Your account has been deleted."))
+         |> redirect(to: ~p"/")}
+
+      {:error, :has_staff_membership} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           gettext("You still hold a staff membership — leave it before deleting your account.")
+         )}
     end
   end
 end

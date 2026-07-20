@@ -37,6 +37,31 @@ defmodule TabletapWeb.UserLive.SettingsTest do
     end
   end
 
+  describe "delete account" do
+    test "a customer with no staff membership sees and can use the delete button", %{conn: conn} do
+      {:ok, lv, html} =
+        conn
+        |> log_in_user(user_fixture())
+        |> live(~p"/users/settings")
+
+      assert html =~ "Delete my account"
+
+      {:error, {:redirect, %{to: "/"}}} =
+        lv |> element(~s(button[phx-click="delete_account"])) |> render_click()
+    end
+
+    test "an owner (holds a staff membership) never sees the delete button", %{conn: conn} do
+      %{user: owner_user} = Tabletap.TenantsFixtures.org_fixture()
+
+      {:ok, _lv, html} =
+        conn
+        |> log_in_user(owner_user)
+        |> live(~p"/users/settings")
+
+      refute html =~ "Delete my account"
+    end
+  end
+
   describe "update email form" do
     setup %{conn: conn} do
       user = user_fixture()

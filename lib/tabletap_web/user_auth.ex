@@ -355,6 +355,20 @@ defmodule TabletapWeb.UserAuth do
     end
   end
 
+  @doc "Same as `require_manager/2`, for the handful of controller routes that are owner-only (e.g. the org data export, build-plan.md Feature 19)."
+  def require_owner(conn, _opts) do
+    role = conn.assigns.current_scope && conn.assigns.current_scope.role
+
+    if role == :owner do
+      conn
+    else
+      conn
+      |> put_flash(:error, "You don't have access to that page.")
+      |> redirect(to: ~p"/")
+      |> halt()
+    end
+  end
+
   @doc """
   Plug for **controller** (non-LiveView) routes gated behind a plan
   feature — `PlanHooks`'s `on_mount` equivalent for routes that can't
