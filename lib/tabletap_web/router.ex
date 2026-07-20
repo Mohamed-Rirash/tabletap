@@ -131,6 +131,7 @@ defmodule TabletapWeb.Router do
         {TabletapWeb.ScopeHooks, :require_owner}
       ] do
       live "/settings/payments", Manager.PaymentSettingsLive, :show
+      live "/analytics/venues", Manager.Analytics.VenueComparisonLive, :index
     end
 
     live_session :waiter,

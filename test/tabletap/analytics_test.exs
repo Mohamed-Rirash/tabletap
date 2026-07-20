@@ -849,4 +849,49 @@ defmodule Tabletap.AnalyticsTest do
       assert summary.variance == []
     end
   end
+
+  describe "org_comparison/3 and org_totals/1" do
+    test "one row per venue, side by side, never summing money across venues", %{
+      scope: scope,
+      item: item
+    } do
+      %{membership: cashier} = cashier_fixture(scope.org, scope.venue)
+      cashier_scope = %{scope | role: :cashier, membership: cashier}
+      order = checked_out(cashier_scope, item)
+      {:ok, _} = Payments.settle_cash_now(cashier_scope, order, cashier)
+
+      second_venue = venue_fixture(scope.org, %{"currency" => "USD"})
+      second_scope = %{scope | venue: second_venue}
+
+      {:ok, category2} = Catalog.create_category(second_scope, %{"name" => "Drinks"})
+
+      {:ok, item2} =
+        Catalog.create_item(second_scope, category2, %{
+          "name" => "Mocha",
+          "price" => Money.new!(:USD, "5.00")
+        })
+
+      %{membership: cashier2} = cashier_fixture(scope.org, second_venue)
+      cashier2_scope = %{second_scope | role: :cashier, membership: cashier2}
+      order2 = checked_out(cashier2_scope, item2, 2)
+      {:ok, _} = Payments.settle_cash_now(cashier2_scope, order2, cashier2)
+
+      today = today(scope)
+      rows = Analytics.org_comparison(scope, today, today)
+
+      assert length(rows) == 2
+      row1 = Enum.find(rows, &(&1.venue_id == scope.venue.id))
+      row2 = Enum.find(rows, &(&1.venue_id == second_venue.id))
+
+      assert Money.equal?(row1.net_revenue, Money.new!(:USD, "3.50"))
+      assert row1.order_count == 1
+
+      assert Money.equal?(row2.net_revenue, Money.new!(:USD, "10.00"))
+      assert row2.order_count == 1
+
+      totals = Analytics.org_totals(rows)
+      assert totals.venue_count == 2
+      assert totals.order_count == 2
+    end
+  end
 end

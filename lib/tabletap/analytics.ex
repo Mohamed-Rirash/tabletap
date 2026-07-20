@@ -1621,4 +1621,61 @@ defmodule Tabletap.Analytics do
       }
     end)
   end
+
+  ## Org View (build-plan.md Feature 18; owner-dashboard.md, "Owner
+  ## only, multi-venue"). Every venue in the org shares one currency
+  ## lock per venue (design-qa.md Q53), but different venues can use
+  ## *different* currencies from each other — so `net_revenue`/
+  ## `avg_check` per row stay in that venue's own currency, never
+  ## summed together (`org_totals/1` only sums fields that are always
+  ## currency-free: order counts and rates).
+
+  @doc """
+  One row per non-archived venue in the org for the same period:
+  revenue, orders, avg check, food cost %, venue-wide avg rating, and
+  refund rate — side by side, exactly owner-dashboard.md's Org View
+  comparison table. Every row carries `venue_id`/`venue_slug` so the
+  caller can link through to that venue's own dashboard.
+  """
+  def org_comparison(%Scope{org: org} = scope, from_date, to_date) do
+    scope
+    |> Tenants.list_venues()
+    |> Enum.map(&venue_comparison_row(org, &1, from_date, to_date))
+  end
+
+  defp venue_comparison_row(org, venue, from_date, to_date) do
+    venue_scope = %Scope{org: org, venue: venue}
+    zero = Money.new!(venue.currency, 0)
+    days = range_summary(venue_scope, from_date, to_date)
+
+    net_revenue = days |> Enum.map(& &1.net_revenue) |> money_sum(zero)
+    food_cost = days |> Enum.map(& &1.food_cost) |> money_sum(zero)
+    order_count = days |> Enum.map(& &1.order_count) |> Enum.sum()
+    ratings = ratings_in_range(venue, from_date, to_date)
+    refunds = refunds_breakdown(venue_scope, from_date, to_date)
+
+    %{
+      venue_id: venue.id,
+      venue_name: venue.name,
+      venue_slug: venue.slug,
+      net_revenue: net_revenue,
+      order_count: order_count,
+      avg_check: avg_check(net_revenue, order_count),
+      food_cost_pct: food_cost_pct(food_cost, net_revenue),
+      avg_rating: rating_average(ratings),
+      refund_rate: refunds.rate,
+      subscription_status: org.subscription_status
+    }
+  end
+
+  defp rating_average([]), do: nil
+  defp rating_average(ratings), do: average(Enum.map(ratings, & &1.stars))
+
+  @doc "Org-wide totals across every venue's comparison row — only currency-free fields (order counts, rates); per-venue money never sums across venues that may run different currencies."
+  def org_totals(rows) do
+    %{
+      order_count: rows |> Enum.map(& &1.order_count) |> Enum.sum(),
+      venue_count: length(rows)
+    }
+  end
 end
