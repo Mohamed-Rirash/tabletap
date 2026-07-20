@@ -37,6 +37,36 @@ defmodule TabletapWeb.Manager.Analytics.VenueComparisonLiveTest do
 
       assert {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/analytics/venues")
     end
+
+    test "redirects an owner off-trial on a plan below Pro — org_comparison is Pro only", %{
+      conn: conn
+    } do
+      %{org: org, user: user} = TenantsFixtures.org_fixture()
+
+      org
+      |> Ecto.Changeset.change(plan: :growth, subscription_status: :active)
+      |> Repo.update!()
+
+      conn = log_in_user(conn, user)
+
+      assert {:error, {:redirect, %{to: "/dashboard", flash: flash}}} =
+               live(conn, ~p"/analytics/venues")
+
+      assert flash["error"] =~ "Pro"
+    end
+
+    test "an active Pro-plan owner passes the gate", %{conn: conn} do
+      %{org: org, user: user} = TenantsFixtures.org_fixture()
+
+      org
+      |> Ecto.Changeset.change(plan: :pro, subscription_status: :active)
+      |> Repo.update!()
+
+      conn = log_in_user(conn, user)
+
+      assert {:ok, _lv, html} = live(conn, ~p"/analytics/venues")
+      assert html =~ "Org View"
+    end
   end
 
   describe "as an owner" do

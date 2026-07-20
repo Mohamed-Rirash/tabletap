@@ -76,4 +76,25 @@ defmodule TabletapWeb.Manager.Analytics.ReportsCsvControllerTest do
       assert get_resp_header(conn, "content-type") |> hd() =~ "text/csv"
     end
   end
+
+  test "redirects off Essentials — the Report Center is Growth+", %{
+    conn: conn,
+    org: org,
+    scope: scope
+  } do
+    org
+    |> Ecto.Changeset.change(plan: :essentials, subscription_status: :active)
+    |> Repo.update!()
+
+    today = Tabletap.Tenants.business_date(scope.venue)
+
+    conn =
+      get(
+        conn,
+        ~p"/reports.csv?#{[report: "revenue", from: Date.to_string(today), to: Date.to_string(today)]}"
+      )
+
+    assert redirected_to(conn) == "/dashboard"
+    assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Growth"
+  end
 end

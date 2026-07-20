@@ -22,6 +22,34 @@ defmodule TabletapWeb.Manager.Analytics.ReportsLiveTest do
     test "redirects to log in when not authenticated", %{conn: conn} do
       assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/reports")
     end
+
+    test "redirects an owner off-trial on Essentials — the Report Center is Growth+", %{
+      conn: conn
+    } do
+      %{org: org, user: user} = org_fixture()
+
+      org
+      |> Ecto.Changeset.change(plan: :essentials, subscription_status: :active)
+      |> Repo.update!()
+
+      conn = log_in_user(conn, user)
+
+      assert {:error, {:redirect, %{to: "/dashboard", flash: flash}}} = live(conn, ~p"/reports")
+      assert flash["error"] =~ "Growth"
+    end
+
+    test "an active Growth-plan owner passes the gate", %{conn: conn} do
+      %{org: org, user: user} = org_fixture()
+
+      org
+      |> Ecto.Changeset.change(plan: :growth, subscription_status: :active)
+      |> Repo.update!()
+
+      conn = log_in_user(conn, user)
+
+      assert {:ok, _lv, html} = live(conn, ~p"/reports")
+      assert html =~ "Report Center"
+    end
   end
 
   describe "as an owner" do

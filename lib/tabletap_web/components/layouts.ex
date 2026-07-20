@@ -211,6 +211,7 @@ defmodule TabletapWeb.Layouts do
             {gettext("Feedback")}
           </.manager_nav_link>
           <.manager_nav_link
+            :if={Plans.feature_enabled?(@current_scope.org, :report_center)}
             navigate={~p"/reports"}
             icon="hero-document-chart-bar"
             active={@active_nav == :analytics_reports}
@@ -253,7 +254,10 @@ defmodule TabletapWeb.Layouts do
             {gettext("Inventory & Cost")}
           </.manager_nav_link>
           <.manager_nav_link
-            :if={@current_scope.role == :owner}
+            :if={
+              @current_scope.role == :owner and
+                Plans.feature_enabled?(@current_scope.org, :org_comparison)
+            }
             navigate={~p"/analytics/venues"}
             icon="hero-building-storefront"
             active={@active_nav == :analytics_org}

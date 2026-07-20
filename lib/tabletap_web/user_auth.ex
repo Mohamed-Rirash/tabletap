@@ -367,6 +367,9 @@ defmodule TabletapWeb.UserAuth do
   """
   def require_inventory_feature(conn, _opts), do: require_feature(conn, :inventory)
 
+  @doc "Same as `require_inventory_feature/2`, gating the Report Center's CSV download (`/reports.csv`) behind the `:report_center` plan feature."
+  def require_report_center_feature(conn, _opts), do: require_feature(conn, :report_center)
+
   defp require_feature(conn, feature) do
     org = conn.assigns.current_scope && conn.assigns.current_scope.org
 

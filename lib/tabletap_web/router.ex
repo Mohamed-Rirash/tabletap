@@ -100,7 +100,6 @@ defmodule TabletapWeb.Router do
       live "/tables", Manager.TablesLive, :index
       live "/tables/print", Manager.TablePrintLive, :index
       live "/feedback", Manager.FeedbackLive, :index
-      live "/reports", Manager.Analytics.ReportsLive, :index
       live "/analytics/revenue", Manager.Analytics.RevenueLive, :index
       live "/analytics/menu-performance", Manager.Analytics.MenuPerformanceLive, :index
       live "/analytics/customers", Manager.Analytics.CustomersLive, :index
@@ -122,6 +121,18 @@ defmodule TabletapWeb.Router do
       live "/inventory/stocktake", Manager.StocktakeLive, :index
     end
 
+    # Growth/Pro only (pricing.md "Full Report Center") — same split as
+    # :manager_inventory above, own live_session so PlanHooks can gate
+    # just this one route.
+    live_session :manager_report_center,
+      on_mount: [
+        {TabletapWeb.UserAuth, :require_authenticated},
+        {TabletapWeb.ScopeHooks, :require_manager},
+        {TabletapWeb.PlanHooks, :report_center}
+      ] do
+      live "/reports", Manager.Analytics.ReportsLive, :index
+    end
+
     # role-features.md: "Payment account" is Owner back-office, not
     # Manager — a separate live_session so a manager (no :owner role)
     # gets the same deny-by-default redirect ScopeHooks already gives
@@ -132,6 +143,18 @@ defmodule TabletapWeb.Router do
         {TabletapWeb.ScopeHooks, :require_owner}
       ] do
       live "/settings/payments", Manager.PaymentSettingsLive, :show
+    end
+
+    # Pro only (pricing.md "Cross-venue comparison") — stacks both the
+    # :require_owner role gate and the :org_comparison plan gate; a
+    # manager (wrong role) and an Essentials/Growth owner (wrong plan)
+    # both get redirected, for different reasons.
+    live_session :owner_org_comparison,
+      on_mount: [
+        {TabletapWeb.UserAuth, :require_authenticated},
+        {TabletapWeb.ScopeHooks, :require_owner},
+        {TabletapWeb.PlanHooks, :org_comparison}
+      ] do
       live "/analytics/venues", Manager.Analytics.VenueComparisonLive, :index
     end
 
@@ -177,16 +200,28 @@ defmodule TabletapWeb.Router do
     get "/inventory/restock.csv", Manager.RestockCsvController, :show
   end
 
-  # Same raw-CSV-response reasoning as the restock export above, but
-  # ungated (Feature 18 doesn't do plan gating — see Analytics.RevenueLive's
-  # own moduledoc; Feature 19 retrofits it here the same way it did for
-  # /inventory/restock.csv).
+  # Same raw-CSV-response reasoning as the restock export above —
+  # gated behind :report_center same as its LiveView twin (/reports).
+  scope "/", TabletapWeb do
+    pipe_through [
+      :browser,
+      :require_authenticated_user,
+      :require_manager,
+      :require_report_center_feature
+    ]
+
+    get "/reports.csv", Manager.Analytics.ReportsCsvController, :show
+  end
+
+  # Deliberately ungated (pricing.md's feature table): the individual
+  # Revenue & Sales / Menu Performance screens are part of the
+  # always-available live dashboard every tier gets, not the tiered
+  # Report Center — only /reports*/analytics/venues are plan-gated.
   scope "/", TabletapWeb do
     pipe_through [:browser, :require_authenticated_user, :require_manager]
 
     get "/analytics/revenue.csv", Manager.Analytics.RevenueCsvController, :show
     get "/analytics/menu-performance.csv", Manager.Analytics.MenuPerformanceCsvController, :show
-    get "/reports.csv", Manager.Analytics.ReportsCsvController, :show
   end
 
   scope "/", TabletapWeb do
