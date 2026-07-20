@@ -347,7 +347,7 @@ defmodule TabletapWeb.Manager.FeedbackLive do
     rows = Analytics.per_waiter_ratings(scope, from_date, to_date)
     membership_ids = Enum.map(rows, & &1.waiter_membership_id)
     memberships = Tenants.list_memberships(scope, membership_ids) |> Map.new(&{&1.id, &1})
-    hours_by_waiter = hours_by_waiter(days)
+    hours_by_waiter = Analytics.waiter_hours_by_membership(days)
 
     Enum.map(rows, fn row ->
       membership = memberships[row.waiter_membership_id]
@@ -358,22 +358,6 @@ defmodule TabletapWeb.Manager.FeedbackLive do
         count: row.count,
         hours: Map.get(hours_by_waiter, row.waiter_membership_id, 0.0) |> Float.round(1)
       }
-    end)
-  end
-
-  # Each day's own rollup already computed hours_on_shift per waiter
-  # (Tabletap.Analytics.compute_rollup/2's staff_metrics) — summed across
-  # the range rather than re-querying Shift rows a second time here.
-  defp hours_by_waiter(days) do
-    days
-    |> Enum.flat_map(& &1.staff_metrics["waiters"])
-    |> Enum.reduce(%{}, fn {membership_id, row}, acc ->
-      Map.update(
-        acc,
-        membership_id,
-        row["hours_on_shift"] || 0.0,
-        &(&1 + (row["hours_on_shift"] || 0.0))
-      )
     end)
   end
 

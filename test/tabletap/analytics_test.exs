@@ -728,4 +728,125 @@ defmodule Tabletap.AnalyticsTest do
       assert second.email == small_spender.email
     end
   end
+
+  describe "staff_summary/3" do
+    test "reconciles a waiter's orders/timing/rating/hours and a cashier's transactions+variance",
+         %{scope: scope, item: item} do
+      %{membership: waiter} = waiter_fixture(scope.org, scope.venue)
+      waiter_scope = %{scope | role: :waiter, membership: waiter}
+      {:ok, _} = Staffing.clock_in(waiter_scope)
+
+      order = checked_out(scope, item)
+      served = serve!(waiter_scope, order)
+      served = served |> Ecto.Changeset.change(waiter_membership_id: waiter.id) |> Repo.update!()
+      {:ok, _} = Staffing.clock_out(waiter_scope)
+
+      [order_item] = Repo.preload(served, :items).items
+      {:ok, _} = Feedback.rate_item(scope, served, order_item, 4)
+
+      %{membership: cashier} = cashier_fixture(scope.org, scope.venue)
+      cashier_scope = %{scope | role: :cashier, membership: cashier}
+      cash_order = checked_out(cashier_scope, item)
+      {:ok, _} = Payments.settle_cash_now(cashier_scope, cash_order, cashier)
+
+      today = today(scope)
+
+      {:ok, _report} =
+        Payments.close_z_report(scope, today, %{cashier.id => Money.new!(:USD, "3.00")})
+
+      summary = Analytics.staff_summary(scope, today, today)
+
+      [waiter_row] = summary.waiters
+      assert waiter_row.waiter_membership_id == waiter.id
+      assert waiter_row.orders_served == 1
+      assert waiter_row.avg_accept_seconds >= 0
+      assert waiter_row.avg_serve_seconds >= 0
+      assert waiter_row.avg_rating == 4.0
+      assert waiter_row.hours_on_shift >= 0
+      assert summary.venue_avg_orders_served == 1.0
+
+      [cashier_row] = summary.cashiers
+      assert cashier_row.cashier_membership_id == cashier.id
+      assert cashier_row.transaction_count == 1
+      assert Money.equal?(cashier_row.total_variance, Money.new!(:USD, "-0.50"))
+    end
+
+    test "an empty range reconciles to no waiters/cashiers, not an error", %{scope: scope} do
+      today = today(scope)
+      summary = Analytics.staff_summary(scope, today, today)
+      assert summary.waiters == []
+      assert summary.cashiers == []
+      assert summary.kitchen_avg_prep_seconds == nil
+    end
+  end
+
+  describe "inventory_cost_summary/3" do
+    test "reconciles food cost %, stock on hand, usage, wastage, purchases, and stocktake variance",
+         %{scope: scope, item: item} do
+      {:ok, flour} =
+        Inventory.create_ingredient(scope, %{
+          "name" => "Flour",
+          "unit" => "g",
+          "cost_per_unit" => Money.new!(:USD, "0.01")
+        })
+
+      {:ok, _} = Inventory.add_recipe_line(scope, item, flour, Decimal.new(100))
+      {:ok, _} = Inventory.restock(scope, flour, Decimal.new(500), Money.new!(:USD, "0.01"), nil)
+      {:ok, _} = Inventory.log_wastage(scope, flour, Decimal.new(20), "dropped bag", nil)
+
+      %{membership: cashier} = cashier_fixture(scope.org, scope.venue)
+      cashier_scope = %{scope | role: :cashier, membership: cashier}
+      order = checked_out(cashier_scope, item)
+      {:ok, _payment} = Payments.settle_cash_now(cashier_scope, order, cashier)
+      order = Ordering.get_order(scope, order.id)
+
+      Enum.reduce([:accepted, :preparing, :ready, :served], order, fn status, acc ->
+        {:ok, moved} = OrderStateMachine.transition(scope, acc, status)
+        moved
+      end)
+
+      {:ok, session} = Inventory.start_stocktake(scope)
+      [line] = Inventory.list_stocktake_lines(scope, session)
+      {:ok, _} = Inventory.record_count(scope, line, Decimal.new(350))
+      {:ok, _closed, _report} = Inventory.close_stocktake(scope, session)
+
+      today = today(scope)
+      summary = Analytics.inventory_cost_summary(scope, today, today)
+
+      assert Decimal.compare(summary.food_cost_pct, Decimal.new(0)) == :gt
+
+      [stock_row] = Enum.filter(summary.stock_on_hand, &(&1.ingredient_id == flour.id))
+      assert Decimal.equal?(stock_row.stock_qty, Decimal.new(350))
+
+      [usage_row] = summary.usage_trend
+      assert usage_row.ingredient_id == flour.id
+      assert Decimal.equal?(usage_row.qty, Decimal.new(100))
+
+      [wastage_row] = summary.wastage
+      assert wastage_row.reason == "dropped bag"
+      assert Decimal.equal?(wastage_row.qty, Decimal.new(20))
+
+      [purchase_row] = summary.purchases
+      assert purchase_row.ingredient_name == "Flour"
+      assert Decimal.equal?(purchase_row.qty, Decimal.new(500))
+
+      [variance_row] = summary.variance
+      assert variance_row.ingredient_id == flour.id
+      # 500 restocked - 20 wasted - 100 deducted for the served order =
+      # 380 theoretical at stocktake start; counted 350 → variance -30.
+      assert Decimal.equal?(variance_row.variance, Decimal.new(-30))
+    end
+
+    test "an empty range reconciles to zero/empty everything, not an error", %{scope: scope} do
+      today = today(scope)
+      summary = Analytics.inventory_cost_summary(scope, today, today)
+
+      assert summary.food_cost_pct == nil
+      assert summary.stock_on_hand == []
+      assert summary.usage_trend == []
+      assert summary.wastage == []
+      assert summary.purchases == []
+      assert summary.variance == []
+    end
+  end
 end

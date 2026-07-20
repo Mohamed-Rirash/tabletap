@@ -53,9 +53,10 @@ defmodule Tabletap.Analytics do
   alias Tabletap.Feedback.ItemRating
   alias Tabletap.Inventory
   alias Tabletap.Inventory.{Ingredient, RecipeLine, StockMovement}
+  alias Tabletap.Inventory.{StocktakeLine, StocktakeSession}
   alias Tabletap.Ordering
   alias Tabletap.Ordering.{Order, OrderDiscount, OrderItem}
-  alias Tabletap.Payments.{Payment, Refund}
+  alias Tabletap.Payments.{Payment, Refund, ZReport, ZReportCashCount}
   alias Tabletap.Repo
   alias Tabletap.Staffing.Shift
   alias Tabletap.Tenants
@@ -930,10 +931,14 @@ defmodule Tabletap.Analytics do
     Money.new!(String.to_existing_atom(currency), amount)
   end
 
-  defp margin_pct(_margin, %Money{amount: amount}) when amount == 0, do: nil
-
   defp margin_pct(margin, revenue) do
-    margin |> Money.to_decimal() |> Decimal.div(Money.to_decimal(revenue)) |> Decimal.mult(100)
+    revenue_decimal = Money.to_decimal(revenue)
+
+    if Decimal.equal?(revenue_decimal, 0) do
+      nil
+    else
+      margin |> Money.to_decimal() |> Decimal.div(revenue_decimal) |> Decimal.mult(100)
+    end
   end
 
   defp sellout_days_by_item(venue, item_ids, from_date, to_date) do
@@ -1296,5 +1301,324 @@ defmodule Tabletap.Analytics do
     end)
     |> Enum.sort_by(& &1.total, {:desc, Money})
     |> Enum.take(limit)
+  end
+
+  ## Screen 5 — Staff & Work Analytics (build-plan.md Feature 18;
+  ## owner-dashboard.md). Per-waiter timing/counts read raw orders
+  ## directly for the range (exact numbers, no average-of-daily-averages
+  ## drift); hours on shift reuse each day's own already-computed
+  ## `staff_metrics` from `range_summary/3` (summing is safe across
+  ## days, unlike averaging). Cashier variance can only ever come from a
+  ## **closed Z-report** (`ZReportCashCount`) — there's no cash-drawer
+  ## concept in `daily_rollups` at all, so this reads `Payments`' own
+  ## tables directly, same as everything else in this section.
+
+  @doc """
+  Per-waiter metrics for the range (orders served, avg accept/serve
+  time, unserveable flags, tables covered, avg rating, hours on shift),
+  the venue's own average orders served (design-qa.md's fairness
+  guardrail — the caller shows this alongside every waiter row, never a
+  naked leaderboard), venue-wide kitchen avg prep time (no per-person
+  attribution exists), and per-cashier transaction counts + recorded
+  cash variance.
+  """
+  def staff_summary(%Scope{venue: venue} = scope, from_date, to_date) do
+    orders = waiter_orders_in_range(venue, from_date, to_date)
+
+    ratings_by_waiter =
+      scope |> per_waiter_ratings(from_date, to_date) |> Map.new(&{&1.waiter_membership_id, &1})
+
+    hours_by_waiter = scope |> range_summary(from_date, to_date) |> waiter_hours_by_membership()
+
+    waiters =
+      orders
+      |> Enum.group_by(& &1.waiter_membership_id)
+      |> Enum.map(fn {membership_id, waiter_orders} ->
+        waiter_row(membership_id, waiter_orders, ratings_by_waiter, hours_by_waiter)
+      end)
+      |> Enum.sort_by(& &1.orders_served, :desc)
+
+    %{
+      waiters: waiters,
+      venue_avg_orders_served: average(Enum.map(waiters, & &1.orders_served)),
+      kitchen_avg_prep_seconds: kitchen_avg_prep_seconds(venue, from_date, to_date),
+      cashiers: cashier_rows(venue, from_date, to_date)
+    }
+  end
+
+  defp waiter_orders_in_range(venue, from_date, to_date) do
+    Repo.all(
+      from(o in Order,
+        where:
+          o.venue_id == ^venue.id and o.business_date >= ^from_date and
+            o.business_date <= ^to_date and
+            not is_nil(o.waiter_membership_id),
+        select: %{
+          waiter_membership_id: o.waiter_membership_id,
+          status: o.status,
+          placed_at: o.placed_at,
+          accepted_at: o.accepted_at,
+          served_at: o.served_at,
+          flag: o.flag,
+          table_id: o.table_id
+        }
+      )
+    )
+  end
+
+  defp waiter_row(membership_id, orders, ratings_by_waiter, hours_by_waiter) do
+    rating = ratings_by_waiter[membership_id]
+
+    %{
+      waiter_membership_id: membership_id,
+      orders_served: Enum.count(orders, &(&1.status in @done_statuses)),
+      avg_accept_seconds: avg_seconds(orders, :placed_at, :accepted_at),
+      avg_serve_seconds: avg_seconds(orders, :accepted_at, :served_at),
+      unserveable_count: Enum.count(orders, &(&1.flag == :unserveable)),
+      tables_covered:
+        orders |> Enum.map(& &1.table_id) |> Enum.reject(&is_nil/1) |> Enum.uniq() |> length(),
+      avg_rating: rating && rating.avg,
+      hours_on_shift: Map.get(hours_by_waiter, membership_id, 0.0)
+    }
+  end
+
+  @doc "Sums each day's own already-computed `staff_metrics` hours-on-shift per waiter across a `range_summary/3` series — safe to sum (unlike averaging a per-day average), and never re-queries `Shift` rows a second time."
+  def waiter_hours_by_membership(days) do
+    days
+    |> Enum.flat_map(& &1.staff_metrics["waiters"])
+    |> Enum.reduce(%{}, fn {membership_id, row}, acc ->
+      hours = row["hours_on_shift"] || 0.0
+      Map.update(acc, membership_id, hours, &(&1 + hours))
+    end)
+  end
+
+  defp kitchen_avg_prep_seconds(venue, from_date, to_date) do
+    Repo.all(
+      from(o in Order,
+        where:
+          o.venue_id == ^venue.id and o.business_date >= ^from_date and
+            o.business_date <= ^to_date and
+            not is_nil(o.accepted_at) and not is_nil(o.ready_at),
+        select: %{accepted_at: o.accepted_at, ready_at: o.ready_at}
+      )
+    )
+    |> avg_seconds(:accepted_at, :ready_at)
+  end
+
+  defp cashier_rows(venue, from_date, to_date) do
+    {start_at, _} = business_date_bounds(venue, from_date)
+    {_, end_at} = business_date_bounds(venue, to_date)
+    zero = Money.new!(venue.currency, 0)
+
+    transaction_counts =
+      Repo.all(
+        from(p in Payment,
+          where:
+            p.venue_id == ^venue.id and not is_nil(p.cashier_membership_id) and
+              p.status == :succeeded and p.inserted_at >= ^start_at and p.inserted_at < ^end_at,
+          group_by: p.cashier_membership_id,
+          select: {p.cashier_membership_id, count(p.id)}
+        )
+      )
+      |> Map.new()
+
+    variances =
+      Repo.all(
+        from(c in ZReportCashCount,
+          join: z in ZReport,
+          on: z.id == c.z_report_id,
+          where:
+            z.venue_id == ^venue.id and z.business_date >= ^from_date and
+              z.business_date <= ^to_date,
+          select: {c.membership_id, c.variance}
+        )
+      )
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+    (Map.keys(transaction_counts) ++ Map.keys(variances))
+    |> Enum.uniq()
+    |> Enum.map(fn membership_id ->
+      %{
+        cashier_membership_id: membership_id,
+        transaction_count: Map.get(transaction_counts, membership_id, 0),
+        total_variance: variances |> Map.get(membership_id, []) |> money_sum(zero)
+      }
+    end)
+  end
+
+  ## Screen 6 — Inventory & Cost (build-plan.md Feature 18;
+  ## owner-dashboard.md). Stock valuation and wastage use **current**
+  ## `Ingredient.cost_per_unit` — same documented limitation as
+  ## per-item food cost above (`log_wastage/5` never snapshots a unit
+  ## cost, unlike `:restock` rows, so there's nothing else to value it
+  ## with). Stocktake variance history is net new: `close_stocktake/2`'s
+  ## own `variance_report/1` is private and never persisted anywhere
+  ## queryable, so this re-derives the identical
+  ## `counted_qty - theoretical_qty_snapshot` formula directly from
+  ## `StocktakeLine`'s own stored snapshot columns for every closed
+  ## session in range.
+
+  @doc """
+  Everything owner-dashboard.md's Screen 6 asks for: food cost % for
+  the period, current stock on hand (valued, low-stock flagged),
+  ingredient usage trend, wastage by reason, restock purchase history,
+  and stocktake variance history.
+  """
+  def inventory_cost_summary(%Scope{venue: venue} = scope, from_date, to_date) do
+    zero = Money.new!(venue.currency, 0)
+    days = range_summary(scope, from_date, to_date)
+    food_cost = days |> Enum.map(& &1.food_cost) |> money_sum(zero)
+    net_revenue = days |> Enum.map(& &1.net_revenue) |> money_sum(zero)
+
+    %{
+      food_cost_pct: food_cost_pct(food_cost, net_revenue),
+      food_cost: food_cost,
+      stock_on_hand: stock_on_hand(scope),
+      usage_trend: usage_trend(days),
+      wastage: wastage_breakdown(venue, from_date, to_date),
+      purchases: purchase_history(venue, from_date, to_date),
+      variance: stocktake_variance_history(scope, from_date, to_date)
+    }
+  end
+
+  defp food_cost_pct(food_cost, net_revenue) do
+    net_revenue_decimal = Money.to_decimal(net_revenue)
+
+    if Decimal.equal?(net_revenue_decimal, 0) do
+      nil
+    else
+      food_cost |> Money.to_decimal() |> Decimal.div(net_revenue_decimal) |> Decimal.mult(100)
+    end
+  end
+
+  defp stock_on_hand(%Scope{} = scope) do
+    scope
+    |> Inventory.list_ingredients()
+    |> Enum.map(fn ingredient ->
+      %{
+        ingredient_id: ingredient.id,
+        name: ingredient.name,
+        unit: ingredient.unit,
+        stock_qty: ingredient.stock_qty,
+        value: Money.mult!(ingredient.cost_per_unit, ingredient.stock_qty),
+        low_stock: Inventory.low_stock?(ingredient)
+      }
+    end)
+    |> Enum.sort_by(& &1.name)
+  end
+
+  defp usage_trend(days) do
+    days
+    |> Enum.flat_map(& &1.ingredient_usage)
+    |> Enum.group_by(fn {ingredient_id, _row} -> ingredient_id end, fn {_id, row} -> row end)
+    |> Enum.map(fn {ingredient_id, rows} ->
+      %{
+        ingredient_id: ingredient_id,
+        name: hd(rows)["name"],
+        unit: hd(rows)["unit"],
+        qty:
+          rows |> Enum.map(&Decimal.new(&1["qty"])) |> Enum.reduce(Decimal.new(0), &Decimal.add/2),
+        cost: rows |> Enum.map(&money_from_storage(&1["cost"])) |> money_sum_by_currency()
+      }
+    end)
+    |> Enum.sort_by(& &1.name)
+  end
+
+  defp money_sum_by_currency([]), do: nil
+
+  defp money_sum_by_currency([first | _] = monies),
+    do: money_sum(monies, Money.new!(first.currency, 0))
+
+  defp wastage_breakdown(venue, from_date, to_date) do
+    {start_at, _} = business_date_bounds(venue, from_date)
+    {_, end_at} = business_date_bounds(venue, to_date)
+    zero = Money.new!(venue.currency, 0)
+
+    Repo.all(
+      from(m in StockMovement,
+        join: i in Ingredient,
+        on: i.id == m.ingredient_id,
+        where:
+          m.venue_id == ^venue.id and m.reason == :wastage and m.inserted_at >= ^start_at and
+            m.inserted_at < ^end_at,
+        select: %{qty_delta: m.qty_delta, note: m.note, cost_per_unit: i.cost_per_unit}
+      )
+    )
+    |> Enum.group_by(&(&1.note || gettext_no_reason()))
+    |> Enum.map(fn {reason, rows} ->
+      qty =
+        rows
+        |> Enum.map(&Decimal.abs(&1.qty_delta))
+        |> Enum.reduce(Decimal.new(0), &Decimal.add/2)
+
+      cost =
+        Enum.reduce(
+          rows,
+          zero,
+          &Money.add!(&2, Money.mult!(&1.cost_per_unit, Decimal.abs(&1.qty_delta)))
+        )
+
+      %{reason: reason, qty: qty, cost: cost}
+    end)
+    |> Enum.sort_by(& &1.cost, {:desc, Money})
+  end
+
+  defp purchase_history(venue, from_date, to_date) do
+    {start_at, _} = business_date_bounds(venue, from_date)
+    {_, end_at} = business_date_bounds(venue, to_date)
+
+    Repo.all(
+      from(m in StockMovement,
+        join: i in Ingredient,
+        on: i.id == m.ingredient_id,
+        where:
+          m.venue_id == ^venue.id and m.reason == :restock and m.inserted_at >= ^start_at and
+            m.inserted_at < ^end_at,
+        order_by: [desc: m.inserted_at],
+        select: %{
+          ingredient_name: i.name,
+          qty: m.qty_delta,
+          unit: i.unit,
+          unit_cost: m.unit_cost,
+          inserted_at: m.inserted_at
+        }
+      )
+    )
+  end
+
+  defp stocktake_variance_history(%Scope{venue: venue}, from_date, to_date) do
+    {start_at, _} = business_date_bounds(venue, from_date)
+    {_, end_at} = business_date_bounds(venue, to_date)
+
+    sessions =
+      Repo.all(
+        from(s in StocktakeSession,
+          where:
+            s.venue_id == ^venue.id and s.status == :closed and s.closed_at >= ^start_at and
+              s.closed_at < ^end_at,
+          select: s.id
+        )
+      )
+
+    Repo.all(
+      from(l in StocktakeLine,
+        where: l.session_id in ^sessions and not is_nil(l.counted_qty),
+        select: %{
+          ingredient_id: l.ingredient_id,
+          theoretical: l.theoretical_qty_snapshot,
+          counted: l.counted_qty,
+          unit_cost: l.unit_cost_snapshot
+        }
+      )
+    )
+    |> Enum.map(fn line ->
+      variance = Decimal.sub(line.counted, line.theoretical)
+
+      %{
+        ingredient_id: line.ingredient_id,
+        variance: variance,
+        value: line.unit_cost && Money.mult!(line.unit_cost, variance)
+      }
+    end)
   end
 end
