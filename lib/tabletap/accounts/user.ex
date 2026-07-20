@@ -11,6 +11,11 @@ defmodule Tabletap.Accounts.User do
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
 
+    # build-plan.md Feature 19 — "us only," no self-serve path to set
+    # this; a platform admin isn't a member of any tenant, so this
+    # can't live on Membership.
+    field :platform_admin, :boolean, default: false
+
     timestamps(type: :utc_datetime)
   end
 

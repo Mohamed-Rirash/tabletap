@@ -225,6 +225,23 @@ defmodule TabletapWeb.Router do
     get "/analytics/menu-performance.csv", Manager.Analytics.MenuPerformanceCsvController, :show
   end
 
+  # Platform admin (build-plan.md Feature 19; role-features.md "us
+  # only") — own scope, `:require_authenticated_user` only (no
+  # `:require_manager`: an admin isn't necessarily a member of any
+  # tenant at all). `AdminAuth` is the real gate.
+  scope "/admin", TabletapWeb.Admin do
+    pipe_through [:browser, :require_authenticated_user]
+
+    live_session :admin,
+      on_mount: [
+        {TabletapWeb.UserAuth, :require_authenticated},
+        {TabletapWeb.AdminAuth, :require_platform_admin}
+      ] do
+      live "/", TenantsLive, :index
+      live "/tenants/:id", TenantLive, :show
+    end
+  end
+
   scope "/", TabletapWeb do
     pipe_through [:browser]
 
