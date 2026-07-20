@@ -48,8 +48,6 @@ defmodule TabletapWeb.Manager.DashboardLive do
         </div>
       </div>
 
-      <.trial_banner org={@current_scope.org} />
-
       <.today_tiles today={@today} ops={@ops} locale={@current_scope.venue.locale} />
 
       <div class="mt-6 grid gap-6 lg:grid-cols-3">

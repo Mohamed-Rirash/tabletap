@@ -37,6 +37,27 @@ defmodule TabletapWeb.Public.MenuLive do
   alias TabletapWeb.GuestToken
 
   @impl true
+  @doc """
+  design-qa.md Q29: a canceled org's QR menu shows "temporarily
+  unavailable" (same wording a trial that expired with no payment
+  converts straight to, `Billing.expire_unpaid_trial/1`) — a dedicated
+  render clause, not just another `@ordering_status` banner over a
+  still-browsable menu like `:paused`/`:closed`, since ordering itself
+  is genuinely off, not just degraded.
+  """
+  def render(%{ordering_status: :unavailable} = assigns) do
+    ~H"""
+    <Layouts.app flash={@flash}>
+      <div class="mb-4">
+        <h1 class="text-2xl font-bold">{@venue.name}</h1>
+      </div>
+      <div class="rounded-box bg-warning/10 border border-warning/30 px-4 py-6 text-center text-base-content text-sm font-medium">
+        {gettext("Ordering is temporarily unavailable. Please check with the venue directly.")}
+      </div>
+    </Layouts.app>
+    """
+  end
+
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
@@ -642,6 +663,7 @@ defmodule TabletapWeb.Public.MenuLive do
   # already had a cart built before Busy Mode/hours changed.
   defp ordering_status(venue) do
     cond do
+      venue.org.subscription_status == :canceled -> :unavailable
       Venue.paused?(venue) -> :paused
       not Tenants.venue_open?(venue) -> :closed
       true -> :open

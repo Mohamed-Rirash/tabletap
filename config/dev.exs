@@ -113,7 +113,13 @@ config :tabletap, Tabletap.Vault,
 # documented sandbox host, never production — runtime.exs forces a real
 # env var for that). A real sandbox merchant account still has to be
 # entered per-venue via Manager.PaymentSettingsLive to actually charge
-# anything; this alone just lets the adapter boot.
+# anything; this alone just lets the adapter boot. The platform_* trio
+# (Tabletap.Billing's own merchant account, design-qa.md Q59) is a
+# dev-only placeholder for the same reason — nothing in dev actually
+# collects a real subscription charge.
 config :tabletap, :waafipay,
   api_url: "https://sandbox.waafipay.com/asm",
-  webhook_secret: "dev-only-not-a-real-secret"
+  webhook_secret: "dev-only-not-a-real-secret",
+  platform_merchant_uid: "dev-platform-merchant",
+  platform_api_user_id: "dev-platform-api-user",
+  platform_api_key: "dev-platform-api-key"

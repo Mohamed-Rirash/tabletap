@@ -140,7 +140,12 @@ config :tabletap, Oban,
        # An hour after the rollup run above — scheduled reports read
        # `daily_rollups` for their "yesterday" numbers (Analytics.range_summary/3),
        # so this has to trail DailyRollup, not race it.
-       {"0 3 * * *", Tabletap.Analytics.Workers.SendScheduledReports}
+       {"0 3 * * *", Tabletap.Analytics.Workers.SendScheduledReports},
+       # Once nightly, same UTC-off-peak reasoning as DailyRollup above
+       # (build-plan.md Feature 19) — a fixed daily run is what actually
+       # keeps this "never mid-dinner" (design-qa.md Q40), not per-venue
+       # cutoff math for an org-wide status transition.
+       {"0 4 * * *", Tabletap.Billing.Workers.CollectMonthlyInvoices}
      ]}
   ]
 

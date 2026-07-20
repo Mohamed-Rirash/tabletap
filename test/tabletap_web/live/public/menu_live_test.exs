@@ -158,6 +158,16 @@ defmodule TabletapWeb.Public.MenuLiveTest do
     end
   end
 
+  test "a canceled org's venue shows 'temporarily unavailable' instead of the menu (design-qa.md Q29)",
+       %{conn: conn, venue: venue, scope: scope} do
+    scope.org |> Ecto.Changeset.change(subscription_status: :canceled) |> Repo.update!()
+
+    {:ok, _lv, html} = live(conn, ~p"/venues/#{venue.slug}/menu")
+
+    assert html =~ "temporarily unavailable"
+    refute html =~ "guest-token-carrier"
+  end
+
   test "shows the table number when reached via a scanned QR", %{
     conn: conn,
     scope: scope

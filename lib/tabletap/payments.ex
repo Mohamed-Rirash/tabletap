@@ -60,6 +60,25 @@ defmodule Tabletap.Payments do
     }
   end
 
+  @doc """
+  The `Payments.Provider` credentials shape for the **platform's own**
+  WaafiPay merchant account (`config :tabletap, :waafipay`'s
+  `platform_*` keys, `config/runtime.exs`) — separate from any venue's
+  own `credentials/1`. `Tabletap.Billing` is the only caller: this is
+  who collects the monthly subscription + accrued fee invoice from an
+  org owner's wallet (design-qa.md Q59), never a customer-facing
+  charge.
+  """
+  def platform_credentials do
+    config = Application.fetch_env!(:tabletap, :waafipay)
+
+    %{
+      merchant_uid: Keyword.fetch!(config, :platform_merchant_uid),
+      api_user_id: Keyword.fetch!(config, :platform_api_user_id),
+      api_key: Keyword.fetch!(config, :platform_api_key)
+    }
+  end
+
   ## Checkout — kicking off a charge (build-plan.md Feature 09)
 
   @doc """

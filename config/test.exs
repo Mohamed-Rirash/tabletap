@@ -70,9 +70,14 @@ config :tabletap, Tabletap.Vault,
 # No test ever calls the real WaafiPay adapter (code-standards.md —
 # Tabletap.Payments.ProviderMock stands in via Mox, config.exs). This
 # fixed value only backs the adapter's own HMAC unit tests, which need a
-# known, stable secret to sign fixture payloads against.
+# known, stable secret to sign fixture payloads against. The platform_*
+# trio backs Tabletap.Billing's credential lookup (design-qa.md Q59) —
+# tests exercise it through ProviderMock too, never a real call.
 config :tabletap, :waafipay,
   api_url: "https://sandbox.waafipay.example/asm",
-  webhook_secret: "test-webhook-secret"
+  webhook_secret: "test-webhook-secret",
+  platform_merchant_uid: "test-platform-merchant",
+  platform_api_user_id: "test-platform-api-user",
+  platform_api_key: "test-platform-api-key"
 
 config :tabletap, Tabletap.Payments, provider: Tabletap.Payments.ProviderMock

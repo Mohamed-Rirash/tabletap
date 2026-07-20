@@ -60,6 +60,34 @@ defmodule TabletapWeb.Manager.DashboardLiveTest do
       assert html =~ "days left in trial"
     end
 
+    test "shows a past_due banner — ordering keeps working, just a nudge", %{conn: conn, org: org} do
+      org |> Ecto.Changeset.change(subscription_status: :past_due) |> Tabletap.Repo.update!()
+
+      {:ok, _lv, html} = live(conn, ~p"/dashboard")
+
+      assert html =~ "didn&#39;t go through"
+      assert html =~ "Fix billing"
+    end
+
+    test "shows a canceled banner", %{conn: conn, org: org} do
+      org |> Ecto.Changeset.change(subscription_status: :canceled) |> Tabletap.Repo.update!()
+
+      {:ok, _lv, html} = live(conn, ~p"/dashboard")
+
+      assert html =~ "Ordering is disabled"
+      assert html =~ "Reactivate"
+    end
+
+    test "shows nothing extra once active", %{conn: conn, org: org} do
+      org |> Ecto.Changeset.change(subscription_status: :active) |> Tabletap.Repo.update!()
+
+      {:ok, _lv, html} = live(conn, ~p"/dashboard")
+
+      refute html =~ "days left in trial"
+      refute html =~ "Fix billing"
+      refute html =~ "Reactivate"
+    end
+
     test "hides the venue switcher with only one venue", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/dashboard")
 

@@ -403,6 +403,13 @@ defmodule Tabletap.Tenants do
     end
   end
 
+  @doc "Sets the org's billing wallet number (build-plan.md Feature 19) — required once, on the billing screen, before `Tabletap.Billing.collect_invoice/1` can ever attempt a real charge."
+  def set_billing_wallet(%Scope{org: org}, wallet_msisdn) do
+    org
+    |> Org.billing_wallet_changeset(%{"billing_wallet_msisdn" => wallet_msisdn})
+    |> Repo.update()
+  end
+
   ## Tables (venue floor — build-plan.md Feature 06). Venue-scoped like
   ## Catalog: `Repo`'s org filter isn't enough on its own since an org can
   ## have more than one venue. The public scan path resolves through

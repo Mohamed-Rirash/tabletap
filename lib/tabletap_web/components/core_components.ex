@@ -493,45 +493,83 @@ defmodule TabletapWeb.CoreComponents do
   end
 
   @doc """
-  Trial status, shared between `Manager.DashboardLive` and
-  `Manager.BillingLive` (build-plan.md Feature 19; pricing.md "Trial" —
-  14 days, no card required). A small badge while more than 4 days
-  remain; a prominent alert-style banner with a "choose a plan" link
-  once **day 10** hits (`days_left <= 4`, pricing.md's own "countdown
-  from day 10"), since the trial's expiry becomes a real billing wall
-  at that point (design-qa.md Q40 — enforced at the venue's own next
-  business-day cutoff, not the raw timestamp, so there's no
-  second-by-second urgency, just a growing nudge). Renders nothing for
-  an org that isn't trialing.
+  Subscription-status banner, rendered once app-wide inside
+  `Layouts.manager` — every back-office page gets it automatically
+  (build-plan.md Feature 19; architecture.md's own rule:
+  "`subscription_status != active` → back office shows billing
+  banner"). Four states:
+
+  - `:trialing`, more than 4 days left — a small badge.
+  - `:trialing`, **day 10 onward** (`days_left <= 4`, pricing.md's own
+    "countdown from day 10") — a prominent alert nudging toward
+    `/settings/billing`.
+  - `:active` — nothing.
+  - `:past_due` — a warning banner. Ordering **keeps working** during
+    this grace (architecture.md: "ordering keeps working during
+    `past_due` grace, disabled on `canceled`") — this banner is a
+    nudge, not a wall.
+  - `:canceled` — an error banner. This is the back-office mirror of
+    `Public.MenuLive`'s own "temporarily unavailable" gate for the
+    same org's venues; the owner can still reach `/settings/billing`
+    to reactivate regardless of status — only customer-facing ordering
+    is disabled, never back-office access itself.
 
   ## Examples
 
-      <.trial_banner org={@current_scope.org} />
+      <.subscription_banner org={@current_scope.org} />
   """
   attr :org, Org, required: true
 
-  def trial_banner(assigns) do
+  def subscription_banner(%{org: %Org{subscription_status: :trialing}} = assigns) do
     assigns = assign(assigns, :days_left, trial_days_left(assigns.org))
 
     ~H"""
-    <div :if={@days_left && @days_left <= 4} class="alert alert-warning mb-4">
+    <div :if={@days_left <= 4} class="alert alert-warning mb-4">
       <.icon name="hero-exclamation-triangle" class="size-5" />
       <span>{trial_urgent_label(@days_left)}</span>
       <.link navigate={~p"/settings/billing"} class="btn btn-sm btn-primary">
         {gettext("Choose a plan")}
       </.link>
     </div>
-    <div :if={@days_left && @days_left > 4} class="badge badge-outline">
+    <div :if={@days_left > 4} class="badge badge-outline mb-4">
       {trial_days_left_label(@days_left)}
     </div>
     """
   end
 
-  defp trial_days_left(%Org{subscription_status: :trialing, trial_ends_at: trial_ends_at}) do
-    trial_ends_at |> DateTime.diff(DateTime.utc_now(), :day) |> max(0)
+  def subscription_banner(%{org: %Org{subscription_status: :past_due}} = assigns) do
+    ~H"""
+    <div class="alert alert-warning mb-4">
+      <.icon name="hero-exclamation-triangle" class="size-5" />
+      <span>
+        {gettext(
+          "Your last payment didn't go through — ordering keeps running, but please update billing to avoid interruption."
+        )}
+      </span>
+      <.link navigate={~p"/settings/billing"} class="btn btn-sm btn-primary">
+        {gettext("Fix billing")}
+      </.link>
+    </div>
+    """
   end
 
-  defp trial_days_left(%Org{}), do: nil
+  def subscription_banner(%{org: %Org{subscription_status: :canceled}} = assigns) do
+    ~H"""
+    <div class="alert alert-error mb-4">
+      <.icon name="hero-x-circle" class="size-5" />
+      <span>{gettext("Ordering is disabled for your venues until you reactivate.")}</span>
+      <.link navigate={~p"/settings/billing"} class="btn btn-sm btn-primary">
+        {gettext("Reactivate")}
+      </.link>
+    </div>
+    """
+  end
+
+  def subscription_banner(assigns), do: ~H""
+
+  defp trial_days_left(%Org{trial_ends_at: trial_ends_at}) do
+    trial_ends_at |> DateTime.diff(DateTime.utc_now(), :day) |> max(0)
+  end
 
   defp trial_days_left_label(days),
     do: ngettext("%{count} day left in trial", "%{count} days left in trial", days)

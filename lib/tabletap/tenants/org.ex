@@ -26,6 +26,14 @@ defmodule Tabletap.Tenants.Org do
 
     field :trial_ends_at, :utc_datetime
 
+    # The owner's own wallet number (build-plan.md Feature 19) — who
+    # Tabletap's platform merchant account pushes the monthly
+    # subscription PIN prompt *to* (design-qa.md Q59). Nullable: unset
+    # until the owner visits the billing screen at least once, distinct
+    # from any venue's own WaafiPay merchant credentials (those receive
+    # customer payments).
+    field :billing_wallet_msisdn, :string
+
     has_many :venues, Tabletap.Tenants.Venue
     has_many :memberships, Tabletap.Tenants.Membership
 
@@ -47,6 +55,13 @@ defmodule Tabletap.Tenants.Org do
     |> put_change(:plan, :essentials)
     |> put_change(:subscription_status, :trialing)
     |> put_change(:trial_ends_at, DateTime.add(DateTime.utc_now(:second), @trial_days, :day))
+  end
+
+  @doc "Sets the owner's own wallet number — who `Tabletap.Billing`'s platform merchant account pushes the monthly subscription PIN prompt to (design-qa.md Q59). No format regex: same as checkout's own wallet_msisdn, the provider round-trip is the real validation, not client-side guessing at a phone format."
+  def billing_wallet_changeset(org, attrs) do
+    org
+    |> cast(attrs, [:billing_wallet_msisdn])
+    |> validate_required([:billing_wallet_msisdn])
   end
 
   defp put_slug(changeset) do

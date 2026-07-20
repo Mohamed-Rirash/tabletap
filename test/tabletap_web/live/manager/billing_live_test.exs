@@ -86,5 +86,30 @@ defmodule TabletapWeb.Manager.BillingLiveTest do
       refute html =~ ~s(id="add-venue-form")
       assert html =~ "upgrade to add more"
     end
+
+    test "saving a billing wallet number persists it", %{conn: conn, org: org} do
+      {:ok, lv, _html} = live(conn, ~p"/settings/billing")
+
+      html =
+        lv
+        |> form("#billing-wallet-form", %{"org" => %{"billing_wallet_msisdn" => "252634000000"}})
+        |> render_submit()
+
+      assert html =~ "Billing wallet saved"
+
+      assert Repo.get!(Tabletap.Tenants.Org, org.id, skip_org_id: true).billing_wallet_msisdn ==
+               "252634000000"
+    end
+
+    test "a blank billing wallet number is rejected", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/settings/billing")
+
+      html =
+        lv
+        |> form("#billing-wallet-form", %{"org" => %{"billing_wallet_msisdn" => ""}})
+        |> render_submit()
+
+      assert html =~ "can&#39;t be blank"
+    end
   end
 end
