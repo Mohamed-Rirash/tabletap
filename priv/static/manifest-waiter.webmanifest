@@ -1,0 +1,16 @@
+{
+  "name": "TableTap Waiter",
+  "short_name": "Waiter",
+  "description": "Your order queue — accept, serve, and get called to the table.",
+  "start_url": "/waiter",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FD4F00",
+  "icons": [
+    {
+      "src": "/images/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -28,6 +28,13 @@ defmodule TabletapWeb.Manager.DashboardLiveTest do
       assert html =~ "Owner"
     end
 
+    test "no PWA manifest — the back office isn't one of the two installable surfaces (build-plan.md Feature 20)",
+         %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/dashboard")
+
+      refute html =~ ~s(rel="manifest")
+    end
+
     test "shows the Today tiles, an empty floor, and no alerts on a fresh venue", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/dashboard")
 

@@ -20,7 +20,9 @@ defmodule TabletapWeb do
   # sw.js (build-plan.md Feature 20) has to be served from the origin
   # root, not /assets — a service worker's default scope is its own
   # path and below, so /assets/sw.js could only ever control /assets/*.
-  def static_paths, do: ~w(assets fonts images vendor favicon.ico robots.txt uploads sw.js)
+  def static_paths,
+    do:
+      ~w(assets fonts images vendor favicon.ico robots.txt uploads sw.js manifest-customer.webmanifest manifest-waiter.webmanifest)
 
   def router do
     quote do

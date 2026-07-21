@@ -28,6 +28,7 @@ import Uploaders from "./uploaders"
 import QrScanner from "./hooks/qr_scanner"
 import PushSubscription from "./hooks/push_subscription"
 import AudioAlert from "./hooks/audio_alert"
+import {initOfflineBanner, initInstallPrompt} from "./pwa"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
@@ -50,6 +51,9 @@ liveSocket.connect()
 // >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
+
+initOfflineBanner(liveSocket)
+initInstallPrompt()
 
 // The lines below enable quality of life phoenix_live_reload
 // development features:

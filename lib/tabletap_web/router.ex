@@ -162,7 +162,8 @@ defmodule TabletapWeb.Router do
     live_session :waiter,
       on_mount: [
         {TabletapWeb.UserAuth, :require_authenticated},
-        {TabletapWeb.ScopeHooks, :require_waiter}
+        {TabletapWeb.ScopeHooks, :require_waiter},
+        {TabletapWeb.PwaHooks, :waiter}
       ] do
       live "/waiter", Waiter.QueueLive, :index
     end
@@ -274,7 +275,7 @@ defmodule TabletapWeb.Router do
 
     get "/t/:qr_token", Public.TableController, :show
 
-    live_session :public_menu do
+    live_session :public_menu, on_mount: [{TabletapWeb.PwaHooks, :customer}] do
       live "/venues/:slug/menu", Public.MenuLive, :show
       live "/orders/:guest_token", Public.OrderTrackerLive, :show
     end

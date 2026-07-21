@@ -51,6 +51,12 @@ defmodule TabletapWeb.Public.MenuLiveTest do
     assert {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/venues/does-not-exist/menu")
   end
 
+  test "links the customer PWA manifest (build-plan.md Feature 20)", %{conn: conn, venue: venue} do
+    {:ok, _lv, html} = live(conn, ~p"/venues/#{venue.slug}/menu")
+
+    assert html =~ ~s(rel="manifest" href="/manifest-customer.webmanifest")
+  end
+
   test "shows the venue's active, available items", %{conn: conn, venue: venue, item: item} do
     {:ok, _lv, html} = live(conn, ~p"/venues/#{venue.slug}/menu")
 

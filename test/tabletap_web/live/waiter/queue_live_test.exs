@@ -43,4 +43,12 @@ defmodule TabletapWeb.Waiter.QueueLiveTest do
     assert subscription.user_id == user.id
     assert subscription.endpoint == "https://push.example.com/waiter-1"
   end
+
+  test "links the waiter PWA manifest and renders the install-prompt button (build-plan.md Feature 20)",
+       %{conn: conn} do
+    {:ok, _lv, html} = live(conn, ~p"/waiter")
+
+    assert html =~ ~s(rel="manifest" href="/manifest-waiter.webmanifest")
+    assert html =~ ~s(id="pwa-install-button")
+  end
 end

@@ -14,6 +14,14 @@
       content="Scan, order, pay, and track — live. TableTap runs the whole floor: menu, kitchen, waiters, inventory, and mobile-money or card payments, in one system."
     />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <%!-- Only the two installable surfaces (customer QR flow, waiter queue)
+    assign `@pwa_manifest` — see TabletapWeb.PwaHooks — build-plan.md
+    Feature 20 "PWA manifests per surface (customer/waiter)". --%>
+    <%= if assigns[:pwa_manifest] do %>
+      <link rel="manifest" href={"/manifest-#{@pwa_manifest}.webmanifest"} />
+      <meta name="apple-mobile-web-app-capable" content="yes" />
+      <meta name="apple-mobile-web-app-title" content="TableTap" />
+    <% end %>
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
     <script>
@@ -47,6 +55,26 @@
     </script>
   </head>
   <body>
+    <%!-- Offline/reconnect shell (build-plan.md Feature 20) — plain JS in
+    app.js drives this (`pwa.js`'s `initOfflineBanner/1`), not a phx-hook:
+    this div sits in the root layout's own static shell, outside any
+    LiveView's managed DOM subtree, so a phx-hook here would never
+    initialize. --%>
+    <div
+      id="offline-banner"
+      class="hidden fixed inset-x-0 top-0 z-50 bg-warning text-warning-content text-center text-sm py-1.5"
+    >
+      You're offline — reconnecting…
+    </div>
+    <%= if assigns[:pwa_manifest] do %>
+      <button
+        id="pwa-install-button"
+        type="button"
+        class="hidden fixed bottom-4 right-4 z-50 btn btn-primary btn-sm shadow-lg"
+      >
+        Install app
+      </button>
+    <% end %>
     <%!-- Slim, sitewide utility bar: account access from anywhere (settings/
     log-out) that isn't otherwise reachable. The marketing home page carries
     its own dark nav with the same links (it forces a dark look regardless
