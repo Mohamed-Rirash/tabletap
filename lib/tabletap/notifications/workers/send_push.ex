@@ -11,6 +11,11 @@ defmodule Tabletap.Notifications.Workers.SendPush do
   means this one notification is missed, not that the underlying
   order/alert itself failed.
 
+  `"stuck_order"` (build-plan.md Feature 21) is enqueued by
+  `Ordering.Workers.StuckOrderWatchdog` with its own Oban `unique`
+  constraint keyed on the order's id — this worker stays agnostic to
+  that; it just delivers whatever job reaches it.
+
   Runs without a request scope, same as every other Oban job in this
   codebase (`Workers.ChargeOrder`'s own moduledoc: "Oban jobs run
   without a request scope") — `Repo.put_org_id/1` is set here from the
@@ -36,9 +41,12 @@ defmodule Tabletap.Notifications.Workers.SendPush do
     :ok
   end
 
+  # Same manager/owner audience for both — a stuck-order alert
+  # (build-plan.md Feature 21) is delivered exactly like a low-stock one.
   def perform(%Oban.Job{
-        args: %{"type" => "low_stock", "org_id" => org_id, "venue_id" => venue_id} = args
-      }) do
+        args: %{"type" => type, "org_id" => org_id, "venue_id" => venue_id} = args
+      })
+      when type in ["low_stock", "stuck_order"] do
     Repo.put_org_id(org_id)
 
     venue_id

@@ -123,6 +123,13 @@ config :tabletap, Oban,
        # Every 2 minutes keeps the worst-case "falsely sold out" window
        # close to the nominal 12-minute hold TTL (design-qa.md Q1).
        {"*/2 * * * *", Tabletap.Ordering.Workers.SweepExpiredHolds},
+       # Every 5 minutes — frequent enough that a manager finds out about
+       # a stuck order promptly, without a full cross-tenant order scan
+       # running as often as the tighter payment/hold sweeps above
+       # (build-plan.md Feature 21). Each order alerts at most once ever
+       # (the worker's own Oban `unique` constraint), so a shorter
+       # interval would only mean *finding out sooner*, not re-alerting.
+       {"*/5 * * * *", Tabletap.Ordering.Workers.StuckOrderWatchdog},
        # Every minute — closest practical granularity to the ~30s target
        # (build-plan.md Feature 09); WaafiPay callbacks aren't retried, so
        # this poll is the guaranteed confirmation path, not a fallback.
