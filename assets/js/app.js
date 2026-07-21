@@ -28,13 +28,14 @@ import Uploaders from "./uploaders"
 import QrScanner from "./hooks/qr_scanner"
 import PushSubscription from "./hooks/push_subscription"
 import AudioAlert from "./hooks/audio_alert"
+import IosInstallGate from "./hooks/ios_install_gate"
 import {initOfflineBanner, initInstallPrompt} from "./pwa"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, QrScanner, PushSubscription, AudioAlert},
+  hooks: {...colocatedHooks, QrScanner, PushSubscription, AudioAlert, IosInstallGate},
   uploaders: Uploaders,
 })
 

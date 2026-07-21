@@ -26,6 +26,7 @@ defmodule TabletapWeb.Waiter.QueueLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div id="audio-alert" phx-hook="AudioAlert"></div>
+      <.ios_install_gate />
 
       <div class="mb-4 flex items-center justify-between gap-3">
         <div>
@@ -117,6 +118,28 @@ defmodule TabletapWeb.Waiter.QueueLive do
 
       <.scan_modal :if={@scanning_order_id} />
     </Layouts.app>
+    """
+  end
+
+  # design-qa.md Q28 — iOS waiters must install to the home screen
+  # (web push there requires it, and is still flaky even installed).
+  # `navigator.standalone` is client-only knowledge, so this stays
+  # hidden until `IosInstallGate`'s `mounted()` reveals it — see that
+  # hook's own comment for why plain UA sniffing is enough here.
+  defp ios_install_gate(assigns) do
+    ~H"""
+    <div id="ios-install-gate" phx-hook="IosInstallGate" class="hidden fixed inset-0 z-50">
+      <div class="absolute inset-0 bg-black/90"></div>
+      <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center text-white">
+        <.icon name="hero-arrow-up-on-square" class="size-10" />
+        <p class="text-lg font-bold">{gettext("Add TableTap to your Home Screen")}</p>
+        <p class="max-w-sm text-sm text-white/80">
+          {gettext(
+            "Reliable order alerts on iPhone require installing this app. In Safari, tap the Share button, then \"Add to Home Screen\" — then open TableTap from your home screen icon."
+          )}
+        </p>
+      </div>
+    </div>
     """
   end
 

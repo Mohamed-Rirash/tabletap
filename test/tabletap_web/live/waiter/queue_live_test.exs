@@ -51,4 +51,17 @@ defmodule TabletapWeb.Waiter.QueueLiveTest do
     assert html =~ ~s(rel="manifest" href="/manifest-waiter.webmanifest")
     assert html =~ ~s(id="pwa-install-button")
   end
+
+  test "renders the iOS install-to-home-screen gate, hidden by default (design-qa.md Q28)", %{
+    conn: conn
+  } do
+    {:ok, _lv, html} = live(conn, ~p"/waiter")
+
+    assert html =~ ~s(id="ios-install-gate")
+    assert html =~ "Add TableTap to your Home Screen"
+    # Client-only knowledge (`navigator.standalone`) decides visibility —
+    # the server always renders it hidden; IosInstallGate's `mounted()`
+    # is what reveals it, only on a non-installed iOS Safari.
+    assert html =~ ~s(class="hidden fixed inset-0 z-50")
+  end
 end

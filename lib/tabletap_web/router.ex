@@ -6,6 +6,7 @@ defmodule TabletapWeb.Router do
 
   pipeline :browser do
     plug :accepts, ["html"]
+    plug TabletapWeb.BrowserFloorPlug
     plug :fetch_session
     plug :fetch_live_flash
     plug :put_root_layout, html: {TabletapWeb.Layouts, :root}
@@ -40,6 +41,7 @@ defmodule TabletapWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/unsupported-browser", BrowserFloorController, :show
   end
 
   # WaafiPay's server posts here directly (build-plan.md Feature 09) — no
