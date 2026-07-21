@@ -59,6 +59,10 @@ config :phoenix,
 # every worker re-checks state and is idempotent, so this is safe to assert against directly)
 config :tabletap, Oban, testing: :manual
 
+# Off in test (build-plan.md Feature 21) — see TabletapWeb.Telemetry's
+# own comment on periodic_measurements/0 for why.
+config :tabletap, :poll_oban_queue_depth, false
+
 # Cloak test key — same reasoning as dev.exs, not a production secret
 config :tabletap, Tabletap.Vault,
   ciphers: [

@@ -22,7 +22,10 @@ defmodule Tabletap.Admin do
 
   @doc "Every org, newest first, each with its active venue count and lifetime order count — the admin tenants list."
   def list_tenants do
-    Repo.all(from(o in Org, order_by: [desc: o.inserted_at]), skip_org_id: true)
+    Repo.all(
+      from(o in Org, where: o.synthetic == false, order_by: [desc: o.inserted_at]),
+      skip_org_id: true
+    )
     |> Enum.map(&tenant_summary/1)
   end
 

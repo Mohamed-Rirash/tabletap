@@ -40,7 +40,7 @@ defmodule Tabletap.Payments.Workers.ProcessCallback do
 
   defp dispatch(payment_id, %{"params" => %{"state" => state}} = payload)
        when state in @approved_states do
-    case Payments.confirm_approved(payment_id, payload["transactionId"]) do
+    case Payments.confirm_approved(payment_id, payload["transactionId"], :webhook) do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}
     end
@@ -48,7 +48,7 @@ defmodule Tabletap.Payments.Workers.ProcessCallback do
 
   defp dispatch(payment_id, %{"params" => %{"state" => state}})
        when state in @terminal_failure_states do
-    case Payments.confirm_failed(payment_id) do
+    case Payments.confirm_failed(payment_id, :webhook) do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}
     end

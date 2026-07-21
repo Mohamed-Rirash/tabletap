@@ -54,10 +54,10 @@ defmodule Tabletap.Payments.Workers.ReconcilePendingPayments do
 
     case Payments.provider().lookup(Payments.credentials(venue), order.id) do
       {:ok, %{state: :approved, provider_txn_id: txn_id}} ->
-        match?({:ok, _}, Payments.confirm_approved(payment.id, txn_id))
+        match?({:ok, _}, Payments.confirm_approved(payment.id, txn_id, :poller))
 
       {:ok, %{state: :failed}} ->
-        match?({:ok, _}, Payments.confirm_failed(payment.id))
+        match?({:ok, _}, Payments.confirm_failed(payment.id, :poller))
 
       # Still waiting on the customer, or the lookup itself failed
       # (network blip) — leave it pending, try again next minute.

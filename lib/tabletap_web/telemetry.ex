@@ -79,7 +79,19 @@ defmodule TabletapWeb.Telemetry do
       summary("vm.memory.total", unit: {:byte, :kilobyte}),
       summary("vm.total_run_queue_lengths.total"),
       summary("vm.total_run_queue_lengths.cpu"),
-      summary("vm.total_run_queue_lengths.io")
+      summary("vm.total_run_queue_lengths.io"),
+
+      # Payment confirmation lag (build-plan.md Feature 21's "webhook-lag
+      # p95" alert) — `Payments.resolve_charge_result/2`/`confirm_approved/3`/
+      # `confirm_failed/2` tag every real (non-idempotent) confirmation
+      # by which channel resolved it. A `:poller`-tagged p95 climbing
+      # means the immediate charge response and the webhook callback are
+      # both missing more often than usual.
+      summary("tabletap.payment.confirmed.lag_ms", tags: [:via]),
+
+      # Oban queue depth (build-plan.md Feature 21) — see
+      # `dispatch_oban_queue_depth/0` below, invoked by the poller.
+      last_value("tabletap.oban.queue_depth.count", tags: [:queue, :state])
     ]
   end
 
@@ -88,6 +100,43 @@ defmodule TabletapWeb.Telemetry do
       # A module, function and arguments to be invoked periodically.
       # This function must call :telemetry.execute/3 and a metric must be added above.
       # {TabletapWeb, :count_users, []}
+
+      # Off in test (config/test.exs) — Oban itself runs `testing: :manual`
+      # there, so queue-depth telemetry is meaningless, and the poller's
+      # own background process was never granted a Sandbox connection
+      # (`Ecto.Adapters.SQL.Sandbox` requires an explicit checkout/allow
+      # per process), which would otherwise log a harmless but noisy
+      # `DBConnection.OwnershipError` every 10s during the whole suite.
+      if Application.get_env(:tabletap, :poll_oban_queue_depth, true) do
+        {__MODULE__, :dispatch_oban_queue_depth, []}
+      end
     ]
+    |> Enum.filter(& &1)
+  end
+
+  # `:telemetry_poller` fires its first measurement immediately at
+  # startup, before `Tabletap.ObanRepo` (started after this supervisor
+  # in `Tabletap.Application`'s own child order) is necessarily up yet —
+  # a no-op here just means the next 10s tick picks it up instead.
+  @doc false
+  def dispatch_oban_queue_depth do
+    import Ecto.Query
+
+    if Process.whereis(Tabletap.ObanRepo) do
+      Tabletap.ObanRepo.all(
+        from(j in Oban.Job,
+          where: j.state in ["available", "executing"],
+          group_by: [j.queue, j.state],
+          select: {j.queue, j.state, count(j.id)}
+        )
+      )
+      |> Enum.each(fn {queue, state, count} ->
+        :telemetry.execute(
+          [:tabletap, :oban, :queue_depth],
+          %{count: count},
+          %{queue: queue, state: state}
+        )
+      end)
+    end
   end
 end

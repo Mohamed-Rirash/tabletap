@@ -270,6 +270,75 @@ defmodule Tabletap.PaymentsTest do
     end
   end
 
+  describe "confirmation lag telemetry (build-plan.md Feature 21)" do
+    defp attach_and_capture do
+      ref = make_ref()
+      test_pid = self()
+
+      :telemetry.attach(
+        {:confirmed, ref},
+        [:tabletap, :payment, :confirmed],
+        fn _event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry_event, ref, measurements, metadata})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach({:confirmed, ref}) end)
+      ref
+    end
+
+    test "confirm_approved/3 tags the event with the given via, defaulting to :charge", %{
+      scope: scope,
+      item: item
+    } do
+      ref = attach_and_capture()
+      order = pending_order(scope, item)
+      {:ok, payment} = Payments.charge_order(scope, order, "252611111111")
+
+      Payments.confirm_approved(payment.id, "t1")
+
+      assert_receive {:telemetry_event, ^ref, %{lag_ms: lag_ms}, %{via: :charge}}
+      assert lag_ms >= 0
+    end
+
+    test "confirm_approved/3 tags :webhook and :poller explicitly", %{scope: scope, item: item} do
+      ref = attach_and_capture()
+
+      order1 = pending_order(scope, item)
+      {:ok, payment1} = Payments.charge_order(scope, order1, "252611111111")
+      Payments.confirm_approved(payment1.id, "t1", :webhook)
+      assert_receive {:telemetry_event, ^ref, _measurements, %{via: :webhook}}
+
+      order2 = pending_order(scope, item)
+      {:ok, payment2} = Payments.charge_order(scope, order2, "252611111111")
+      Payments.confirm_approved(payment2.id, "t2", :poller)
+      assert_receive {:telemetry_event, ^ref, _measurements, %{via: :poller}}
+    end
+
+    test "confirm_failed/2 also feeds the same telemetry event", %{scope: scope, item: item} do
+      ref = attach_and_capture()
+      order = pending_order(scope, item)
+      {:ok, payment} = Payments.charge_order(scope, order, "252611111111")
+
+      Payments.confirm_failed(payment.id, :poller)
+
+      assert_receive {:telemetry_event, ^ref, %{lag_ms: _}, %{via: :poller}}
+    end
+
+    test "a payment already resolved by someone else is a no-op, not a duplicate telemetry event",
+         %{scope: scope, item: item} do
+      order = pending_order(scope, item)
+      {:ok, payment} = Payments.charge_order(scope, order, "252611111111")
+      {:ok, _} = Payments.confirm_approved(payment.id, "t1")
+
+      ref = attach_and_capture()
+      assert {:ok, :already_resolved} = Payments.confirm_approved(payment.id, "t1")
+
+      refute_receive {:telemetry_event, ^ref, _, _}, 50
+    end
+  end
+
   describe "callback vs poller race (code-standards.md: exactly one transition wins)" do
     test "two concurrent confirm_approved calls for the same payment settle exactly once", %{
       scope: scope,

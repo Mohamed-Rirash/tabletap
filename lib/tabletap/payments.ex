@@ -214,9 +214,16 @@ defmodule Tabletap.Payments do
   *was* charged for food that can't be made — auto-refunds immediately
   rather than silently keeping their money (the iron rule, applied to
   the one path where charge-after-expiry is unavoidable).
+
+  `via` (`:charge`/`:webhook`/`:poller`, default `:charge`) tags the
+  `[:tabletap, :payment, :confirmed]` telemetry event `with_locked_pending_payment/3`
+  emits on a real (non-idempotent) resolution — build-plan.md Feature 21's
+  "webhook-lag p95" alert reads this per-channel: a `:poller`-tagged
+  confirmation means the charge attempt's own response and the webhook
+  callback both missed it.
   """
-  def confirm_approved(payment_id, provider_txn_id) do
-    with_locked_pending_payment(payment_id, fn payment, order, scope ->
+  def confirm_approved(payment_id, provider_txn_id, via \\ :charge) do
+    with_locked_pending_payment(payment_id, via, fn payment, order, scope ->
       case order.status do
         :pending_payment -> place_and_settle(payment, order, scope, provider_txn_id)
         :expired -> resurrect_or_refund(payment, order, scope, provider_txn_id)
@@ -333,8 +340,8 @@ defmodule Tabletap.Payments do
   (research/somalia-payments-waafipay-zaad.md: "5306/5309/decline
   releases the hold immediately... keep the 12-min sweeper as backstop").
   """
-  def confirm_failed(payment_id) do
-    with_locked_pending_payment(payment_id, fn payment, order, scope ->
+  def confirm_failed(payment_id, via \\ :charge) do
+    with_locked_pending_payment(payment_id, via, fn payment, order, scope ->
       {:ok, payment} = succeed_payment_as_failed(payment)
       cancel_if_still_pending(order, scope, payment)
     end)
@@ -360,14 +367,14 @@ defmodule Tabletap.Payments do
   # depend on. `fun` must return `{:ok, _} | {:error, _}`; an `{:error,
   # _}` rolls the whole transaction back (Ecto only rolls back on an
   # explicit `Repo.rollback/1`, never on an ordinary returned value).
-  defp with_locked_pending_payment(payment_id, fun) do
+  defp with_locked_pending_payment(payment_id, via, fun) do
     Repo.transaction(fn ->
       query = from(p in Payment, where: p.id == ^payment_id, lock: "FOR UPDATE")
 
       case Repo.one(query, skip_org_id: true) do
         nil -> Repo.rollback(:not_found)
         %Payment{status: status} when status != :pending -> :already_resolved
-        %Payment{} = payment -> resolve_locked_payment(payment, fun)
+        %Payment{} = payment -> resolve_locked_payment(payment, via, fun)
       end
     end)
     |> case do
@@ -376,7 +383,7 @@ defmodule Tabletap.Payments do
     end
   end
 
-  defp resolve_locked_payment(payment, fun) do
+  defp resolve_locked_payment(payment, via, fun) do
     Repo.put_org_id(payment.org_id)
     order = Repo.one(from(o in Order, where: o.id == ^payment.order_id))
     venue = Repo.one(from(v in Venue, where: v.id == ^payment.venue_id))
@@ -384,9 +391,24 @@ defmodule Tabletap.Payments do
     scope = %Scope{org: org, venue: venue, role: nil}
 
     case fun.(payment, order, scope) do
-      {:ok, value} -> value
-      {:error, reason} -> Repo.rollback(reason)
+      # No real transition happened (the order had already moved on some
+      # other way) — not a genuine confirmation, so it doesn't feed the
+      # lag telemetry below.
+      {:ok, :already_resolved} ->
+        :already_resolved
+
+      {:ok, value} ->
+        record_confirmation_lag(payment, via)
+        value
+
+      {:error, reason} ->
+        Repo.rollback(reason)
     end
+  end
+
+  defp record_confirmation_lag(payment, via) do
+    lag_ms = DateTime.diff(DateTime.utc_now(), payment.inserted_at, :millisecond)
+    :telemetry.execute([:tabletap, :payment, :confirmed], %{lag_ms: lag_ms}, %{via: via})
   end
 
   ## Refunds (build-plan.md Feature 09, design-qa.md Q4/Q22/Q23/Q35/Q37)

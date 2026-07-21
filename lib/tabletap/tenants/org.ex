@@ -41,6 +41,13 @@ defmodule Tabletap.Tenants.Org do
     # passed since this timestamp.
     field :offboarding_requested_at, :utc_datetime
 
+    # build-plan.md Feature 21 — the one org backing the synthetic
+    # order-flow health-check endpoint (`/healthz/order-flow`), so an
+    # external uptime monitor can exercise the real QR→menu code path
+    # without a real venue's data ever being involved. Excluded from
+    # `Tabletap.Admin.list_tenants/0` — an ops fixture, not a customer.
+    field :synthetic, :boolean, default: false
+
     has_many :venues, Tabletap.Tenants.Venue
     has_many :memberships, Tabletap.Tenants.Membership
 

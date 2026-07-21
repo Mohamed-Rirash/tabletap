@@ -32,6 +32,11 @@ defmodule TabletapWeb.Router do
   # No pipeline: probes hit this before any session/CSRF machinery exists.
   get "/healthz", TabletapWeb.HealthController, :show
 
+  # Same no-pipeline reasoning — a real DB round-trip through the actual
+  # QR→menu code path, against a dedicated synthetic venue, for an
+  # external uptime monitor (build-plan.md Feature 21).
+  get "/healthz/order-flow", TabletapWeb.OrderFlowHealthController, :show
+
   # No pipeline: stands in for a real S3 presigned PUT (Storage.Local),
   # which has no session/CSRF token either. Only reachable when
   # Storage.Local is the active adapter (dev without Supabase, or test).
