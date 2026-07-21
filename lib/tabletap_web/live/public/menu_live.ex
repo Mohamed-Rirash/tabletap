@@ -34,7 +34,7 @@ defmodule TabletapWeb.Public.MenuLive do
   alias Tabletap.{Catalog, Feedback, Ordering, Payments, Repo, Tenants}
   alias Tabletap.Ordering.{Cart, CartItem}
   alias Tabletap.Tenants.Venue
-  alias TabletapWeb.GuestToken
+  alias TabletapWeb.{GuestToken, RateLimiter}
 
   @impl true
   @doc """
@@ -611,6 +611,7 @@ defmodule TabletapWeb.Public.MenuLive do
           Phoenix.PubSub.subscribe(Tabletap.PubSub, "venue:#{venue.id}:ratings")
         end
 
+        client_ip = if connected?(socket), do: RateLimiter.client_ip(socket)
         guest_token = session["guest_token"]
         menu = Catalog.list_public_menu(scope)
 
@@ -637,7 +638,8 @@ defmodule TabletapWeb.Public.MenuLive do
          |> assign(:detail_submit_attempted, false)
          |> assign(:checkout_error, nil)
          |> assign(:payment_method, default_payment_method(venue))
-         |> assign(:ordering_status, ordering_status(venue))}
+         |> assign(:ordering_status, ordering_status(venue))
+         |> assign(:client_ip, client_ip)}
     end
   end
 
@@ -764,19 +766,10 @@ defmodule TabletapWeb.Public.MenuLive do
   end
 
   def handle_event("add_to_cart", %{"notes" => raw_notes}, socket) do
-    case socket.assigns.overlay do
-      {:item, item, groups} ->
-        selected_ids = socket.assigns.selected_option_ids
-
-        if Ordering.unsatisfied_groups(groups, selected_ids) != [] do
-          {:noreply, assign(socket, :detail_submit_attempted, true)}
-        else
-          do_add_to_cart(socket, item, selected_ids, raw_notes)
-        end
-
-      # Stale submit from a sheet that's already closed — graceful no-op.
-      _ ->
-        {:noreply, socket}
+    if rate_limited?(socket, :add_to_cart, max: 60, window_ms: 60_000) do
+      {:noreply, put_flash(socket, :error, gettext("Please slow down a little."))}
+    else
+      handle_add_to_cart(socket, raw_notes)
     end
   end
 
@@ -787,15 +780,19 @@ defmodule TabletapWeb.Public.MenuLive do
   end
 
   def handle_event("place_order", params, socket) do
-    scope = socket.assigns.current_scope
-    method = Map.get(params, "payment_method", "wallet")
+    if rate_limited?(socket, :checkout, max: 15, window_ms: 60_000) do
+      {:noreply, put_flash(socket, :error, gettext("Please slow down a little."))}
+    else
+      scope = socket.assigns.current_scope
+      method = Map.get(params, "payment_method", "wallet")
 
-    case Ordering.checkout(scope, socket.assigns.cart) do
-      {:ok, order} ->
-        {:noreply, checkout_succeeded(socket, scope, order, method, params["wallet_msisdn"])}
+      case Ordering.checkout(scope, socket.assigns.cart) do
+        {:ok, order} ->
+          {:noreply, checkout_succeeded(socket, scope, order, method, params["wallet_msisdn"])}
 
-      {:error, reason} ->
-        {:noreply, checkout_failed_for(socket, scope, reason)}
+        {:error, reason} ->
+          {:noreply, checkout_failed_for(socket, scope, reason)}
+      end
     end
   end
 
@@ -870,6 +867,35 @@ defmodule TabletapWeb.Public.MenuLive do
   defp group_selected_count(group, selected) do
     group_ids = MapSet.new(group.options, & &1.id)
     MapSet.intersection(selected, group_ids) |> MapSet.size()
+  end
+
+  # build-plan.md Feature 22 — generous, per-IP, per-action budgets on
+  # the guest cart/checkout path (nothing here was throttled at all
+  # before). `client_ip` is only assigned once connected (mount's own
+  # `connected?/1` guard) — missing it fails *open*, never blocking a
+  # real customer over a socket-lifecycle edge case.
+  defp rate_limited?(socket, action, opts) do
+    case socket.assigns[:client_ip] do
+      nil -> false
+      ip -> RateLimiter.check({action, ip}, opts) == :rate_limited
+    end
+  end
+
+  defp handle_add_to_cart(socket, raw_notes) do
+    case socket.assigns.overlay do
+      {:item, item, groups} ->
+        selected_ids = socket.assigns.selected_option_ids
+
+        if Ordering.unsatisfied_groups(groups, selected_ids) != [] do
+          {:noreply, assign(socket, :detail_submit_attempted, true)}
+        else
+          do_add_to_cart(socket, item, selected_ids, raw_notes)
+        end
+
+      # Stale submit from a sheet that's already closed — graceful no-op.
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   defp do_add_to_cart(socket, item, selected_ids, raw_notes) do

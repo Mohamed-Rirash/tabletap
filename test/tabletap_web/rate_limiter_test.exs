@@ -23,4 +23,27 @@ defmodule TabletapWeb.RateLimiterTest do
 
     assert RateLimiter.check(key_b) == :ok
   end
+
+  test "check/2's :max and :window_ms opts override the default budget (build-plan.md Feature 22)" do
+    key = {:test, System.unique_integer()}
+
+    results = for _ <- 1..10, do: RateLimiter.check(key, max: 10)
+    assert results == List.duplicate(:ok, 10)
+
+    assert RateLimiter.check(key, max: 10) == :rate_limited
+  end
+
+  test "client_ip_from_conn/1 prefers x-forwarded-for over the raw peer address" do
+    conn =
+      Plug.Test.conn(:get, "/")
+      |> Plug.Conn.put_req_header("x-forwarded-for", "203.0.113.7, 10.0.0.1")
+
+    assert RateLimiter.client_ip_from_conn(conn) == "203.0.113.7"
+  end
+
+  test "client_ip_from_conn/1 falls back to remote_ip with no proxy header" do
+    conn = %{Plug.Test.conn(:get, "/") | remote_ip: {127, 0, 0, 1}}
+
+    assert RateLimiter.client_ip_from_conn(conn) == "127.0.0.1"
+  end
 end

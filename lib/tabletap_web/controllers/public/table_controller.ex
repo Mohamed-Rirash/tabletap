@@ -26,8 +26,27 @@ defmodule TabletapWeb.Public.TableController do
   use TabletapWeb, :controller
 
   alias Tabletap.Tenants
+  alias TabletapWeb.RateLimiter
+
+  # Generous — a busy venue's own wifi commonly NATs many real customers
+  # behind one IP, and a legitimate table full of people scanning within
+  # the same minute is normal, not abuse (build-plan.md Feature 22).
+  @rate_limit_opts [max: 30, window_ms: 60_000]
 
   def show(conn, %{"qr_token" => qr_token}) do
+    ip = RateLimiter.client_ip_from_conn(conn)
+
+    if RateLimiter.check({:qr_scan, ip}, @rate_limit_opts) == :ok do
+      resolve_table(conn, qr_token)
+    else
+      conn
+      |> assign(:hide_utility_bar, true)
+      |> put_status(:too_many_requests)
+      |> render(:rate_limited)
+    end
+  end
+
+  defp resolve_table(conn, qr_token) do
     case Tenants.get_table_by_qr_token(qr_token) do
       nil ->
         conn
