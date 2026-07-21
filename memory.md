@@ -1,6 +1,6 @@
 # Memory — TableTap: Phases 1-6, Features 19, 20 & 21 all CLOSED. Feature 22 (Load & Security Pass) in progress, 2/3 commits.
 
-Last updated: 2026-07-21 (same session as Features 14/16/17/18/19/20: round-4 tail fixes `afe679c`, Feature 14 `81259be`, Feature 15 `79e0789`, Feature 16 `7c582ab`, Feature 17 `26d830e`, Feature 18 all 6 parts `97febd0`/`2ad60c1`/`024e181`/`738e064`/`0628638`/`e15a467`/`3fc68b4`, Feature 19 all 5 parts `465da06`/`c692fa6`/`56aed9f`/`999da23`/`257c703`, Feature 20 all 5 parts `4b8b3cb`/`7d7a449`/`56b15a5`/`2c56667`/`6824e46`, Feature 21 all 5 parts `e013583`/`5f4d952`/`ca7b623`/`f5aa078`/`9e8f99e`, Feature 22 commit 1 `e7e6aff`, commit 2 pending commit)
+Last updated: 2026-07-21 (same session as Features 14/16/17/18/19/20: round-4 tail fixes `afe679c`, Feature 14 `81259be`, Feature 15 `79e0789`, Feature 16 `7c582ab`, Feature 17 `26d830e`, Feature 18 all 6 parts `97febd0`/`2ad60c1`/`024e181`/`738e064`/`0628638`/`e15a467`/`3fc68b4`, Feature 19 all 5 parts `465da06`/`c692fa6`/`56aed9f`/`999da23`/`257c703`, Feature 20 all 5 parts `4b8b3cb`/`7d7a449`/`56b15a5`/`2c56667`/`6824e46`, Feature 21 all 5 parts `e013583`/`5f4d952`/`ca7b623`/`f5aa078`/`9e8f99e`, Feature 22 commit 1 `e7e6aff`, commit 2 `1045889`)
 
 ## What was built
 
