@@ -24,7 +24,7 @@
 | Mobile payments | None needed — wallet push | Customer submits their wallet number and approves with their PIN on the phone itself; the app just shows live payment state (no card SDK at launch) |
 | Mobile QR scanning | `expo-camera` barcode scanning | Waiter scan-to-serve + customer table scan in-app |
 | Mobile push | Expo Notifications (APNs + FCM) | Staff app: assignments/calls; customer app: order status |
-| Deploy | Fly.io or any Docker host | Single app, Postgres, one region to start |
+| Deploy | Fly.io or any Docker host | ≥2 clustered nodes (build-plan.md Feature 21) — `DNSCluster` (already Phoenix-scaffolded) discovers siblings via `DNS_CLUSTER_QUERY` (Fly.io: the app's own internal DNS name); `Phoenix.PubSub`'s default `:pg` adapter needs no further config once nodes connect, verified locally (two BEAM nodes, connected, a broadcast on one received by a subscriber on the other) |
 
 ---
 

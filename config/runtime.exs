@@ -119,6 +119,11 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
 
+  # Cluster discovery (build-plan.md Feature 21) — see the comment on
+  # DNSCluster in application.ex. Unset in dev/test; a real deploy sets
+  # this to the platform's internal DNS name (e.g. Fly.io's
+  # "<app>.internal") so every node discovers and connects to its
+  # siblings.
   config :tabletap, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :tabletap, TabletapWeb.Endpoint,
