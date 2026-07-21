@@ -10,8 +10,12 @@ defmodule TabletapWeb.Waiter.QueueLiveTest do
   import Phoenix.LiveViewTest
   import Tabletap.TenantsFixtures
 
+  alias Tabletap.Accounts.Scope
+  alias Tabletap.Catalog
   alias Tabletap.Notifications
   alias Tabletap.Notifications.PushSubscription
+  alias Tabletap.Ordering
+  alias Tabletap.Ordering.{Cart, Order, OrderStateMachine}
   alias Tabletap.Repo
 
   setup %{conn: conn} do
@@ -63,5 +67,55 @@ defmodule TabletapWeb.Waiter.QueueLiveTest do
     # the server always renders it hidden; IosInstallGate's `mounted()`
     # is what reveals it, only on a non-installed iOS Safari.
     assert html =~ ~s(class="hidden fixed inset-0 z-50")
+  end
+
+  describe "cross-tenant isolation (build-plan.md Feature 22)" do
+    defp other_org_placed_order do
+      %{org: org, venue: venue} = org_fixture()
+      Repo.put_org_id(org.id)
+      scope = %Scope{org: org, venue: venue, role: :owner}
+
+      {:ok, category} = Catalog.create_category(scope, %{"name" => "Drinks"})
+
+      {:ok, item} =
+        Catalog.create_item(scope, category, %{
+          "name" => "Latte",
+          "price" => Money.new!(:USD, "3.50")
+        })
+
+      token = Cart.generate_guest_token()
+      {:ok, cart} = Ordering.add_to_cart(scope, token, nil, item, [], 1, nil)
+      {:ok, order} = Ordering.checkout(scope, cart)
+      {:ok, order} = OrderStateMachine.transition(scope, order, :placed)
+      order
+    end
+
+    test "accept_order on another org's order id is a safe no-op, never a leak", %{conn: conn} do
+      other_order = other_org_placed_order()
+      {:ok, lv, _html} = live(conn, ~p"/waiter")
+
+      render_click(lv, "accept_order", %{"id" => other_order.id})
+
+      assert Repo.get(Order, other_order.id, skip_org_id: true).status == :placed
+      assert is_nil(Repo.get(Order, other_order.id, skip_org_id: true).waiter_membership_id)
+    end
+
+    test "claim_order on another org's order id never claims it", %{conn: conn} do
+      other_order = other_org_placed_order()
+      {:ok, lv, _html} = live(conn, ~p"/waiter")
+
+      render_click(lv, "claim_order", %{"id" => other_order.id})
+
+      assert is_nil(Repo.get(Order, other_order.id, skip_org_id: true).waiter_membership_id)
+    end
+
+    test "mark_unserveable on another org's order id is a safe no-op", %{conn: conn} do
+      other_order = other_org_placed_order()
+      {:ok, lv, _html} = live(conn, ~p"/waiter")
+
+      render_click(lv, "mark_unserveable", %{"id" => other_order.id})
+
+      refute Repo.get(Order, other_order.id, skip_org_id: true).flag
+    end
   end
 end

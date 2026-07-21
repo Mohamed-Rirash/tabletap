@@ -267,4 +267,31 @@ defmodule TabletapWeb.Kitchen.BoardLiveTest do
                "/kitchen"
     end
   end
+
+  describe "cross-tenant isolation (build-plan.md Feature 22)" do
+    test "start/mark_ready/undo on another org's order id are all safe no-ops", %{conn: conn} do
+      %{org: other_org, venue: other_venue} = org_fixture()
+      Repo.put_org_id(other_org.id)
+      other_scope = %Scope{org: other_org, venue: other_venue, role: :owner}
+
+      {:ok, other_category} = Catalog.create_category(other_scope, %{"name" => "Mains"})
+
+      {:ok, other_item} =
+        Catalog.create_item(other_scope, other_category, %{
+          "name" => "Burger",
+          "price" => Money.new!(:USD, "5.00"),
+          "prep_minutes" => 12
+        })
+
+      {other_order, _} = order_fixture(other_scope, :placed, other_item)
+
+      {:ok, lv, _html} = live(conn, ~p"/kitchen")
+
+      render_click(lv, "start", %{"id" => other_order.id})
+      render_click(lv, "mark_ready", %{"id" => other_order.id})
+      render_click(lv, "undo", %{"id" => other_order.id})
+
+      assert Repo.get(Order, other_order.id, skip_org_id: true).status == :placed
+    end
+  end
 end

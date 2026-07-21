@@ -307,4 +307,54 @@ defmodule TabletapWeb.Cashier.PosLiveTest do
       order
     end
   end
+
+  describe "cross-tenant isolation (build-plan.md Feature 22)" do
+    test "order-number lookup never crosses tenants, even on a colliding number", %{
+      conn: conn,
+      scope: scope,
+      item: item
+    } do
+      # Order numbers are sequential *per venue* (build-plan.md Feature
+      # 08) — two fresh venues both starting at #1 is the realistic
+      # worst case for this lookup, not a contrived one. Priced very
+      # differently on purpose: if the lookup ever leaked the other
+      # tenant's order, its total ($99.00) would give it away —
+      # whereas the correct behavior (each org's #1 resolves to *its
+      # own* #1) is indistinguishable from "not found" on total alone.
+      %{org: other_org, venue: other_venue} = org_fixture()
+      Repo.put_org_id(other_org.id)
+      other_scope = %Scope{org: other_org, venue: other_venue, role: :owner}
+
+      {:ok, other_category} = Catalog.create_category(other_scope, %{"name" => "Drinks"})
+
+      {:ok, other_item} =
+        Catalog.create_item(other_scope, other_category, %{
+          "name" => "Latte",
+          "price" => Money.new!(:USD, "99.00")
+        })
+
+      other_order = pending_order_from_pos(other_scope, other_item)
+
+      # Same setup as every other test in this file — a fresh order at
+      # *this* org's venue, likely with the exact same #1.
+      Repo.put_org_id(scope.org.id)
+      mine = pending_order_from_pos(scope, item)
+      assert mine.number == other_order.number
+
+      {:ok, view, _html} = live(conn, ~p"/pos")
+      view |> element("button", "Verify cash order") |> render_click()
+
+      html =
+        view
+        |> element("#pos-lookup-form")
+        |> render_submit(%{"number" => to_string(other_order.number)})
+
+      # A lookup by number legitimately finds *this org's own* order at
+      # that number (colliding numbers across tenants is expected, not
+      # a bug) — the leak to rule out is showing the other tenant's
+      # $99.00 order instead of this org's own $3.50 one.
+      assert html =~ "3.50"
+      refute html =~ "99.00"
+    end
+  end
 end
