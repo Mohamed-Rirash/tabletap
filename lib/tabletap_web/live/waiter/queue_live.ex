@@ -25,6 +25,8 @@ defmodule TabletapWeb.Waiter.QueueLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
+      <div id="audio-alert" phx-hook="AudioAlert"></div>
+
       <div class="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 class="text-xl font-bold">{@current_scope.venue.name}</h1>
@@ -412,7 +414,10 @@ defmodule TabletapWeb.Waiter.QueueLive do
   end
 
   @impl true
-  def handle_info({:order_assigned, _order_id}, socket), do: {:noreply, reload_boards(socket)}
+  def handle_info({:order_assigned, _order_id}, socket) do
+    {:noreply, socket |> push_event("play_alert", %{}) |> reload_boards()}
+  end
+
   def handle_info({:order_unassigned, _order_id}, socket), do: {:noreply, reload_boards(socket)}
   def handle_info({:order_needs_claim, _order_id}, socket), do: {:noreply, reload_boards(socket)}
   def handle_info({:order_claimed, _order_id}, socket), do: {:noreply, reload_boards(socket)}

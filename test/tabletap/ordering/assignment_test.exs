@@ -135,6 +135,30 @@ defmodule Tabletap.Ordering.AssignmentTest do
       )
     end
 
+    test "assignment also enqueues a Web Push to the assigned waiter (build-plan.md Feature 20)",
+         %{
+           scope: scope,
+           org: org,
+           item: item
+         } do
+      %{membership: free} = on_shift_waiter(scope)
+      order = placed_order(scope, item)
+
+      assert {:ok, _assigned} = Ordering.assign_waiter(scope, order, &all_alive/2)
+
+      assert_enqueued(
+        worker: Tabletap.Notifications.Workers.SendPush,
+        args: %{
+          "type" => "waiter",
+          "org_id" => org.id,
+          "membership_id" => free.id,
+          "title" => "New order",
+          "body" => "Order ##{order.number}",
+          "url" => "/waiter"
+        }
+      )
+    end
+
     test "same-table stickiness overrides lowest load (Q8)", %{scope: scope, item: item} do
       %{membership: sticky_waiter} = on_shift_waiter(scope)
       %{membership: _idle_waiter} = on_shift_waiter(scope)
@@ -381,6 +405,43 @@ defmodule Tabletap.Ordering.AssignmentTest do
       assert call.table_id == table.id
       assert call.status == :open
       assert_received {:waiter_called, _order_id}
+    end
+
+    test "notifies the assigned waiter by push too (build-plan.md Feature 20)", %{
+      scope: scope,
+      org: org,
+      item: item
+    } do
+      %{membership: waiter} = on_shift_waiter(scope)
+      table = table_fixture(scope)
+      order = placed_order(scope, item, table_id: table.id)
+      {:ok, order} = Ordering.reassign_order(scope, order, waiter.id)
+
+      assert {:ok, _call} = Ordering.call_waiter(scope, order)
+
+      assert_enqueued(
+        worker: Tabletap.Notifications.Workers.SendPush,
+        args: %{
+          "type" => "waiter",
+          "org_id" => org.id,
+          "membership_id" => waiter.id,
+          "title" => "Table needs you",
+          "body" => "Order ##{order.number}",
+          "url" => "/waiter"
+        }
+      )
+    end
+
+    test "no push when the order has no assigned waiter yet — nothing specific to push to", %{
+      scope: scope,
+      item: item
+    } do
+      table = table_fixture(scope)
+      order = placed_order(scope, item, table_id: table.id)
+
+      assert {:ok, _call} = Ordering.call_waiter(scope, order)
+
+      refute_enqueued(worker: Tabletap.Notifications.Workers.SendPush)
     end
 
     test "a pickup venue never creates a call (Q46)", %{scope: scope, venue: venue, item: item} do

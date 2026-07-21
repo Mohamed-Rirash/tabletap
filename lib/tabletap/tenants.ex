@@ -674,6 +674,30 @@ defmodule Tabletap.Tenants do
     Enum.map(memberships, &%{&1 | user: Map.fetch!(users, &1.user_id)})
   end
 
+  @doc "One membership's `user_id`, or `nil` — `Notifications.Workers.SendPush`'s own lookup from an assigned waiter's `membership_id` down to who to actually push to. Relies on ambient `Repo.put_org_id/1`, same as any other tenant-scoped read."
+  def get_membership_user_id(membership_id) do
+    Repo.one(from(m in Membership, where: m.id == ^membership_id, select: m.user_id))
+  end
+
+  @doc """
+  Every active manager or owner's `user_id` for `venue_id` — the
+  manager low-stock push audience (build-plan.md Feature 20), the same
+  reach `DashboardLive`'s own live low-stock alert already has.
+  Managers are venue-scoped; owners are org-wide (`venue_id: nil`), so
+  every owner of the venue's org is included regardless of which venue
+  they currently have selected.
+  """
+  def list_manager_and_owner_user_ids(venue_id) do
+    Repo.all(
+      from(m in Membership,
+        where:
+          m.active == true and m.role in [:manager, :owner] and
+            (m.venue_id == ^venue_id or is_nil(m.venue_id)),
+        select: m.user_id
+      )
+    )
+  end
+
   ## Staff invites (tenant-scoped creation; token lookup/acceptance are
   ## public — skip_org_id, since no scope exists yet for a brand-new hire)
 

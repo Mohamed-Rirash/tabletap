@@ -24,6 +24,7 @@ defmodule Tabletap.Ordering do
   alias Tabletap.Accounts.Scope
   alias Tabletap.Catalog
   alias Tabletap.Catalog.{DailyItemLimit, MenuItem}
+  alias Tabletap.Notifications.Workers.SendPush
   alias Tabletap.Ordering.{Cart, CartItem, CartItemOption, Order, OrderDiscount, OrderItem}
   alias Tabletap.Ordering.{OrderItemModifier, OrderNumberCounter, OrderStateMachine}
   alias Tabletap.Ordering.{Totals, WaiterCall}
@@ -831,6 +832,8 @@ defmodule Tabletap.Ordering do
       {:order_assigned, order.id}
     )
 
+    enqueue_waiter_push(order, membership_id, "New order", "Order ##{order.number}")
+
     # The solo-waiter shortcut accepts immediately — no window to enforce.
     unless Keyword.get(opts, :notify_only, false) do
       %{order_id: order.id, org_id: order.org_id, assigned_membership_id: membership_id}
@@ -842,6 +845,25 @@ defmodule Tabletap.Ordering do
     end
 
     {:ok, order}
+  end
+
+  # build-plan.md Feature 20 — Web Push for the waiter, mirroring the
+  # existing `waiter:<id>` PubSub broadcast right above every call site:
+  # same audience, same trigger, a second delivery channel for when the
+  # tab isn't open/the phone is locked. `org_id` rides along so the
+  # worker (no request scope of its own) can set `Repo.put_org_id/1`
+  # before resolving the membership → user_id.
+  defp enqueue_waiter_push(order, membership_id, title, body) do
+    %{
+      "type" => "waiter",
+      "org_id" => order.org_id,
+      "membership_id" => membership_id,
+      "title" => title,
+      "body" => body,
+      "url" => "/waiter"
+    }
+    |> SendPush.new()
+    |> Oban.insert()
   end
 
   @doc """
@@ -1169,6 +1191,20 @@ defmodule Tabletap.Ordering do
           else: "venue:#{venue.id}:claim_board"
 
       Phoenix.PubSub.broadcast(Tabletap.PubSub, topic, {:waiter_called, order.id})
+
+      # Only when there's a specific waiter to push to — an unassigned
+      # call already goes to the claim board's own in-app-only channel
+      # above, and there's no single "the claim board" device to push a
+      # notification at.
+      if order.waiter_membership_id do
+        enqueue_waiter_push(
+          order,
+          order.waiter_membership_id,
+          "Table needs you",
+          "Order ##{order.number}"
+        )
+      end
+
       {:ok, call}
     end
   end

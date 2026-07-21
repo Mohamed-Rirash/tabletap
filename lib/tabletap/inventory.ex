@@ -13,10 +13,11 @@ defmodule Tabletap.Inventory do
   (Q27) the same way — public functions, never their Repo queries.
 
   Plan gating (role-features.md: ingredients/stock ops/alerts/stocktake
-  are Growth+) is deliberately not enforced here — build-plan.md
-  Feature 19 owns "Inventory ... nav/routes check `org.plan` via a
-  `Plans` context helper," which doesn't exist yet. This context and its
-  UI are fully built and usable by any org until that gate lands.
+  are Growth+) lives at the route level (`TabletapWeb.PlanHooks
+  :inventory`, `UserAuth.require_inventory_feature/2`, build-plan.md
+  Feature 19) — this context itself stays plan-agnostic, same as every
+  other context (`Ordering`, `Catalog`, ...) never checks `org.plan`
+  on its own.
   """
 
   import Ecto.Query, warn: false
@@ -33,6 +34,7 @@ defmodule Tabletap.Inventory do
     StocktakeSession
   }
 
+  alias Tabletap.Notifications.Workers.SendPush
   alias Tabletap.Ordering
   alias Tabletap.Ordering.Order
   alias Tabletap.Repo
@@ -210,8 +212,12 @@ defmodule Tabletap.Inventory do
     })
   end
 
-  defp after_movement({:ok, %{movement: movement}}, %Scope{venue: venue} = scope, ingredient_id) do
-    broadcast_if_low_stock(venue.id, ingredient_id)
+  defp after_movement(
+         {:ok, %{movement: movement}},
+         %Scope{org: org, venue: venue} = scope,
+         ingredient_id
+       ) do
+    broadcast_if_low_stock(org.id, venue.id, ingredient_id)
     # A restock/positive adjustment can only make things more fulfillable
     # — only a net decrease is ever worth an auto-86 check.
     if Decimal.negative?(movement.qty_delta), do: maybe_auto_86(scope, [ingredient_id])
@@ -281,11 +287,11 @@ defmodule Tabletap.Inventory do
 
   # `venue:<id>:inventory` — the low-stock ping the build-plan verify
   # step describes ("dropping cheese below threshold pings the manager
-  # dashboard live"). No push/toast system exists yet (Feature 20); this
-  # is the live PubSub half any manager-facing inventory view subscribes
-  # to, same pattern `venue:<id>:orders`/`venue:<id>:claim_board` already
-  # use elsewhere.
-  defp broadcast_if_low_stock(venue_id, ingredient_id) do
+  # dashboard live"). This is the live PubSub half any manager-facing
+  # inventory view subscribes to, same pattern `venue:<id>:orders`/
+  # `venue:<id>:claim_board` already use elsewhere; the Web Push half
+  # (build-plan.md Feature 20) is the `SendPush` enqueue right below.
+  defp broadcast_if_low_stock(org_id, venue_id, ingredient_id) do
     ingredient = Repo.get(Ingredient, ingredient_id)
 
     if low_stock?(ingredient) do
@@ -299,6 +305,17 @@ defmodule Tabletap.Inventory do
         ingredient_id: ingredient.id,
         venue_id: venue_id
       })
+
+      %{
+        "type" => "low_stock",
+        "org_id" => org_id,
+        "venue_id" => venue_id,
+        "title" => "Low stock",
+        "body" => "#{ingredient.name} is running low",
+        "url" => "/inventory"
+      }
+      |> SendPush.new()
+      |> Oban.insert()
     end
   end
 
@@ -431,7 +448,7 @@ defmodule Tabletap.Inventory do
         # "Low-stock detection on every deduction" (build-plan.md Feature
         # 13) — the sale path, not just restock/adjust/wastage.
         ingredient_ids = Enum.map(movements, & &1.ingredient_id)
-        Enum.each(ingredient_ids, &broadcast_if_low_stock(venue.id, &1))
+        Enum.each(ingredient_ids, &broadcast_if_low_stock(org.id, venue.id, &1))
         maybe_auto_86(scope, ingredient_ids)
         movements
     end

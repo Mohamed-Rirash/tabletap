@@ -27,12 +27,13 @@ import topbar from "../vendor/topbar"
 import Uploaders from "./uploaders"
 import QrScanner from "./hooks/qr_scanner"
 import PushSubscription from "./hooks/push_subscription"
+import AudioAlert from "./hooks/audio_alert"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, QrScanner, PushSubscription},
+  hooks: {...colocatedHooks, QrScanner, PushSubscription, AudioAlert},
   uploaders: Uploaders,
 })
 

@@ -40,6 +40,13 @@ defmodule Tabletap.DataCase do
   def setup_sandbox(tags) do
     pid = Sandbox.start_owner!(Tabletap.Repo, shared: not tags[:async])
     on_exit(fn -> Sandbox.stop_owner(pid) end)
+
+    # Tabletap.ObanRepo is a separate repo/connection pool onto the same
+    # database (lib/tabletap/oban_repo.ex) — without its own sandbox
+    # owner, `Oban.insert/1` calls in tests commit for real instead of
+    # rolling back at the end of the test.
+    oban_pid = Sandbox.start_owner!(Tabletap.ObanRepo, shared: not tags[:async])
+    on_exit(fn -> Sandbox.stop_owner(oban_pid) end)
   end
 
   @doc """
