@@ -26,12 +26,13 @@ import {hooks as colocatedHooks} from "phoenix-colocated/tabletap"
 import topbar from "../vendor/topbar"
 import Uploaders from "./uploaders"
 import QrScanner from "./hooks/qr_scanner"
+import PushSubscription from "./hooks/push_subscription"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, QrScanner},
+  hooks: {...colocatedHooks, QrScanner, PushSubscription},
   uploaders: Uploaders,
 })
 

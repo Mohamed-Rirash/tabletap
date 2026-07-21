@@ -123,3 +123,9 @@ config :tabletap, :waafipay,
   platform_merchant_uid: "dev-platform-merchant",
   platform_api_user_id: "dev-platform-api-user",
   platform_api_key: "dev-platform-api-key"
+
+# Dev-only VAPID private key (build-plan.md Feature 20) — pairs with
+# the public key in config.exs; real, generated, but never used against
+# a real user's browser outside this checkout. Never the prod key,
+# which comes from an env var (runtime.exs).
+config :web_push_ex, :vapid, private_key: "lTSTKeCYxZ_MFHF69n3pfu6PQITXj78AIXGYbWWJ9DE"

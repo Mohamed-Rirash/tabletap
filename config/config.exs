@@ -185,6 +185,17 @@ config :tabletap, Tabletap.Payments, provider: Tabletap.Payments.Adapters.WaafiP
 # Plan definitions (build-plan.md Feature 19) — see config/plans.exs.
 import_config "plans.exs"
 
+# web_push_ex's VAPID identity (build-plan.md Feature 20). Public key +
+# subject aren't secret (the public key is handed to every subscribing
+# browser as `applicationServerKey`) — safe here. The private key is
+# per-env only: dev.exs/test.exs hardcode a dev-only pair (mirrors the
+# WaafiPay sandbox precedent), runtime.exs's prod block reads it from
+# an env var.
+config :web_push_ex, :vapid,
+  public_key:
+    "BDqIRZxBbNSpXMo5QCa5cZdib4D_m1zt_qGSjb38ekojiIGKMGcWRognpMs0LGgkKU3ShdEiB7QA684ZV0liXF8",
+  subject: "mailto:webpush@tabletap.example"
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

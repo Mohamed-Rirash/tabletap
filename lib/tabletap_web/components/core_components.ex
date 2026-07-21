@@ -567,6 +567,33 @@ defmodule TabletapWeb.CoreComponents do
 
   def subscription_banner(assigns), do: ~H""
 
+  @doc """
+  "Enable notifications" opt-in (build-plan.md Feature 20) — shared
+  between `Waiter.QueueLive` and `Manager.DashboardLive`, the only two
+  surfaces Web Push targets (waiter new-order/call, manager low-stock).
+  The `PushSubscription` JS hook does the actual
+  `pushManager.subscribe()` call on click (a real user gesture is
+  required — browsers ignore/block the permission prompt otherwise)
+  and reports the result back via a `"push_subscribe"` event; the
+  caller's own `handle_event/3` is what actually persists it
+  (`Tabletap.Notifications.subscribe/2`).
+
+  ## Examples
+
+      <.push_subscribe_button vapid_public_key={Notifications.vapid_public_key()} />
+  """
+  attr :vapid_public_key, :string, required: true
+
+  def push_subscribe_button(assigns) do
+    ~H"""
+    <div id="push-subscription" phx-hook="PushSubscription" data-vapid-public-key={@vapid_public_key}>
+      <button type="button" data-action="subscribe" class="btn btn-sm btn-outline">
+        <.icon name="hero-bell" class="size-4" /> {gettext("Enable notifications")}
+      </button>
+    </div>
+    """
+  end
+
   defp trial_days_left(%Org{trial_ends_at: trial_ends_at}) do
     trial_ends_at |> DateTime.diff(DateTime.utc_now(), :day) |> max(0)
   end

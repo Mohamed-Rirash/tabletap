@@ -80,4 +80,18 @@ config :tabletap, :waafipay,
   platform_api_user_id: "test-platform-api-user",
   platform_api_key: "test-platform-api-key"
 
+# Same dev-only VAPID pair as dev.exs (build-plan.md Feature 20) — only
+# needed so WebPushEx.request/2 can sign a JWT; no test ever lets the
+# resulting request actually reach a network (Req.Test stub, mirrors
+# code-standards.md's "no test hits a real provider API").
+config :web_push_ex, :vapid, private_key: "lTSTKeCYxZ_MFHF69n3pfu6PQITXj78AIXGYbWWJ9DE"
+
 config :tabletap, Tabletap.Payments, provider: Tabletap.Payments.ProviderMock
+
+# Routes Notifications.send_push/2's Req.post/2 call through a Req.Test
+# stub instead of the real network (build-plan.md Feature 20) — same
+# "no test hits a real provider" discipline as the WaafiPay mock above,
+# via Req's own built-in test plug rather than a hand-rolled Mox
+# behaviour (no adapter-swap seam exists for a single function like
+# this the way Payments.provider/0 has for the whole WaafiPay client).
+config :tabletap, :web_push_req_options, plug: {Req.Test, Tabletap.Notifications}

@@ -18,7 +18,7 @@ defmodule TabletapWeb.Waiter.QueueLive do
   """
   use TabletapWeb, :live_view
 
-  alias Tabletap.{Ordering, Staffing}
+  alias Tabletap.{Notifications, Ordering, Staffing}
   alias TabletapWeb.Presence
 
   @impl true
@@ -47,6 +47,8 @@ defmodule TabletapWeb.Waiter.QueueLive do
           {gettext("End shift")}
         </button>
       </div>
+
+      <.push_subscribe_button vapid_public_key={@vapid_public_key} />
 
       <div :if={!@on_shift} class="rounded-box bg-base-100 border border-base-300 p-6 text-center">
         <.icon name="hero-clock" class="size-8 mx-auto opacity-40" />
@@ -256,10 +258,16 @@ defmodule TabletapWeb.Waiter.QueueLive do
      |> assign(:tab, :queue)
      |> assign(:called_order_ids, MapSet.new())
      |> assign(:scanning_order_id, nil)
+     |> assign(:vapid_public_key, Notifications.vapid_public_key())
      |> reload_boards()}
   end
 
   @impl true
+  def handle_event("push_subscribe", params, socket) do
+    Notifications.subscribe(socket.assigns.current_scope.user, params)
+    {:noreply, socket}
+  end
+
   def handle_event("clock_in", _params, socket) do
     scope = socket.assigns.current_scope
 

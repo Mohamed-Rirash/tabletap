@@ -216,6 +216,12 @@ if config_env() == :prod do
     # authenticates money-moving webhooks.
     webhook_secret: System.fetch_env!("WAAFIPAY_WEBHOOK_SECRET")
 
+  # web_push_ex's VAPID private key (build-plan.md Feature 20) — the
+  # public key + subject are non-secret and live in config.exs
+  # unconditionally; only the private key needs to stay out of source
+  # control, same split as the WaafiPay platform credentials above.
+  config :web_push_ex, :vapid, private_key: System.fetch_env!("WEB_PUSH_VAPID_PRIVATE_KEY")
+
   # Real transactional email provider — magic-link auth depends on
   # deliverability (design-qa.md Q47). Swap the adapter below for
   # whichever provider is set up (Postmark shown; SES also approved).

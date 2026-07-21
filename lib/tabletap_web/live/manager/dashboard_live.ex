@@ -25,6 +25,7 @@ defmodule TabletapWeb.Manager.DashboardLive do
   use TabletapWeb, :live_view
 
   alias Tabletap.Analytics
+  alias Tabletap.Notifications
   alias Tabletap.Tenants
   alias Tabletap.Tenants.Venue
 
@@ -46,6 +47,7 @@ defmodule TabletapWeb.Manager.DashboardLive do
           </p>
           <h1 class="text-2xl font-bold">{@current_scope.venue.name}</h1>
         </div>
+        <.push_subscribe_button vapid_public_key={@vapid_public_key} />
       </div>
 
       <.today_tiles today={@today} ops={@ops} locale={@current_scope.venue.locale} />
@@ -341,10 +343,16 @@ defmodule TabletapWeb.Manager.DashboardLive do
      |> assign(:hide_utility_bar, true)
      |> assign(:venues, Tenants.list_venues(scope))
      |> assign(:eta_factors, @eta_factors)
+     |> assign(:vapid_public_key, Notifications.vapid_public_key())
      |> load_today()}
   end
 
   @impl true
+  def handle_event("push_subscribe", params, socket) do
+    Notifications.subscribe(socket.assigns.current_scope.user, params)
+    {:noreply, socket}
+  end
+
   def handle_event("pause_ordering", %{"minutes" => "indefinite"}, socket) do
     {:noreply, do_pause(socket, :indefinite)}
   end

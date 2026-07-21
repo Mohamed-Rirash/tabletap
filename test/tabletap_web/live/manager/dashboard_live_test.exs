@@ -88,6 +88,28 @@ defmodule TabletapWeb.Manager.DashboardLiveTest do
       refute html =~ "Reactivate"
     end
 
+    test "shows the enable-notifications button and persists a subscription (build-plan.md Feature 20)",
+         %{
+           conn: conn,
+           user: user
+         } do
+      {:ok, lv, html} = live(conn, ~p"/dashboard")
+      assert html =~ "Enable notifications"
+
+      render_hook(lv, "push_subscribe", %{
+        "endpoint" => "https://push.example.com/manager-1",
+        "p256dh" =>
+          "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM",
+        "auth" => "tBHItJI5svbpez7KI4CCXg",
+        "user_agent" => "Test/1.0"
+      })
+
+      assert [subscription] =
+               Tabletap.Repo.all(Tabletap.Notifications.PushSubscription, skip_org_id: true)
+
+      assert subscription.user_id == user.id
+    end
+
     test "hides the venue switcher with only one venue", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/dashboard")
 
