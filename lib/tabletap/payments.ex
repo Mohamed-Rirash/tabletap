@@ -23,7 +23,16 @@ defmodule Tabletap.Payments do
   alias Tabletap.Accounts.Scope
   alias Tabletap.Ordering
   alias Tabletap.Ordering.{Order, OrderDiscount, OrderStateMachine}
-  alias Tabletap.Payments.{Payment, PlatformFeeLedgerEntry, Refund, ZReport, ZReportCashCount}
+
+  alias Tabletap.Payments.{
+    GatewayHealth,
+    Payment,
+    PlatformFeeLedgerEntry,
+    Refund,
+    ZReport,
+    ZReportCashCount
+  }
+
   alias Tabletap.Plans
   alias Tabletap.Payments.Workers.ChargeOrder
   alias Tabletap.Repo
@@ -157,20 +166,43 @@ defmodule Tabletap.Payments do
   neither success nor failure — the payment stays `pending` and the
   reconciliation poller (`Workers.ReconcilePendingPayments`) is the
   guaranteed path from there (library-docs.md).
+
+  Also feeds `GatewayHealth` (build-plan.md Feature 21's degradation
+  banner) — a real response, whatever it says, means the gateway is up
+  (`record_success/0`); only a connectivity-shaped outcome (`:timeout`,
+  or the ambiguous dropped-connection/HTTP-error bucket) counts as a
+  gateway-health failure. A business-level decline
+  (`:rejected`/`:insufficient_funds`) or a venue credential problem
+  (`:invalid_credentials`) is the gateway answering correctly — never
+  treated as the gateway being down.
   """
   def resolve_charge_result(payment_id, {:ok, %{provider_txn_id: txn_id, state: :approved}}) do
+    GatewayHealth.record_success()
     confirm_approved(payment_id, txn_id)
   end
 
+  def resolve_charge_result(payment_id, {:error, :timeout}) do
+    GatewayHealth.record_failure()
+    confirm_failed(payment_id)
+  end
+
   def resolve_charge_result(payment_id, {:error, reason}) when reason in @definitive_failures do
+    GatewayHealth.record_success()
     confirm_failed(payment_id)
   end
 
   def resolve_charge_result(payment_id, {:error, {:provider, _code}}) do
+    GatewayHealth.record_success()
     confirm_failed(payment_id)
   end
 
-  def resolve_charge_result(_payment_id, {:error, _ambiguous}), do: :ok
+  def resolve_charge_result(_payment_id, {:error, _ambiguous}) do
+    GatewayHealth.record_failure()
+    :ok
+  end
+
+  @doc "Whether the wallet gateway looks unreachable right now (build-plan.md Feature 21's degradation banner) — drives the manager-facing warning, never gates checkout itself."
+  def gateway_degraded?, do: GatewayHealth.degraded?()
 
   @doc """
   APPROVED confirmation — idempotent, callable from the charge worker,

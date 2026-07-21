@@ -33,6 +33,7 @@ defmodule Tabletap.Application do
       {Oban, Application.fetch_env!(:tabletap, Oban)},
       Tabletap.Vault,
       TabletapWeb.RateLimiter,
+      Tabletap.Payments.GatewayHealth,
       # Start to serve requests, typically the last entry
       TabletapWeb.Endpoint
     ]

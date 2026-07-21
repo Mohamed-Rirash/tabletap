@@ -568,6 +568,28 @@ defmodule TabletapWeb.CoreComponents do
   def subscription_banner(assigns), do: ~H""
 
   @doc """
+  Payment-gateway degradation banner (build-plan.md Feature 21) —
+  rendered by `Layouts.manager` on every back-office page whenever
+  `Payments.gateway_degraded?/0` reports 3+ consecutive connectivity
+  failures. A courtesy notice, not a checkout gate: wallet payments
+  keep being attempted regardless (the reconciliation poller doesn't
+  depend on this at all) — this just sets an honest expectation while
+  cash keeps the venue serving.
+  """
+  def gateway_degraded_banner(assigns) do
+    ~H"""
+    <div class="alert alert-warning mb-4">
+      <.icon name="hero-signal-slash" class="size-5" />
+      <span>
+        {gettext(
+          "Wallet payments look unreachable right now — customers may see delays or failures. Cash keeps working."
+        )}
+      </span>
+    </div>
+    """
+  end
+
+  @doc """
   "Enable notifications" opt-in (build-plan.md Feature 20) — shared
   between `Waiter.QueueLive` and `Manager.DashboardLive`, the only two
   surfaces Web Push targets (waiter new-order/call, manager low-stock).

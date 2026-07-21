@@ -5,6 +5,7 @@ defmodule TabletapWeb.Layouts do
   """
   use TabletapWeb, :html
 
+  alias Tabletap.Payments
   alias Tabletap.Plans
 
   # Embed all files in layouts/* within this module.
@@ -112,6 +113,11 @@ defmodule TabletapWeb.Layouts do
   slot :inner_block, required: true
 
   def manager(assigns) do
+    # Cheap ETS read, not a DB call — safe on every render of a layout
+    # every manager-role page shares (build-plan.md Feature 21's
+    # degradation banner).
+    assigns = assign(assigns, :gateway_degraded?, Payments.gateway_degraded?())
+
     ~H"""
     <div class="flex min-h-screen">
       <aside class="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col border-r border-base-300 bg-base-100">
@@ -348,6 +354,7 @@ defmodule TabletapWeb.Layouts do
         <main class="flex-1 overflow-y-auto bg-base-200 px-4 py-6 sm:px-6 lg:px-8">
           <div class="mx-auto max-w-5xl">
             <.subscription_banner org={@current_scope.org} />
+            <.gateway_degraded_banner :if={@gateway_degraded?} />
             {render_slot(@inner_block)}
           </div>
         </main>
