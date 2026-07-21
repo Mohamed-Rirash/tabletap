@@ -4,6 +4,9 @@ defmodule TabletapWeb.Manager.DashboardLiveTest do
   import Phoenix.LiveViewTest
   import Tabletap.TenantsFixtures
 
+  alias Tabletap.{Catalog, Ordering, Tenants}
+  alias Tabletap.Ordering.{Cart, OrderStateMachine}
+
   describe "access control" do
     test "redirects to log in when not authenticated", %{conn: conn} do
       assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/dashboard")
@@ -43,6 +46,45 @@ defmodule TabletapWeb.Manager.DashboardLiveTest do
       assert html =~ "Open orders now"
       assert html =~ "No open orders right now."
       assert html =~ "Nothing needs your attention."
+    end
+
+    test "shows the onboarding checklist on a fresh venue, venue info already checked (build-plan.md Feature 20)",
+         %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/dashboard")
+
+      assert html =~ "Get your venue live"
+      assert html =~ "Venue info added"
+      assert html =~ "Wallet merchant set up"
+      assert html =~ "Menu created"
+      assert html =~ "Tables added"
+      assert html =~ "First order placed"
+    end
+
+    test "hides the onboarding checklist once every step is done (build-plan.md Feature 20)", %{
+      conn: conn,
+      org: org,
+      scope: scope
+    } do
+      Tabletap.Repo.put_org_id(org.id)
+      {:ok, venue} = Tenants.mark_charges_enabled(scope.venue)
+      scope = %{scope | venue: venue}
+      {:ok, _table} = Tenants.create_table(scope, %{"number" => "1"})
+      {:ok, category} = Catalog.create_category(scope, %{"name" => "Drinks"})
+
+      {:ok, item} =
+        Catalog.create_item(scope, category, %{
+          "name" => "Latte",
+          "price" => Money.new!(:USD, "3.50")
+        })
+
+      token = Cart.generate_guest_token()
+      {:ok, cart} = Ordering.add_to_cart(scope, token, nil, item, [], 1, nil)
+      {:ok, order} = Ordering.checkout(scope, cart)
+      {:ok, _placed} = OrderStateMachine.transition(scope, order, :placed)
+
+      {:ok, _lv, html} = live(conn, ~p"/dashboard")
+
+      refute html =~ "Get your venue live"
     end
 
     test "renders TableTap's own chrome, not the Phoenix generator's placeholder header",

@@ -50,6 +50,8 @@ defmodule TabletapWeb.Manager.DashboardLive do
         <.push_subscribe_button vapid_public_key={@vapid_public_key} />
       </div>
 
+      <.onboarding_checklist :if={!@onboarding.complete?} steps={@onboarding.steps} />
+
       <.today_tiles today={@today} ops={@ops} locale={@current_scope.venue.locale} />
 
       <div class="mt-6 grid gap-6 lg:grid-cols-3">
@@ -128,6 +130,36 @@ defmodule TabletapWeb.Manager.DashboardLive do
     </Layouts.manager>
     """
   end
+
+  # Onboarding checklist (build-plan.md Feature 20) — hidden once
+  # `Analytics.onboarding_checklist/1` reports every step done; same
+  # conditional-visibility shape `<.subscription_banner>` already
+  # established (Feature 19), just page-scoped here instead of
+  # layout-wide, since this only concerns a fresh venue.
+  attr :steps, :list, required: true
+
+  defp onboarding_checklist(assigns) do
+    ~H"""
+    <div class="mt-6 rounded-box border border-base-300 bg-base-100 p-4">
+      <h2 class="font-semibold mb-3">{gettext("Get your venue live")}</h2>
+      <ul class="space-y-2 text-sm">
+        <li :for={{step, done?} <- @steps} class="flex items-center gap-2">
+          <.icon
+            name={if done?, do: "hero-check-circle", else: "hero-minus-circle"}
+            class={["size-4 shrink-0", done? && "text-success", !done? && "text-base-content/30"]}
+          />
+          <span class={!done? && "text-base-content/70"}>{onboarding_step_label(step)}</span>
+        </li>
+      </ul>
+    </div>
+    """
+  end
+
+  defp onboarding_step_label(:venue_info), do: gettext("Venue info added")
+  defp onboarding_step_label(:wallet_setup), do: gettext("Wallet merchant set up")
+  defp onboarding_step_label(:menu), do: gettext("Menu created")
+  defp onboarding_step_label(:tables), do: gettext("Tables added")
+  defp onboarding_step_label(:first_order), do: gettext("First order placed")
 
   ## Screen 1 tiles (owner-dashboard.md)
 
@@ -459,6 +491,7 @@ defmodule TabletapWeb.Manager.DashboardLive do
     |> assign(:alerts, alerts)
     |> assign(:open_orders, Tabletap.Ordering.list_kitchen_orders(scope))
     |> assign(:delayed_order_ids, MapSet.new(alerts.delayed_orders, & &1.id))
+    |> assign(:onboarding, Analytics.onboarding_checklist(scope))
   end
 
   defp channel_breakdown_label(channel_mix) when map_size(channel_mix) == 0,

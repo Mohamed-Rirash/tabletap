@@ -570,6 +570,28 @@ defmodule Tabletap.Analytics do
     }
   end
 
+  @doc """
+  Onboarding checklist for a fresh venue (build-plan.md Feature 20) —
+  every step derives from data that already exists, no new schema.
+  `Manager.DashboardLive` shows the widget only while `complete?` is
+  false; the "venue info" step is unconditionally done (a venue can't
+  exist without its identity/regional fields, Feature 03) — kept as a
+  step anyway so the checklist starts with a win, not four blanks.
+  "Tables" only applies to `:waiter`-mode venues; a `:pickup` venue has
+  no floor to set up, so that step is vacuously complete for one.
+  """
+  def onboarding_checklist(%Scope{venue: venue} = scope) do
+    steps = [
+      {:venue_info, true},
+      {:wallet_setup, venue.charges_enabled},
+      {:menu, Enum.any?(Catalog.list_menu(scope), fn {_category, items} -> items != [] end)},
+      {:tables, venue.fulfillment_mode == :pickup or Tenants.list_tables(scope) != []},
+      {:first_order, Ordering.any_order_placed?(scope)}
+    ]
+
+    %{steps: steps, complete?: Enum.all?(steps, fn {_step, done?} -> done? end)}
+  end
+
   defp queue_orders_with_items(venue_id) do
     Repo.all(
       from(o in Order,

@@ -23,6 +23,7 @@ defmodule Tabletap.AnalyticsTest do
   alias Tabletap.Payments
   alias Tabletap.Repo
   alias Tabletap.Staffing
+  alias Tabletap.Tenants
 
   setup do
     %{org: org, venue: venue, membership: owner, user: owner_user} = org_fixture()
@@ -892,6 +893,108 @@ defmodule Tabletap.AnalyticsTest do
       totals = Analytics.org_totals(rows)
       assert totals.venue_count == 2
       assert totals.order_count == 2
+    end
+  end
+
+  describe "onboarding_checklist/1 (build-plan.md Feature 20)" do
+    # A genuinely fresh scope, not the module `setup`'s (which already
+    # creates a category/item) — the whole point here is "nothing done
+    # yet."
+    defp fresh_scope do
+      %{org: org, venue: venue, membership: owner} = org_fixture()
+      Repo.put_org_id(org.id)
+      %Scope{org: org, venue: venue, role: :owner, membership: owner}
+    end
+
+    test "a fresh :waiter-mode venue is missing every step but venue_info" do
+      result = Analytics.onboarding_checklist(fresh_scope())
+
+      assert result.steps == [
+               venue_info: true,
+               wallet_setup: false,
+               menu: false,
+               tables: false,
+               first_order: false
+             ]
+
+      refute result.complete?
+    end
+
+    test "wallet_setup flips once charges_enabled is true" do
+      scope = fresh_scope()
+      {:ok, venue} = Tenants.mark_charges_enabled(scope.venue)
+      scope = %{scope | venue: venue}
+
+      assert Keyword.fetch!(Analytics.onboarding_checklist(scope).steps, :wallet_setup)
+    end
+
+    test "menu flips once a category has at least one item" do
+      scope = fresh_scope()
+      {:ok, category} = Catalog.create_category(scope, %{"name" => "Drinks"})
+      refute Keyword.fetch!(Analytics.onboarding_checklist(scope).steps, :menu)
+
+      {:ok, _item} =
+        Catalog.create_item(scope, category, %{
+          "name" => "Latte",
+          "price" => Money.new!(:USD, "3.50")
+        })
+
+      assert Keyword.fetch!(Analytics.onboarding_checklist(scope).steps, :menu)
+    end
+
+    test "tables flips once a table exists" do
+      scope = fresh_scope()
+      {:ok, _table} = Tenants.create_table(scope, %{"number" => "1"})
+
+      assert Keyword.fetch!(Analytics.onboarding_checklist(scope).steps, :tables)
+    end
+
+    test "tables is vacuously true for a :pickup-mode venue — no floor to set up" do
+      scope = fresh_scope()
+
+      {:ok, venue} =
+        scope.venue |> Ecto.Changeset.change(fulfillment_mode: :pickup) |> Repo.update()
+
+      scope = %{scope | venue: venue}
+
+      assert Keyword.fetch!(Analytics.onboarding_checklist(scope).steps, :tables)
+    end
+
+    test "first_order flips once any order is checked out — even one later cancelled" do
+      scope = fresh_scope()
+      {:ok, category} = Catalog.create_category(scope, %{"name" => "Drinks"})
+
+      {:ok, item} =
+        Catalog.create_item(scope, category, %{
+          "name" => "Latte",
+          "price" => Money.new!(:USD, "3.50")
+        })
+
+      refute Keyword.fetch!(Analytics.onboarding_checklist(scope).steps, :first_order)
+
+      order = checked_out(scope, item)
+      {:ok, _placed} = OrderStateMachine.transition(scope, order, :placed)
+
+      assert Keyword.fetch!(Analytics.onboarding_checklist(scope).steps, :first_order)
+    end
+
+    test "complete? is true once every step is done" do
+      scope = fresh_scope()
+      {:ok, venue} = Tenants.mark_charges_enabled(scope.venue)
+      scope = %{scope | venue: venue}
+      {:ok, _table} = Tenants.create_table(scope, %{"number" => "1"})
+      {:ok, category} = Catalog.create_category(scope, %{"name" => "Drinks"})
+
+      {:ok, item} =
+        Catalog.create_item(scope, category, %{
+          "name" => "Latte",
+          "price" => Money.new!(:USD, "3.50")
+        })
+
+      order = checked_out(scope, item)
+      {:ok, _placed} = OrderStateMachine.transition(scope, order, :placed)
+
+      assert Analytics.onboarding_checklist(scope).complete?
     end
   end
 end

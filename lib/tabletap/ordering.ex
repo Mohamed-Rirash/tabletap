@@ -1066,6 +1066,19 @@ defmodule Tabletap.Ordering do
     )
   end
 
+  @doc """
+  Whether this venue has ever had a real order — the onboarding
+  checklist's "first order" step (build-plan.md Feature 20). Any status
+  past `:pending_payment` counts, even one later cancelled/refunded:
+  the milestone is "a customer successfully placed an order," not
+  "...and it was served."
+  """
+  def any_order_placed?(%Scope{venue: venue}) do
+    Repo.exists?(
+      from(o in Order, where: o.venue_id == ^venue.id and o.status != :pending_payment)
+    )
+  end
+
   ## Kitchen board (build-plan.md Feature 14; design-qa.md Q25/Q27)
 
   @doc """
