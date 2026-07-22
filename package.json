@@ -1,0 +1,8 @@
+{
+  "name": "tabletap",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

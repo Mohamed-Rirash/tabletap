@@ -35,6 +35,11 @@ tabletap-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# apps/customer (build-plan.md Feature 24) + packages/shared — npm
+# workspaces root; each app also carries its own .gitignore for
+# Expo-specific artifacts (.expo/, dist/, expo-env.d.ts).
+node_modules/
+
 
 # Local Claude Code settings and installed plugin skills (not app code)
 /.claude/settings.local.json
