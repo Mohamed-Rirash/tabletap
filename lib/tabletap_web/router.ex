@@ -36,6 +36,16 @@ defmodule TabletapWeb.Router do
     plug :require_authenticated_api_user
   end
 
+  pipeline :require_api_waiter do
+    plug :assign_scope
+    plug :require_api_role, [:waiter]
+  end
+
+  pipeline :require_api_manager do
+    plug :assign_scope
+    plug :require_api_role, [:manager, :owner]
+  end
+
   # Restores an existing guest_token cookie into the session (build-plan.md
   # Feature 07) — scoped to public customer routes only, not staff pages.
   pipeline :guest_token do
@@ -89,6 +99,21 @@ defmodule TabletapWeb.Router do
     post "/venues/:slug/cart/items", CartController, :add_item
     post "/orders", OrderController, :create
     get "/orders/:guest_token", OrderController, :show
+  end
+
+  # Staff flow (build-plan.md Feature 23 Commit 4) — bearer-token
+  # protected, scope built from the authenticated user's own membership.
+  scope "/api/v1/waiter", TabletapWeb.Api do
+    pipe_through [:api, :api_auth, :require_api_auth, :require_api_waiter]
+
+    post "/orders/:id/accept", WaiterController, :accept
+    post "/orders/:id/served", WaiterController, :served
+  end
+
+  scope "/api/v1/owner", TabletapWeb.Api do
+    pipe_through [:api, :api_auth, :require_api_auth, :require_api_manager]
+
+    get "/dashboard", OwnerController, :dashboard
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

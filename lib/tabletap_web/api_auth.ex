@@ -16,7 +16,7 @@ defmodule TabletapWeb.ApiAuth do
   import Plug.Conn
   import Phoenix.Controller, only: [json: 2]
 
-  alias Tabletap.Accounts
+  alias Tabletap.{Accounts, Tenants}
 
   @salt "api_auth"
   @access_token_max_age_seconds 900
@@ -67,6 +67,40 @@ defmodule TabletapWeb.ApiAuth do
       conn
       |> put_status(:unauthorized)
       |> json(%{error: "missing_or_invalid_token"})
+      |> halt()
+    end
+  end
+
+  @doc """
+  Plug: builds `conn.assigns.current_scope` from the already-resolved
+  `current_api_user` — same `Tenants.build_scope/2` the web session uses,
+  just fed an explicit `membership_id` query/body param instead of a
+  session map (mirrors the web's own `POST /venues/switch`: a user
+  holding more than one membership picks one; absent, the same "first
+  active membership" default `build_scope/2` already falls back to).
+  Only meaningful after `require_authenticated_api_user/2`.
+  """
+  def assign_scope(conn, _opts) do
+    scope =
+      Tenants.build_scope(conn.assigns.current_api_user, %{
+        "current_membership_id" => conn.params["membership_id"]
+      })
+
+    assign(conn, :current_scope, scope)
+  end
+
+  @doc """
+  Plug-with-opts: 403s unless `current_scope.role` is in the given list.
+  Mirrors `TabletapWeb.ScopeHooks`' role gates for LiveViews, applied to
+  a bearer-token request instead of a socket mount.
+  """
+  def require_api_role(conn, allowed_roles) do
+    if conn.assigns.current_scope.role in allowed_roles do
+      conn
+    else
+      conn
+      |> put_status(:forbidden)
+      |> json(%{error: "forbidden"})
       |> halt()
     end
   end

@@ -89,6 +89,9 @@ defmodule TabletapWeb.Api.Serializers do
     }
   end
 
+  @doc "Same shape as `order/3` but without a payment lookup — the owner dashboard's kitchen-floor list doesn't need it, and looking one up per order would be an avoidable N+1."
+  def kitchen_order(order, eta_minutes), do: order(order, eta_minutes, nil)
+
   def order(order, eta_minutes, payment) do
     %{
       id: order.id,
