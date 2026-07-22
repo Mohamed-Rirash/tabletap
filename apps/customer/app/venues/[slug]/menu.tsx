@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, spacing, typography, type Menu, type MenuItem } from "@tabletap/shared";
 import { api } from "../../../src/api";
@@ -10,6 +10,7 @@ import { CartBar } from "../../../src/components/CartBar";
 
 export default function MenuScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
+  const router = useRouter();
   const [menu, setMenu] = useState<Menu | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
@@ -87,10 +88,14 @@ export default function MenuScreen() {
         adding={adding}
       />
 
-      {/* Checkout screen lands in build-plan.md Feature 24 Commit 4 —
-          the cart bar itself is real and live-updating now, its
-          navigation target isn't built yet. */}
-      {cart && <CartBar cart={cart} onPress={() => {}} />}
+      {cart && (
+        <CartBar
+          cart={cart}
+          onPress={() =>
+            router.push({ pathname: "/venues/[slug]/checkout", params: { slug } })
+          }
+        />
+      )}
     </View>
   );
 }

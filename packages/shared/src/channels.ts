@@ -44,10 +44,21 @@ export function joinOrderChannel(
   });
 }
 
+/**
+ * `baseUrl` is the REST API's http(s) origin. The `phoenix` client only
+ * auto-derives `ws`/`wss` for a *relative* path (`endPointURL()`
+ * checks whether the endpoint starts with `/`) — an absolute `http://`
+ * URL is passed straight to the `WebSocket` constructor as-is, which
+ * silently fails to connect (a `ws://`/`wss://` scheme is required).
+ * Confirmed empirically: the live tracker never received a single
+ * update until this was fixed, with no visible error either — `phoenix`
+ * doesn't surface "wrong scheme" as a `channel.join()` error, so this
+ * failure mode is easy to miss without watching the actual socket
+ * connection, not just the join callback.
+ */
 export function createSocket(baseUrl: string, accessToken?: string): Socket {
-  // baseUrl is the same host/port as the REST API's http(s) origin —
-  // the phoenix client itself rewrites http(s) to ws(s).
-  return new Socket(`${baseUrl}/socket`, {
+  const wsUrl = baseUrl.replace(/^http/, "ws");
+  return new Socket(`${wsUrl}/socket`, {
     params: accessToken ? { token: accessToken } : {},
   });
 }
