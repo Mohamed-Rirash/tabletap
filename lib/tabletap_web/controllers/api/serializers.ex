@@ -112,6 +112,19 @@ defmodule TabletapWeb.Api.Serializers do
     }
   end
 
+  @doc "build-plan.md Feature 24 — one row of `GET /api/v1/me/history`, deliberately lighter than `order/3` (no items/eta/payment — a flat spend list, same shape `UserLive.History` renders)."
+  def history_entry(order) do
+    %{
+      id: order.id,
+      guest_token: order.guest_token,
+      number: order.number,
+      status: order.status,
+      total: order.total,
+      venue_name: order.venue.name,
+      placed_at: order.placed_at
+    }
+  end
+
   defp order_item(item) do
     %{
       menu_item_id: item.menu_item_id,

@@ -99,6 +99,21 @@ defmodule TabletapWeb.Router do
     post "/venues/:slug/cart/items", CartController, :add_item
     post "/orders", OrderController, :create
     get "/orders/:guest_token", OrderController, :show
+
+    # build-plan.md Feature 24 — same guest-token-is-the-credential
+    # design as the rest of the customer flow above.
+    get "/tables/:qr_token", TableController, :show
+    post "/orders/:guest_token/call_waiter", OrderController, :call_waiter
+    post "/orders/:guest_token/items/:order_item_id/rate", OrderController, :rate
+  end
+
+  # build-plan.md Feature 24 — cross-venue customer history, bearer-auth
+  # only (no membership/role scope — any authenticated user sees their
+  # own history, same reasoning UserLive.History already documents).
+  scope "/api/v1/me", TabletapWeb.Api do
+    pipe_through [:api, :api_auth, :require_api_auth]
+
+    get "/history", MeController, :history
   end
 
   # Staff flow (build-plan.md Feature 23 Commit 4) — bearer-token

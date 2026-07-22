@@ -13,8 +13,8 @@ defmodule TabletapWeb.Api.OrderController do
   """
   use TabletapWeb, :controller
 
-  alias Tabletap.{Ordering, Payments}
-  alias TabletapWeb.Api.{GuestScope, Serializers}
+  alias Tabletap.{Feedback, Ordering, Payments}
+  alias TabletapWeb.Api.{GuestScope, Params, Serializers}
 
   def create(conn, %{"venue_slug" => slug, "guest_token" => guest_token} = params) do
     case GuestScope.by_slug(slug) do
@@ -65,6 +65,64 @@ defmodule TabletapWeb.Api.OrderController do
 
       {:error, :not_found} ->
         conn |> put_status(:not_found) |> json(%{error: "order_not_found"})
+    end
+  end
+
+  @doc """
+  build-plan.md Feature 24 — the tracker's call-waiter button, wraps
+  `Ordering.call_waiter/2` exactly as `Public.OrderTrackerLive`'s own
+  handler does. `:pickup_venue`/`:no_table` are ordinary "the button
+  shouldn't be showing right now" cases (Q46), not crashes.
+  """
+  def call_waiter(conn, %{"guest_token" => guest_token}) do
+    case GuestScope.by_order_guest_token(guest_token) do
+      {:ok, scope, resolved} ->
+        order = Ordering.get_order(scope, resolved.id)
+
+        case Ordering.call_waiter(scope, order) do
+          {:ok, _call} ->
+            send_resp(conn, :no_content, "")
+
+          {:error, reason} ->
+            conn |> put_status(:unprocessable_entity) |> json(%{error: to_string(reason)})
+        end
+
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: "order_not_found"})
+    end
+  end
+
+  @doc """
+  build-plan.md Feature 24 — post-order rating, wraps `Feedback.
+  rate_item/5` exactly as `Public.OrderTrackerLive`'s rating widget
+  does. `order_item_id` is looked up within the order's own already-
+  preloaded `:items` (`get_order/2` preloads them) rather than a
+  separate query — the same guest_token that unlocks the order already
+  proves the caller can see (and therefore rate) its own line items.
+  """
+  def rate(conn, %{
+        "guest_token" => guest_token,
+        "order_item_id" => order_item_id,
+        "stars" => stars
+      }) do
+    with {:ok, order_item_id} <- Params.cast_uuid(order_item_id),
+         {:ok, scope, resolved} <- GuestScope.by_order_guest_token(guest_token),
+         order <- Ordering.get_order(scope, resolved.id),
+         %{} = order_item <- Enum.find(order.items, &(&1.id == order_item_id)) do
+      case Feedback.rate_item(scope, order, order_item, stars) do
+        {:ok, _rating} ->
+          send_resp(conn, :no_content, "")
+
+        {:error, %Ecto.Changeset{}} ->
+          conn |> put_status(:unprocessable_entity) |> json(%{error: "invalid_rating"})
+
+        {:error, reason} ->
+          conn |> put_status(:unprocessable_entity) |> json(%{error: to_string(reason)})
+      end
+    else
+      {:error, :not_found} -> conn |> put_status(:not_found) |> json(%{error: "order_not_found"})
+      :error -> conn |> put_status(:not_found) |> json(%{error: "order_item_not_found"})
+      nil -> conn |> put_status(:not_found) |> json(%{error: "order_item_not_found"})
     end
   end
 
