@@ -89,6 +89,7 @@ defmodule TabletapWeb.Router do
     pipe_through :api
 
     post "/auth/request_magic_link", AuthController, :request_magic_link
+    post "/auth/login", AuthController, :login
     post "/auth/confirm", AuthController, :confirm
     post "/auth/refresh", AuthController, :refresh
     post "/auth/logout", AuthController, :logout
@@ -114,21 +115,30 @@ defmodule TabletapWeb.Router do
     pipe_through [:api, :api_auth, :require_api_auth]
 
     get "/history", MeController, :history
+    get "/memberships", MeController, :memberships
   end
 
-  # Staff flow (build-plan.md Feature 23 Commit 4) — bearer-token
-  # protected, scope built from the authenticated user's own membership.
+  # Staff flow (build-plan.md Feature 23 Commit 4, extended by Feature
+  # 25) — bearer-token protected, scope built from the authenticated
+  # user's own membership.
   scope "/api/v1/waiter", TabletapWeb.Api do
     pipe_through [:api, :api_auth, :require_api_auth, :require_api_waiter]
 
+    post "/shift/clock_in", WaiterController, :clock_in
+    post "/shift/clock_out", WaiterController, :clock_out
+    get "/queue", WaiterController, :queue
+    get "/claim_board", WaiterController, :claim_board
     post "/orders/:id/accept", WaiterController, :accept
+    post "/orders/:id/claim", WaiterController, :claim
     post "/orders/:id/served", WaiterController, :served
+    post "/orders/:id/unserveable", WaiterController, :unserveable
   end
 
   scope "/api/v1/owner", TabletapWeb.Api do
     pipe_through [:api, :api_auth, :require_api_auth, :require_api_manager]
 
     get "/dashboard", OwnerController, :dashboard
+    get "/venues", OwnerController, :venues
   end
 
   # Expo push token registration (build-plan.md Feature 23 Commit 5) —

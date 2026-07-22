@@ -33,6 +33,26 @@ defmodule TabletapWeb.Api.AuthController do
   end
 
   @doc """
+  Email + password login — the mobile equivalent of `UserSessionController.
+  create/2`'s password branch. build-plan.md Feature 25: design-qa.md
+  Q47 requires owner/manager accounts to carry a password specifically
+  so an email delay can never lock a venue out of its own dashboard;
+  without this endpoint that same escape hatch didn't exist on the
+  mobile staff app. Same non-enumeration framing as the web form and
+  `request_magic_link/2` above — a wrong email and a wrong password for
+  a real email get an identical response.
+  """
+  def login(conn, %{"email" => email, "password" => password}) do
+    if user = Accounts.get_user_by_email_and_password(email, password) do
+      json(conn, token_response(user))
+    else
+      conn
+      |> put_status(:unauthorized)
+      |> json(%{error: "invalid_email_or_password"})
+    end
+  end
+
+  @doc """
   Exchanges a consumed magic-link token for an access + refresh token
   pair — the mobile equivalent of `UserSessionController.create/2`'s
   magic-link branch, minus the session cookie.

@@ -155,7 +155,7 @@ defmodule TabletapWeb.Manager.Analytics.VenueComparisonLive do
   def handle_params(params, _uri, socket) do
     scope = socket.assigns.current_scope
     range = if params["range"] in @ranges, do: params["range"], else: "7d"
-    {from_date, to_date} = range_dates(scope.venue, range)
+    {from_date, to_date} = Tenants.range_dates(scope.venue, range)
 
     rows = Analytics.org_comparison(scope, from_date, to_date)
 
@@ -164,20 +164,5 @@ defmodule TabletapWeb.Manager.Analytics.VenueComparisonLive do
      |> assign(:range, range)
      |> assign(:rows, rows)
      |> assign(:totals, Analytics.org_totals(rows))}
-  end
-
-  defp range_dates(venue, "today") do
-    today = Tenants.business_date(venue)
-    {today, today}
-  end
-
-  defp range_dates(venue, "30d") do
-    today = Tenants.business_date(venue)
-    {Date.add(today, -29), today}
-  end
-
-  defp range_dates(venue, _seven_day) do
-    today = Tenants.business_date(venue)
-    {Date.add(today, -6), today}
   end
 end

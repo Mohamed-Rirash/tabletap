@@ -104,6 +104,7 @@ defmodule TabletapWeb.Api.Serializers do
       total: order.total,
       eta_minutes: eta_minutes,
       payment: payment && %{provider: payment.provider, status: payment.status},
+      flag: order.flag,
       items: Enum.map(order.items, &order_item/1),
       placed_at: order.placed_at,
       accepted_at: order.accepted_at,
@@ -122,6 +123,18 @@ defmodule TabletapWeb.Api.Serializers do
       total: order.total,
       venue_name: order.venue.name,
       placed_at: order.placed_at
+    }
+  end
+
+  @doc "build-plan.md Feature 25 — one row of `GET /api/v1/me/memberships`, the mobile staff app's role-detection/mode-switcher source."
+  def membership(m) do
+    %{
+      membership_id: m.id,
+      role: m.role,
+      org_id: m.org_id,
+      org_name: m.org.name,
+      venue_id: m.venue_id,
+      venue_name: m.venue && m.venue.name
     }
   end
 

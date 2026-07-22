@@ -29,6 +29,7 @@ defmodule TabletapWeb.ApiContractTest do
     "total" => @money_shape,
     "eta_minutes" => nil,
     "payment" => nil,
+    "flag" => nil,
     "items" => [
       %{
         "id" => nil,

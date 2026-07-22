@@ -59,6 +59,30 @@ defmodule Tabletap.Tenants do
   end
 
   @doc """
+  `{from_date, to_date}` for a named range (`"today"`/`"30d"`/anything
+  else falls back to a 7-day window), anchored to `venue`'s own current
+  business date. Shared by `Manager.Analytics.VenueComparisonLive` and
+  `GET /api/v1/owner/venues` (build-plan.md Feature 25) — one function
+  instead of the same three-clause date math duplicated on both
+  surfaces (architecture.md "API controllers and LiveViews call the
+  same context functions").
+  """
+  def range_dates(%Venue{} = venue, "today") do
+    today = business_date(venue)
+    {today, today}
+  end
+
+  def range_dates(%Venue{} = venue, "30d") do
+    today = business_date(venue)
+    {Date.add(today, -29), today}
+  end
+
+  def range_dates(%Venue{} = venue, _seven_day) do
+    today = business_date(venue)
+    {Date.add(today, -6), today}
+  end
+
+  @doc """
   Resolves a picked city name to `{:ok, {currency, timezone}}`, or `:error`
   if `city_name` isn't one of `city_options/0`'s names. Never silently
   defaults — currency locks permanently after a venue's first order
@@ -184,7 +208,16 @@ defmodule Tabletap.Tenants do
     Repo.exists?(from(m in Membership, where: m.user_id == ^user_id), skip_org_id: true)
   end
 
-  defp list_active_memberships_for_user(user) do
+  @doc """
+  Every active membership `user` holds, oldest first, `:org`/`:venue`
+  preloaded — the same query `build_scope/2` already runs to pick a
+  "current" one. Public (build-plan.md Feature 25) so `GET
+  /api/v1/me/memberships` can list them for a mobile role-detection/mode
+  switcher; cross-tenant by design, same reasoning as `any_memberships?/1`
+  above (a user's own membership list carries no single tenant scope to
+  check against).
+  """
+  def list_active_memberships_for_user(user) do
     Repo.all(
       from(m in Membership,
         where: m.user_id == ^user.id and m.active == true,
