@@ -6,7 +6,14 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** Phase 6 — Identity, Ratings & Analytics — **CLOSED (all 3 features done).** Phase 7 — Platform & Polish — **fully CLOSED** (Features 19-22 all done). **Phase 8 — Mobile Apps — Feature 23 (API & Auth Hardening for Mobile) CLOSED** — the JSON API + bearer auth + Channels foundation the mobile apps (Features 24/25) will build against. Next: Feature 24 (TableTap Customer App — the actual React Native/Expo build).
+**Phase:** Phase 6 — Identity, Ratings & Analytics — **CLOSED (all 3 features done).** Phase 7 — Platform & Polish — **fully CLOSED** (Features 19-22 all done). Phase 8 — Mobile Apps — Feature 23 (API & Auth Hardening for Mobile) **CLOSED**. **Feature 24 (TableTap Customer App) in progress**, staged across 6 commits — the first genuinely different kind of work this session: a real TypeScript/React Native (Expo) app, not an Elixir feature. Plan file: `.claude/plans/shiny-mixing-donut.md`.
+
+**Real environment constraints established up front (checked directly, not assumed):** no physical iPhone/Android exists in this sandbox, and no Android emulator image either (`~/Android/Sdk` has platform-tools/build-tools but no `emulator` package or AVD) — build-plan.md's own verify step ("on one physical iPhone and one Android... PIN prompt approved on the phone") cannot be executed here, the same category of gap as Feature 09/22's real-external-sandbox limits. Playwright's Chromium is cached and usable (confirmed this session), so Expo's web target (`react-native-web`) is the honest, real substitute for interactive verification — not native, not a phone, but the actual TypeScript screens/logic/API calls running and clickable. EAS build + real store submission needs real Apple/Google developer accounts — out of scope for this sandbox; `eas.json` gets scaffolded for real, an actual build/submission is not attempted.
+
+**Feature 24 progress, 1 of 6 planned commits landed:**
+1. **Backend: 4 missing endpoints** (`6e5a270`): re-reading the exact web flows the customer app needs to mirror (architecture.md "API controllers and LiveViews call the same context functions") surfaced four gaps Feature 23 hadn't needed: table-QR resolution, call-waiter, rating an item, and cross-venue order history had no `/api/v1` wrapper. All four are thin wrappers over existing context functions, same shape as every prior Feature 23 controller — no new business logic. `GET /api/v1/tables/:qr_token` (wraps `Tenants.get_table_by_qr_token/1`) returns `{venue_slug, table_id}` JSON instead of the web's session-write + redirect, since the app has no server session to write into — it holds the resolved table locally instead. `POST /api/v1/orders/:guest_token/call_waiter` wraps `Ordering.call_waiter/2` (`:pickup_venue`/`:no_table` are ordinary "button shouldn't be showing" cases, not crashes — design-qa.md Q46). `POST /api/v1/orders/:guest_token/items/:order_item_id/rate` wraps `Feedback.rate_item/5`, looking the item up within the order's own already-preloaded `:items` rather than a second query — the same guest_token that unlocks the order already proves the caller owns its line items. `GET /api/v1/me/history` is bearer-auth only, no venue/membership scope — matches `UserLive.History`'s own "any authenticated user sees their own cross-venue history" reasoning — new `Serializers.history_entry/1` (deliberately lighter than `order/3`: no items/eta/payment, a flat spend list). 971 tests green — one confirmed pre-existing, unrelated timing flake in `payments_test.exs` (a `refute_receive` telemetry race under full-suite load; passed cleanly in isolation, not caused by this commit).
+
+**What's still genuinely missing:** 5 more commits — the actual Expo monorepo scaffold, then scan-to-order/menu/cart, wallet checkout/live tracker, order history/ratings/push opt-in, and a final real verification pass (Expo web target driven via Playwright against the real Phoenix dev server).
 
 <details>
 <summary>Feature 23 — API & Auth Hardening for Mobile (2026-07-21)</summary>
@@ -287,7 +294,7 @@ Also fixed in passing (surfaced by turning on tenant enforcement, not new bugs):
 
 </details>
 
-**Next:** Feature 24 — TableTap Customer App (Phase 8, the React Native/Expo build — see build-plan.md's own Feature 24 entry for scope).
+**Next:** Feature 24 commit 2 (monorepo scaffold + design tokens + typed API client). Full 6-commit plan: `.claude/plans/shiny-mixing-donut.md`.
 
 **Working tree note — resolved (2026-07-20):** the concurrent-session `Plans`/`PlanHooks` scaffolding flagged as "unreviewed" at the end of Feature 18 has now been audited (Feature 19 Commit 1) and found correct against pricing.md/build-plan.md — see the Feature 19 progress entry above for what was confirmed. No more unreviewed working-tree state from that session as of this commit.
 
