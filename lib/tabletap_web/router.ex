@@ -3,6 +3,7 @@ defmodule TabletapWeb.Router do
 
   import TabletapWeb.UserAuth
   import TabletapWeb.GuestToken
+  import TabletapWeb.ApiAuth
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -21,6 +22,18 @@ defmodule TabletapWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+  end
+
+  # build-plan.md Feature 23 — resolves Authorization: Bearer into
+  # conn.assigns.current_api_user but never rejects on its own (mirrors
+  # :browser's fetch_current_scope_for_user/enforcement split); routes
+  # that need a signed-in caller add :require_api_auth on top.
+  pipeline :api_auth do
+    plug :fetch_bearer_user
+  end
+
+  pipeline :require_api_auth do
+    plug :require_authenticated_api_user
   end
 
   # Restores an existing guest_token cookie into the session (build-plan.md
@@ -59,10 +72,17 @@ defmodule TabletapWeb.Router do
     post "/waafipay", Public.WaafiPayWebhookController, :create
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", TabletapWeb do
-  #   pipe_through :api
-  # end
+  # Mobile API (build-plan.md Feature 23). Login/refresh/logout need no
+  # bearer token yet (that's what they mint/consume) — everything else
+  # added by later commits stacks :api_auth + :require_api_auth.
+  scope "/api/v1", TabletapWeb.Api do
+    pipe_through :api
+
+    post "/auth/request_magic_link", AuthController, :request_magic_link
+    post "/auth/confirm", AuthController, :confirm
+    post "/auth/refresh", AuthController, :refresh
+    post "/auth/logout", AuthController, :logout
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:tabletap, :dev_routes) do

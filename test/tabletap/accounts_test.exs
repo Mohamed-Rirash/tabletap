@@ -385,6 +385,57 @@ defmodule Tabletap.AccountsTest do
     end
   end
 
+  describe "generate_api_refresh_token/1 + exchange_api_refresh_token/1 (build-plan.md Feature 23)" do
+    test "a freshly minted refresh token exchanges for the same user plus a new token" do
+      user = user_fixture()
+      token = Accounts.generate_api_refresh_token(user)
+
+      assert {:ok, {exchanged_user, new_token}} = Accounts.exchange_api_refresh_token(token)
+      assert exchanged_user.id == user.id
+      assert is_binary(new_token)
+      assert new_token != token
+    end
+
+    test "a refresh token is single-use — rotated, not reusable" do
+      user = user_fixture()
+      token = Accounts.generate_api_refresh_token(user)
+
+      assert {:ok, _} = Accounts.exchange_api_refresh_token(token)
+      assert Accounts.exchange_api_refresh_token(token) == {:error, :invalid}
+    end
+
+    test "an unknown or malformed token is rejected" do
+      assert Accounts.exchange_api_refresh_token("not-a-real-token") == {:error, :invalid}
+    end
+
+    test "an expired refresh token is rejected" do
+      user = user_fixture()
+      token = Accounts.generate_api_refresh_token(user)
+
+      Repo.update_all(
+        from(t in UserToken, where: t.context == "api_refresh" and t.user_id == ^user.id),
+        [set: [inserted_at: ~N[2000-01-01 00:00:00]]],
+        skip_org_id: true
+      )
+
+      assert Accounts.exchange_api_refresh_token(token) == {:error, :invalid}
+    end
+  end
+
+  describe "revoke_api_refresh_token/1" do
+    test "revokes a valid token" do
+      user = user_fixture()
+      token = Accounts.generate_api_refresh_token(user)
+
+      assert Accounts.revoke_api_refresh_token(token) == :ok
+      assert Accounts.exchange_api_refresh_token(token) == {:error, :invalid}
+    end
+
+    test "is a no-op for an unknown or malformed token" do
+      assert Accounts.revoke_api_refresh_token("garbage") == :ok
+    end
+  end
+
   describe "delete_account/1" do
     alias Tabletap.Accounts.Scope
     alias Tabletap.Feedback

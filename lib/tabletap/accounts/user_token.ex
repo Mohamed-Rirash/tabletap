@@ -11,6 +11,7 @@ defmodule Tabletap.Accounts.UserToken do
   @magic_link_validity_in_minutes 15
   @change_email_validity_in_days 7
   @session_validity_in_days 14
+  @api_refresh_validity_in_days 30
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -116,6 +117,46 @@ defmodule Tabletap.Accounts.UserToken do
             join: user in assoc(token, :user),
             where: token.inserted_at > ago(^@magic_link_validity_in_minutes, "minute"),
             where: token.sent_to == user.email,
+            select: {user, token}
+
+        {:ok, query}
+
+      :error ->
+        :error
+    end
+  end
+
+  @doc """
+  Builds a mobile API refresh token — same hashed-at-rest shape as a
+  magic-link token (build-plan.md Feature 23: the raw value is a bearer
+  credential sent directly over the wire and held client-side, not
+  wrapped in a signed cookie like a web session token, so it gets the
+  same "can't be reconstructed from a DB read" treatment). No `sent_to`
+  — nothing is emailed for this context.
+  """
+  def build_api_refresh_token(user) do
+    build_hashed_token(user, "api_refresh", nil)
+  end
+
+  @doc """
+  Checks if the token is valid and returns its underlying lookup query.
+
+  If found, the query returns a tuple of the form `{user, token}`. Valid
+  if it matches its hashed counterpart and is within
+  `@api_refresh_validity_in_days`. Rotated (deleted + reissued) on every
+  successful `Accounts.exchange_api_refresh_token/1` call, so a given
+  raw value is single-use — the same discipline the magic-link token
+  already has, applied to a longer-lived credential.
+  """
+  def verify_api_refresh_token_query(token) do
+    case Base.url_decode64(token, padding: false) do
+      {:ok, decoded_token} ->
+        hashed_token = :crypto.hash(@hash_algorithm, decoded_token)
+
+        query =
+          from token in by_token_and_context_query(hashed_token, "api_refresh"),
+            join: user in assoc(token, :user),
+            where: token.inserted_at > ago(^@api_refresh_validity_in_days, "day"),
             select: {user, token}
 
         {:ok, query}

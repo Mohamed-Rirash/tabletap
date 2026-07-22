@@ -69,6 +69,15 @@ defmodule Tabletap.Accounts do
   def get_user!(id), do: Repo.get!(User, id, skip_org_id: true)
 
   @doc """
+  Same as `get_user!/1` but returns `nil` instead of raising — the
+  `get_*` shape code-standards.md requires for any id resolved on a web
+  path (a bearer-token-authenticated user id included: the token itself
+  can't be forged, but the account it names may have been deleted since
+  the token was issued, and that's an expected, not-a-bug case).
+  """
+  def get_user(id), do: Repo.get(User, id, skip_org_id: true)
+
+  @doc """
   GDPR customer account deletion (build-plan.md Feature 19;
   design-qa.md Q15: "account + PII erased; orders anonymized
   (customer_user_id nulled, guest linkage severed) but retained;
@@ -258,6 +267,62 @@ defmodule Tabletap.Accounts do
       user
     else
       _ -> nil
+    end
+  end
+
+  ## Mobile API refresh tokens (build-plan.md Feature 23)
+
+  @doc """
+  Mints a mobile API refresh token for `user` and persists its hash.
+  Returns the raw token to hand to the client.
+  """
+  def generate_api_refresh_token(user) do
+    {token, user_token} = UserToken.build_api_refresh_token(user)
+    Repo.insert!(user_token)
+    token
+  end
+
+  @doc """
+  Verifies a raw API refresh token and, if valid, atomically rotates it:
+  the consumed token row is deleted and a fresh one minted in the same
+  transaction — a given raw value is single-use, same as the magic-link
+  token. Returns `{:ok, {user, new_refresh_token}}` or `{:error, :invalid}`.
+  """
+  def exchange_api_refresh_token(token) do
+    case UserToken.verify_api_refresh_token_query(token) do
+      {:ok, query} -> rotate_api_refresh_token(Repo.one(query, skip_org_id: true))
+      :error -> {:error, :invalid}
+    end
+  end
+
+  defp rotate_api_refresh_token({user, old_token}) do
+    Repo.transact(fn ->
+      Repo.delete!(old_token)
+      {:ok, {user, generate_api_refresh_token(user)}}
+    end)
+  end
+
+  defp rotate_api_refresh_token(nil), do: {:error, :invalid}
+
+  @doc """
+  Revokes a mobile API refresh token (logout / "sign out this device") —
+  a no-op if the token doesn't exist or was already consumed, same
+  idempotent shape as `delete_user_session_token/1`.
+  """
+  def revoke_api_refresh_token(token) do
+    case Base.url_decode64(token, padding: false) do
+      {:ok, decoded_token} ->
+        hashed_token = :crypto.hash(:sha256, decoded_token)
+
+        Repo.delete_all(
+          from(UserToken, where: [token: ^hashed_token, context: "api_refresh"]),
+          skip_org_id: true
+        )
+
+        :ok
+
+      :error ->
+        :ok
     end
   end
 
