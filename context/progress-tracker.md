@@ -6,7 +6,12 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** Phase 6 — Identity, Ratings & Analytics — **CLOSED (all 3 features done).** Phase 7 — Platform & Polish — Feature 19 (Subscriptions & Platform Admin) **CLOSED**, Feature 20 (Notifications & PWA Hardening) **CLOSED**, Feature 21 (Reliability & Ops Hardening) **CLOSED**, Feature 22 (Load & Security Pass) **CLOSED**. **Phase 7 is now fully closed.** Phase 8 — Mobile Apps begins next, starting with Feature 23 (API & Auth Hardening for Mobile).
+**Phase:** Phase 6 — Identity, Ratings & Analytics — **CLOSED (all 3 features done).** Phase 7 — Platform & Polish — **fully CLOSED** (Features 19-22 all done). **Phase 8 — Mobile Apps — Feature 23 (API & Auth Hardening for Mobile) in progress**, staged across 6 commits — a genuine from-scratch build (no `/api/v1`, bearer auth, or Channels existed before this). Plan file: `.claude/plans/shiny-mixing-donut.md`.
+
+**Feature 23 progress, 1 of 6 planned commits landed:**
+1. **Auth foundation** (`b2b4e0e`): new `/api/v1` scope + `TabletapWeb.ApiAuth` — hybrid bearer auth (confirmed with the user over the fully-stateless alternative): a short-lived (15 min) stateless `Phoenix.Token` access token (`Phoenix.Token.sign/verify`, salt `"api_auth"`, zero new deps — `Phoenix.Token` ships in `:phoenix` itself) paired with a DB-backed refresh token (30 days, single-use — rotated on every `POST /api/v1/auth/refresh`) reusing `Accounts.UserToken`'s existing hashed-token machinery with a new `"api_refresh"` context, mirroring `"session"`/`"login"` exactly. This gives real server-side revocation (logout genuinely deletes the row) rather than the purely-stateless alternative, which could never be revoked before natural expiry. `POST /api/v1/auth/request_magic_link` reuses `Accounts.deliver_login_instructions/2` verbatim — its `magic_link_url_fun` parameter already exists precisely for this seam, so the only new code is building a `tabletap://auth/:token` deep link instead of a web path; same per-IP throttle and non-enumeration response as the existing web login form (design-qa.md Q47). `POST /api/v1/auth/confirm` reuses `Accounts.login_user_by_magic_link/1` verbatim (same function `UserSessionController`'s web magic-link branch calls) and mints the token pair on success. New `Accounts.get_user/1` (a safe `get_*` counterpart to the pre-existing `get_user!/1`, since a bearer token's `user_id` — though cryptographically unforgeable — could still name an account deleted since the token was issued; code-standards.md's "no bare `get!` on a web path" rule applies here too). 907 tests green.
+
+**What's still genuinely missing:** 5 more commits — customer API (menu/cart/checkout/tracker), Phoenix Channels (relaying the exact PubSub topics LiveViews already use), staff API (waiter accept/serve, owner dashboard), Expo push token registration, and the final contract-tests + real scripted end-to-end verify.
 
 <details>
 <summary>Feature 22 — Load & Security Pass (2026-07-21)</summary>
@@ -268,7 +273,7 @@ Also fixed in passing (surfaced by turning on tenant enforcement, not new bugs):
 
 </details>
 
-**Next:** Feature 23 — API & Auth Hardening for Mobile (Phase 8, first mobile-app feature — see build-plan.md's own Feature 23 entry for scope).
+**Next:** Feature 23 commit 2 (customer API — menu/cart/checkout/tracker). Full 6-commit plan: `.claude/plans/shiny-mixing-donut.md`.
 
 **Working tree note — resolved (2026-07-20):** the concurrent-session `Plans`/`PlanHooks` scaffolding flagged as "unreviewed" at the end of Feature 18 has now been audited (Feature 19 Commit 1) and found correct against pricing.md/build-plan.md — see the Feature 19 progress entry above for what was confirmed. No more unreviewed working-tree state from that session as of this commit.
 
