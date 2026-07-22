@@ -12,11 +12,27 @@ defmodule TabletapWeb.WaiterChannel do
   ("every screen must fully rebuild from a REST fetch"; a push is an
   optimization, not the source of truth) — the client re-fetches its
   queue via the staff REST API (Commit 4).
+
+  build-plan.md Feature 25 — also the process that tracks this waiter's
+  `TabletapWeb.Presence` entry, since a mobile shift toggle is a
+  stateless REST call (`Tabletap.Staffing.clock_in/1`/`clock_out/1`)
+  with no long-lived process of its own to track against, unlike
+  `Waiter.QueueLive`'s own `handle_event`, which *is* that long-lived
+  process on the web. `clock_in/1`/`clock_out/1` broadcast a bare
+  `:shift_changed` on this same topic; `handle_info(:shift_changed, _)`
+  below re-checks `Staffing.get_open_shift/1` and tracks/untracks
+  accordingly. No explicit untrack on disconnect is needed —
+  `Phoenix.Presence` already drops an entry the instant its tracking
+  pid dies (the same mechanism that already makes a web waiter closing
+  their laptop drop off Presence today), and this channel's own pid
+  *is* the long-lived thing this whole feature builds around.
   """
   use TabletapWeb, :channel
 
-  alias Tabletap.{Repo, Tenants}
+  alias Tabletap.Accounts.Scope
+  alias Tabletap.{Repo, Staffing, Tenants}
   alias TabletapWeb.Api.Params
+  alias TabletapWeb.Presence
 
   @impl true
   def join(
@@ -32,7 +48,8 @@ defmodule TabletapWeb.WaiterChannel do
          %{user_id: ^user_id} = membership <- Tenants.get_membership(membership_id) do
       Repo.put_org_id(membership.org_id)
       Phoenix.PubSub.subscribe(Tabletap.PubSub, "waiter:#{membership_id}")
-      {:ok, socket}
+      sync_presence(membership)
+      {:ok, assign(socket, :membership, membership)}
     else
       _ -> {:error, %{reason: "unauthorized"}}
     end
@@ -47,5 +64,20 @@ defmodule TabletapWeb.WaiterChannel do
     {:noreply, socket}
   end
 
+  def handle_info(:shift_changed, socket) do
+    sync_presence(socket.assigns.membership)
+    {:noreply, socket}
+  end
+
   def handle_info(_msg, socket), do: {:noreply, socket}
+
+  defp sync_presence(membership) do
+    topic = Presence.staff_topic(membership.venue_id)
+
+    if Staffing.get_open_shift(%Scope{membership: membership}) do
+      Presence.track(self(), topic, membership.id, %{role: :waiter})
+    else
+      Presence.untrack(self(), topic, membership.id)
+    end
+  end
 end

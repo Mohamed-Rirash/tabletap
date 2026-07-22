@@ -58,7 +58,7 @@ defmodule TabletapWeb.Api.StaffExtrasTest do
       assert response(conn1, 204)
 
       conn2 = conn |> bearer(waiter_user) |> post(~p"/api/v1/waiter/shift/clock_out")
-      assert response(conn2, 204)
+      assert %{"released" => 0} = json_response(conn2, 200)
     end
 
     test "clocking in twice is rejected", %{conn: conn, waiter_user: waiter_user} do

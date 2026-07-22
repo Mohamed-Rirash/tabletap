@@ -138,6 +138,11 @@ defmodule Tabletap.Notifications do
 
   @expo_push_url "https://exp.host/--/api/v2/push/send"
 
+  @android_channel_id "order_alerts"
+
+  @doc "The Android notification channel id every push targets — `expo-notifications` must register a channel with this exact id client-side (build-plan.md Feature 25) or Android silently falls back to its own default channel's (unreliable) behavior."
+  def android_channel_id, do: @android_channel_id
+
   @doc """
   One push, one Expo device token. Unlike Web Push (which signals a
   dead subscription via HTTP status), Expo returns `200` with a
@@ -146,13 +151,26 @@ defmodule Tabletap.Notifications do
   stop sending, so the token row is deleted rather than retried, same
   outcome as `send_push/2`'s `404`/`410` handling, just detected
   differently.
+
+  `priority: "high"` + `sound: "default"` + `channelId` (build-plan.md
+  Feature 25 — "push wakes a locked phone reliably... the reason this
+  app exists"): Expo defaults every push to normal priority, which iOS/
+  Android are both free to defer or silently suppress on a locked
+  screen. `priority: "high"` maps to a real APNs `apns-priority: 10`/FCM
+  high-priority push; `channelId` only takes effect if the client has
+  actually registered an Android notification channel with this same
+  id (`android_channel_id/0`) via `expo-notifications` — otherwise
+  Android ignores it and falls back to its own default channel.
   """
   def send_expo_push(%DevicePushToken{} = device_token, payload) when is_map(payload) do
     body = %{
       to: device_token.token,
       title: Map.get(payload, :title) || Map.get(payload, "title"),
       body: Map.get(payload, :body) || Map.get(payload, "body"),
-      data: payload
+      data: payload,
+      priority: "high",
+      sound: "default",
+      channelId: @android_channel_id
     }
 
     req_opts = Application.get_env(:tabletap, :expo_push_req_options, [])

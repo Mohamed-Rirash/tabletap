@@ -189,6 +189,26 @@ defmodule Tabletap.NotificationsTest do
   end
 
   describe "send_expo_push/2" do
+    test "the request body carries the locked-phone-reliability fields (build-plan.md Feature 25)" do
+      user = user_fixture()
+
+      {:ok, token} =
+        Notifications.register_device_token(user, %{"token" => "ExponentPushToken[reliable]"})
+
+      Req.Test.stub(Tabletap.Notifications.Expo, fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        parsed = Jason.decode!(body)
+
+        assert parsed["priority"] == "high"
+        assert parsed["sound"] == "default"
+        assert parsed["channelId"] == Notifications.android_channel_id()
+
+        Req.Test.json(conn, %{"data" => %{"status" => "ok"}})
+      end)
+
+      assert :ok = Notifications.send_expo_push(token, %{title: "Table needs you", body: "#4"})
+    end
+
     test "a successful push leaves the token in place" do
       user = user_fixture()
 

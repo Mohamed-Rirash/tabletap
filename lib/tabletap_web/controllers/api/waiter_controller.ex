@@ -21,11 +21,24 @@ defmodule TabletapWeb.Api.WaiterController do
     end
   end
 
-  @doc "Clocks the current membership out — wraps `Staffing.clock_out/1`."
+  @doc """
+  Clocks the current membership out — wraps `Staffing.clock_out/1`, then
+  hands any open orders still on this waiter's plate to the claim board
+  exactly as `Waiter.QueueLive`'s own `clock_out` handler does
+  (role-features.md: an off-shift waiter never keeps orders). Returns
+  the released count so the app can show the same "N order(s) moved to
+  the claim board" info the web gives.
+  """
   def clock_out(conn, _params) do
-    case Staffing.clock_out(conn.assigns.current_scope) do
-      {:ok, _shift} -> send_resp(conn, :no_content, "")
-      {:error, reason} -> error(conn, :unprocessable_entity, reason)
+    scope = conn.assigns.current_scope
+
+    case Staffing.clock_out(scope) do
+      {:ok, _shift} ->
+        released = Ordering.release_orders_to_claim_board(scope, scope.membership.id)
+        json(conn, %{released: released})
+
+      {:error, reason} ->
+        error(conn, :unprocessable_entity, reason)
     end
   end
 

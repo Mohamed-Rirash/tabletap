@@ -6,6 +6,17 @@ defmodule Tabletap.Staffing do
   Presence (`TabletapWeb.Presence`) further narrows that to waiters whose
   phone is actually connected right now (design-qa.md Q55's ~30s grace
   window lives at the Presence layer, not here).
+
+  `clock_in/1`/`clock_out/1` broadcast a bare `:shift_changed` on
+  `"waiter:{membership_id}"` on every real state change (build-plan.md
+  Feature 25) — `Waiter.QueueLive`'s own `handle_event` calls
+  `TabletapWeb.Presence.track/untrack` directly since the LiveView
+  process itself is the long-lived thing Presence ties to; the mobile
+  staff app's shift toggle is a stateless REST call instead, so the one
+  long-lived process that *can* track Presence for it is `WaiterChannel`
+  — this broadcast is how it learns to. Same "PubSub is just a refetch
+  signal, never carries the state" idiom `OrderStateMachine.broadcast/3`
+  already establishes elsewhere in this codebase.
   """
 
   import Ecto.Query, warn: false
@@ -19,7 +30,9 @@ defmodule Tabletap.Staffing do
   def clock_in(%Scope{org: org, venue: venue, membership: membership}) do
     case get_open_shift_query(membership.id) |> Repo.one() do
       nil ->
-        Shift.clock_in_changeset(org.id, venue.id, membership.id) |> Repo.insert()
+        result = Shift.clock_in_changeset(org.id, venue.id, membership.id) |> Repo.insert()
+        with {:ok, _shift} <- result, do: broadcast_shift_changed(membership.id)
+        result
 
       %Shift{} ->
         {:error, :already_clocked_in}
@@ -29,9 +42,18 @@ defmodule Tabletap.Staffing do
   @doc "Clocks the current membership out. `{:error, :not_clocked_in}` if there's no open shift."
   def clock_out(%Scope{membership: membership}) do
     case get_open_shift_query(membership.id) |> Repo.one() do
-      nil -> {:error, :not_clocked_in}
-      %Shift{} = shift -> shift |> Shift.clock_out_changeset() |> Repo.update()
+      nil ->
+        {:error, :not_clocked_in}
+
+      %Shift{} = shift ->
+        result = shift |> Shift.clock_out_changeset() |> Repo.update()
+        with {:ok, _shift} <- result, do: broadcast_shift_changed(membership.id)
+        result
     end
+  end
+
+  defp broadcast_shift_changed(membership_id) do
+    Phoenix.PubSub.broadcast(Tabletap.PubSub, "waiter:#{membership_id}", :shift_changed)
   end
 
   @doc "The current membership's open shift, or `nil`."
