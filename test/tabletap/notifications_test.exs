@@ -11,7 +11,7 @@ defmodule Tabletap.NotificationsTest do
   import Tabletap.AccountsFixtures
 
   alias Tabletap.Notifications
-  alias Tabletap.Notifications.PushSubscription
+  alias Tabletap.Notifications.{DevicePushToken, PushSubscription}
   alias Tabletap.Repo
 
   defp subscription_attrs(overrides \\ %{}) do
@@ -136,6 +136,129 @@ defmodule Tabletap.NotificationsTest do
       assert :ok = Notifications.notify_user(user.id, %{title: "Low stock", body: "Milk"})
       assert_received {:pushed, _}
       assert_received {:pushed, _}
+    end
+  end
+
+  describe "register_device_token/2 and unregister_device_token/2 (build-plan.md Feature 23)" do
+    test "registers a device token for the user" do
+      user = user_fixture()
+
+      assert {:ok, %DevicePushToken{} = token} =
+               Notifications.register_device_token(user, %{
+                 "token" => "ExponentPushToken[abc123]",
+                 "platform" => "ios"
+               })
+
+      assert token.user_id == user.id
+      assert [^token] = Notifications.list_device_tokens_for_user(user.id)
+    end
+
+    test "re-registering the same physical token reassigns it rather than duplicating" do
+      user = user_fixture()
+      other_user = user_fixture()
+      token_value = "ExponentPushToken[shared-device]"
+
+      {:ok, _first} =
+        Notifications.register_device_token(user, %{"token" => token_value, "platform" => "ios"})
+
+      {:ok, second} =
+        Notifications.register_device_token(other_user, %{
+          "token" => token_value,
+          "platform" => "ios"
+        })
+
+      assert second.user_id == other_user.id
+      assert Notifications.list_device_tokens_for_user(user.id) == []
+      assert [^second] = Notifications.list_device_tokens_for_user(other_user.id)
+    end
+
+    test "unregister removes only the matching token" do
+      user = user_fixture()
+
+      {:ok, _kept} =
+        Notifications.register_device_token(user, %{"token" => "ExponentPushToken[kept]"})
+
+      {:ok, _removed} =
+        Notifications.register_device_token(user, %{"token" => "ExponentPushToken[removed]"})
+
+      assert :ok = Notifications.unregister_device_token(user, "ExponentPushToken[removed]")
+
+      assert [remaining] = Notifications.list_device_tokens_for_user(user.id)
+      assert remaining.token == "ExponentPushToken[kept]"
+    end
+  end
+
+  describe "send_expo_push/2" do
+    test "a successful push leaves the token in place" do
+      user = user_fixture()
+
+      {:ok, token} =
+        Notifications.register_device_token(user, %{"token" => "ExponentPushToken[1]"})
+
+      Req.Test.stub(Tabletap.Notifications.Expo, fn conn ->
+        Req.Test.json(conn, %{"data" => %{"status" => "ok"}})
+      end)
+
+      assert :ok = Notifications.send_expo_push(token, %{title: "New order", body: "Table 4"})
+      assert Repo.get(DevicePushToken, token.id, skip_org_id: true)
+    end
+
+    test "a DeviceNotRegistered error deletes the dead token" do
+      user = user_fixture()
+
+      {:ok, token} =
+        Notifications.register_device_token(user, %{"token" => "ExponentPushToken[2]"})
+
+      Req.Test.stub(Tabletap.Notifications.Expo, fn conn ->
+        Req.Test.json(conn, %{
+          "data" => %{"status" => "error", "details" => %{"error" => "DeviceNotRegistered"}}
+        })
+      end)
+
+      assert :ok = Notifications.send_expo_push(token, %{title: "New order", body: "Table 4"})
+      refute Repo.get(DevicePushToken, token.id, skip_org_id: true)
+    end
+
+    test "a different error status is left alone (not a permanent-failure signal)" do
+      user = user_fixture()
+
+      {:ok, token} =
+        Notifications.register_device_token(user, %{"token" => "ExponentPushToken[3]"})
+
+      Req.Test.stub(Tabletap.Notifications.Expo, fn conn ->
+        Req.Test.json(conn, %{
+          "data" => %{"status" => "error", "details" => %{"error" => "MessageTooBig"}}
+        })
+      end)
+
+      assert :ok = Notifications.send_expo_push(token, %{title: "New order", body: "Table 4"})
+      assert Repo.get(DevicePushToken, token.id, skip_org_id: true)
+    end
+  end
+
+  describe "notify_user/2 fans out to both web push and mobile device tokens" do
+    test "sends to every subscription and every device token the user has" do
+      user = user_fixture()
+      {:ok, _sub} = Notifications.subscribe(user, subscription_attrs())
+
+      {:ok, _token} =
+        Notifications.register_device_token(user, %{"token" => "ExponentPushToken[4]"})
+
+      test_pid = self()
+
+      Req.Test.stub(Tabletap.Notifications, fn conn ->
+        send(test_pid, :web_pushed)
+        Plug.Conn.send_resp(conn, 201, "")
+      end)
+
+      Req.Test.stub(Tabletap.Notifications.Expo, fn conn ->
+        send(test_pid, :expo_pushed)
+        Req.Test.json(conn, %{"data" => %{"status" => "ok"}})
+      end)
+
+      assert :ok = Notifications.notify_user(user.id, %{title: "Low stock", body: "Milk"})
+      assert_received :web_pushed
+      assert_received :expo_pushed
     end
   end
 end

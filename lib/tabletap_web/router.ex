@@ -116,6 +116,16 @@ defmodule TabletapWeb.Router do
     get "/dashboard", OwnerController, :dashboard
   end
 
+  # Expo push token registration (build-plan.md Feature 23 Commit 5) —
+  # bearer-token protected, no scope needed (belongs to the user, not a
+  # venue/membership).
+  scope "/api/v1/devices", TabletapWeb.Api do
+    pipe_through [:api, :api_auth, :require_api_auth]
+
+    post "/", DeviceController, :create
+    delete "/:token", DeviceController, :delete
+  end
+
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:tabletap, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put

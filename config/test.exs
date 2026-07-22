@@ -99,3 +99,4 @@ config :tabletap, Tabletap.Payments, provider: Tabletap.Payments.ProviderMock
 # behaviour (no adapter-swap seam exists for a single function like
 # this the way Payments.provider/0 has for the whole WaafiPay client).
 config :tabletap, :web_push_req_options, plug: {Req.Test, Tabletap.Notifications}
+config :tabletap, :expo_push_req_options, plug: {Req.Test, Tabletap.Notifications.Expo}

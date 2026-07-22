@@ -17,7 +17,7 @@ defmodule Tabletap.Notifications do
   import Ecto.Query, warn: false
 
   alias Tabletap.Accounts.User
-  alias Tabletap.Notifications.PushSubscription
+  alias Tabletap.Notifications.{DevicePushToken, PushSubscription}
   alias Tabletap.Repo
 
   @doc "The VAPID public key, handed to the browser as `pushManager.subscribe/1`'s `applicationServerKey` — safe to render straight into a page (see `config.exs`'s own comment: it's not secret)."
@@ -61,11 +61,47 @@ defmodule Tabletap.Notifications do
     Repo.all(from(s in PushSubscription, where: s.user_id == ^user_id), skip_org_id: true)
   end
 
-  @doc "Sends `payload` (a plain map — `%{title:, body:, url:}`, read by the service worker's own `showNotification` call) to every subscription `user_id` has."
+  @doc """
+  Registers a mobile device's Expo push token for `user` (build-plan.md
+  Feature 23) — idempotent on the token itself: re-registering the same
+  physical device (app reopen, token refresh) upserts onto the existing
+  row rather than creating a second one, and reassigns it if the device
+  has since logged in as a different user.
+  """
+  def register_device_token(%User{} = user, attrs) do
+    %DevicePushToken{}
+    |> DevicePushToken.changeset(Map.put(attrs, "user_id", user.id))
+    |> Repo.insert(
+      on_conflict: {:replace, [:user_id, :platform, :updated_at]},
+      conflict_target: [:token],
+      returning: true
+    )
+  end
+
+  @doc "Removes one device's Expo push token (the user signed out on that device, or disabled push)."
+  def unregister_device_token(%User{} = user, token) do
+    Repo.delete_all(
+      from(t in DevicePushToken, where: t.user_id == ^user.id and t.token == ^token),
+      skip_org_id: true
+    )
+
+    :ok
+  end
+
+  @doc "Every device token for `user_id`."
+  def list_device_tokens_for_user(user_id) do
+    Repo.all(from(t in DevicePushToken, where: t.user_id == ^user_id), skip_org_id: true)
+  end
+
+  @doc "Sends `payload` (a plain map — `%{title:, body:, url:}`, read by the service worker's own `showNotification` call) to every browser subscription and mobile device token `user_id` has — the two are fanned out from this one entry point, same event, same payload shape, on either platform."
   def notify_user(user_id, payload) when is_map(payload) do
     user_id
     |> list_subscriptions_for_user()
     |> Enum.each(&send_push(&1, payload))
+
+    user_id
+    |> list_device_tokens_for_user()
+    |> Enum.each(&send_expo_push(&1, payload))
   end
 
   @doc """
@@ -99,4 +135,43 @@ defmodule Tabletap.Notifications do
   end
 
   defp handle_response(_result, _subscription), do: :ok
+
+  @expo_push_url "https://exp.host/--/api/v2/push/send"
+
+  @doc """
+  One push, one Expo device token. Unlike Web Push (which signals a
+  dead subscription via HTTP status), Expo returns `200` with a
+  `"DeviceNotRegistered"` error *inside* the JSON body for an
+  uninstalled/unregistered app — that's the standard Expo signal to
+  stop sending, so the token row is deleted rather than retried, same
+  outcome as `send_push/2`'s `404`/`410` handling, just detected
+  differently.
+  """
+  def send_expo_push(%DevicePushToken{} = device_token, payload) when is_map(payload) do
+    body = %{
+      to: device_token.token,
+      title: Map.get(payload, :title) || Map.get(payload, "title"),
+      body: Map.get(payload, :body) || Map.get(payload, "body"),
+      data: payload
+    }
+
+    req_opts = Application.get_env(:tabletap, :expo_push_req_options, [])
+
+    @expo_push_url
+    |> Req.post([json: body] ++ req_opts)
+    |> handle_expo_response(device_token)
+  end
+
+  defp handle_expo_response(
+         {:ok, %Req.Response{status: 200, body: %{"data" => %{"status" => "error"} = data}}},
+         device_token
+       ) do
+    if data["details"]["error"] == "DeviceNotRegistered" do
+      Repo.delete(device_token)
+    end
+
+    :ok
+  end
+
+  defp handle_expo_response(_result, _device_token), do: :ok
 end
