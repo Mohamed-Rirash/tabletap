@@ -82,6 +82,13 @@ defmodule TabletapWeb.Router do
     post "/auth/confirm", AuthController, :confirm
     post "/auth/refresh", AuthController, :refresh
     post "/auth/logout", AuthController, :logout
+
+    # Customer flow (build-plan.md Feature 23 Commit 2) — guest-token
+    # based, no bearer auth, same as the PWA (Feature 07/16).
+    get "/venues/:slug/menu", MenuController, :show
+    post "/venues/:slug/cart/items", CartController, :add_item
+    post "/orders", OrderController, :create
+    get "/orders/:guest_token", OrderController, :show
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
