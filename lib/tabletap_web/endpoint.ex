@@ -63,5 +63,9 @@ defmodule TabletapWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
+  # Before the Router — see the plug's own moduledoc for why (an
+  # OPTIONS preflight has to be answered before route matching, since
+  # no /api/v1 route is registered for that method).
+  plug TabletapWeb.CorsPlug
   plug TabletapWeb.Router
 end
