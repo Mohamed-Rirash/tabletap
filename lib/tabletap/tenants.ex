@@ -680,6 +680,46 @@ defmodule Tabletap.Tenants do
   end
 
   @doc """
+  A membership by id, org/venue preloaded — cross-tenant by design
+  (`skip_org_id: true`), same reasoning `any_memberships?/1` already
+  documents: a bearer-token-authenticated caller (build-plan.md Feature
+  23's `WaiterChannel` join, resolving `waiter:{membership_id}`) has no
+  ambient org scope yet to check against — this lookup *is* the
+  resolution step, not a bypass of one. Callers must still verify
+  `membership.user_id` matches the authenticated user before trusting
+  it as an authorization grant.
+  """
+  def get_membership(membership_id) do
+    Repo.one(
+      from(m in Membership, where: m.id == ^membership_id, preload: [:venue, :org]),
+      skip_org_id: true
+    )
+  end
+
+  @doc """
+  A user's active staff membership covering `venue_id`, or `nil` —
+  cross-tenant by design (same reasoning as `get_membership/1` above),
+  used to authorize a `VenueChannel` join (`venue:{id}:claim_board`/
+  `:orders`) before any ambient org scope exists for the joining
+  process. An owner's own membership row is org-wide (`venue_id: nil`,
+  same as `build_scope/2` already accounts for) — matched here only
+  when that membership's *own org* actually owns `venue_id`, never by
+  `venue_id: nil` alone, which would otherwise authorize any org's
+  owner into any other org's venue channels.
+  """
+  def get_active_membership_for_user_and_venue(user_id, venue_id) do
+    Repo.one(
+      from(m in Membership,
+        join: v in Venue,
+        on: v.id == ^venue_id,
+        where: m.user_id == ^user_id and m.active == true,
+        where: m.venue_id == ^venue_id or (is_nil(m.venue_id) and m.org_id == v.org_id)
+      ),
+      skip_org_id: true
+    )
+  end
+
+  @doc """
   Every active manager or owner's `user_id` for `venue_id` — the
   manager low-stock push audience (build-plan.md Feature 20), the same
   reach `DashboardLive`'s own live low-stock alert already has.

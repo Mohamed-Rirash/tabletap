@@ -19,6 +19,11 @@ defmodule TabletapWeb.Endpoint do
     websocket: [connect_info: [:peer_data, :x_headers, session: @session_options]],
     longpoll: [connect_info: [:peer_data, :x_headers, session: @session_options]]
 
+  # Mobile realtime transport (build-plan.md Feature 23) — the official
+  # `phoenix` npm client connects here, joining order:{id}/
+  # waiter:{membership_id}/venue:{id}:claim_board/venue:{id}:orders.
+  socket "/socket", TabletapWeb.ApiSocket, websocket: true, longpoll: false
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),
