@@ -31,7 +31,8 @@
           "cameraPermission": "TableTap needs camera access to scan your table's QR code.",
           "barcodeScannerEnabled": true
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

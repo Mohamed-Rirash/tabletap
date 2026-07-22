@@ -93,6 +93,7 @@ export interface OrderLineModifier {
 }
 
 export interface OrderLine {
+  id: string;
   menu_item_id: string;
   name: string;
   qty: number;

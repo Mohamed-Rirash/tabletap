@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import * as Notifications from "expo-notifications";
 import {
   colors,
+  radius,
   spacing,
   statusSteps,
+  touchTarget,
   typography,
   createSocket,
   joinOrderChannel,
   type Order,
   type OrderChannelHandle,
 } from "@tabletap/shared";
-import { api, API_BASE_URL } from "../../src/api";
+import { api, API_BASE_URL, ApiError } from "../../src/api";
 
 /**
  * build-plan.md Feature 24 Commit 4 — mirrors `Public.OrderTrackerLive`'s
@@ -27,6 +30,10 @@ export default function TrackerScreen() {
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
+  const [ratedItems, setRatedItems] = useState<Set<string>>(new Set());
+  const [pushState, setPushState] = useState<"idle" | "requesting" | "enabled" | "unavailable">(
+    "idle",
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +76,36 @@ export default function TrackerScreen() {
       // here, not a crash.
     } finally {
       setCallingWaiter(false);
+    }
+  }
+
+  async function handleRate(orderItemId: string, stars: number) {
+    try {
+      await api.rateItem(guestToken, orderItemId, stars);
+      setRatedItems((prev) => new Set(prev).add(orderItemId));
+    } catch (e) {
+      // "already_rated" lands here too — either way, nothing more this
+      // screen can usefully do beyond leaving the widget as it was.
+      console.warn("rating failed", e instanceof ApiError ? e.message : e);
+    }
+  }
+
+  async function handleEnableNotifications() {
+    setPushState("requesting");
+    try {
+      const permission = await Notifications.requestPermissionsAsync();
+      if (!permission.granted) {
+        setPushState("unavailable");
+        return;
+      }
+      // No real EAS project is registered in this environment — a
+      // production build supplies a real `projectId` here (build-plan.md
+      // Feature 24's own EAS-build step, out of scope for this pass).
+      const { data } = await Notifications.getExpoPushTokenAsync();
+      await api.registerDevice(data, Platform.OS === "ios" ? "ios" : "android");
+      setPushState("enabled");
+    } catch {
+      setPushState("unavailable");
     }
   }
 
@@ -116,9 +153,29 @@ export default function TrackerScreen() {
       )}
 
       {order.status === "served" && (
-        <StatusCard success>
-          <Text style={styles.body}>Order served — enjoy!</Text>
-        </StatusCard>
+        <>
+          <StatusCard success>
+            <Text style={styles.body}>Order served — enjoy!</Text>
+          </StatusCard>
+          <View style={styles.ratings}>
+            {order.items.map((item) => (
+              <View key={item.id} style={styles.ratingRow}>
+                <Text style={styles.timelineLabel}>{item.name}</Text>
+                {ratedItems.has(item.id) ? (
+                  <Text style={styles.caption}>Thanks for rating!</Text>
+                ) : (
+                  <View style={styles.stars}>
+                    {[1, 2, 3, 4, 5].map((stars) => (
+                      <Pressable key={stars} onPress={() => handleRate(item.id, stars)}>
+                        <Text style={styles.star}>★</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        </>
       )}
 
       {order.status === "ready" && (
@@ -153,11 +210,28 @@ export default function TrackerScreen() {
       )}
 
       {["placed", "accepted", "preparing", "ready"].includes(order.status) && (
-        <Pressable style={styles.callButton} onPress={handleCallWaiter} disabled={callingWaiter}>
-          <Text style={styles.callButtonText}>
-            {callingWaiter ? "Calling…" : "Call waiter"}
-          </Text>
-        </Pressable>
+        <>
+          <Pressable style={styles.callButton} onPress={handleCallWaiter} disabled={callingWaiter}>
+            <Text style={styles.callButtonText}>
+              {callingWaiter ? "Calling…" : "Call waiter"}
+            </Text>
+          </Pressable>
+
+          {pushState === "idle" && (
+            <Pressable style={styles.pushButton} onPress={handleEnableNotifications}>
+              <Text style={styles.pushButtonText}>Notify me about this order</Text>
+            </Pressable>
+          )}
+          {pushState === "requesting" && (
+            <Text style={styles.caption}>Requesting notification permission…</Text>
+          )}
+          {pushState === "enabled" && (
+            <Text style={styles.caption}>You&apos;ll be notified about status changes.</Text>
+          )}
+          {pushState === "unavailable" && (
+            <Text style={styles.caption}>Notifications aren&apos;t available right now.</Text>
+          )}
+        </>
       )}
     </View>
   );
@@ -252,8 +326,8 @@ const styles = StyleSheet.create({
   },
   callButton: {
     marginTop: spacing[6],
-    height: 56,
-    borderRadius: 9999,
+    height: touchTarget.primary,
+    borderRadius: radius.full,
     backgroundColor: colors.info,
     alignItems: "center",
     justifyContent: "center",
@@ -261,5 +335,35 @@ const styles = StyleSheet.create({
   callButtonText: {
     color: "#fff",
     fontWeight: "700",
+  },
+  pushButton: {
+    marginTop: spacing[3],
+    height: touchTarget.min,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.light.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pushButtonText: {
+    color: colors.light.textPrimary,
+    fontWeight: "600",
+  },
+  ratings: {
+    gap: spacing[3],
+    marginTop: spacing[2],
+  },
+  ratingRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  stars: {
+    flexDirection: "row",
+    gap: spacing[1],
+  },
+  star: {
+    fontSize: 22,
+    color: colors.brandDefault,
   },
 });

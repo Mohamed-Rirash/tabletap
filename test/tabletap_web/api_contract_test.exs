@@ -31,6 +31,7 @@ defmodule TabletapWeb.ApiContractTest do
     "payment" => nil,
     "items" => [
       %{
+        "id" => nil,
         "menu_item_id" => nil,
         "name" => nil,
         "qty" => nil,
