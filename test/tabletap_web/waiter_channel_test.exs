@@ -52,6 +52,23 @@ defmodule TabletapWeb.WaiterChannelTest do
     assert_push "queue_updated", %{event: :order_assigned}
   end
 
+  test "relays :order_ready and :order_ready_retracted (build-plan.md Feature 14/Q25, consumed by the staff app's scan-to-serve button)",
+       %{socket: socket, membership: membership} do
+    {:ok, _reply, _socket} = subscribe_and_join(socket, "waiter:#{membership.id}", %{})
+    order_id = Ecto.UUID.generate()
+
+    Phoenix.PubSub.broadcast(Tabletap.PubSub, "waiter:#{membership.id}", {:order_ready, order_id})
+    assert_push "queue_updated", %{event: :order_ready}
+
+    Phoenix.PubSub.broadcast(
+      Tabletap.PubSub,
+      "waiter:#{membership.id}",
+      {:order_ready_retracted, order_id}
+    )
+
+    assert_push "queue_updated", %{event: :order_ready_retracted}
+  end
+
   test "a different user cannot join someone else's waiter channel", %{membership: membership} do
     other_user = Tabletap.AccountsFixtures.user_fixture()
     token = ApiAuth.sign_access_token(other_user)

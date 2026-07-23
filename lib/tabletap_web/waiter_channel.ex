@@ -2,8 +2,11 @@ defmodule TabletapWeb.WaiterChannel do
   @moduledoc """
   `waiter:{membership_id}` (build-plan.md Feature 23 Commit 3) — relays
   the same `{:order_assigned, id}` / `{:order_unassigned, id}` /
-  `{:waiter_called, id}` broadcasts `Waiter.QueueLive` already
-  subscribes to. Join requires the socket's bearer-authenticated user to
+  `{:waiter_called, id}` / `{:order_ready, id}` / `{:order_ready_retracted,
+  id}` broadcasts `Waiter.QueueLive` already subscribes to
+  (`OrderStateMachine.notify_waiter/3` is the source of the last two —
+  Feature 14's "waiter notified on ready" and its Q25 undo). Join
+  requires the socket's bearer-authenticated user to
   actually hold this membership — `ApiSocket.connect/3` resolves
   `current_user` from the access token; a missing/invalid token means
   `current_user` is `nil`, which never matches a real membership below.
@@ -59,7 +62,13 @@ defmodule TabletapWeb.WaiterChannel do
 
   @impl true
   def handle_info({event, _order_id}, socket)
-      when event in [:order_assigned, :order_unassigned, :waiter_called] do
+      when event in [
+             :order_assigned,
+             :order_unassigned,
+             :waiter_called,
+             :order_ready,
+             :order_ready_retracted
+           ] do
     push(socket, "queue_updated", %{event: event})
     {:noreply, socket}
   end

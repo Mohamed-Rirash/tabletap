@@ -44,6 +44,49 @@ export function joinOrderChannel(
   });
 }
 
+export type WaiterChannelEvent =
+  | "order_assigned"
+  | "order_unassigned"
+  | "waiter_called"
+  | "order_ready"
+  | "order_ready_retracted";
+
+export interface WaiterChannelHandle {
+  channel: Channel;
+  leave: () => void;
+}
+
+/**
+ * Joins `waiter:{membershipId}` (build-plan.md Feature 23 Commit 3,
+ * Feature 25) — bearer-authenticated via `createSocket`'s own
+ * `accessToken` param, checked server-side against the socket's
+ * `current_user` actually holding this membership. Every push is a
+ * lightweight "something changed" signal with no order data
+ * (code-standards.md "every screen must fully rebuild from a REST
+ * fetch") — `onEvent` fires the bare event name so the caller can
+ * both refetch its queue/claim-board *and*, for `"waiter_called"`
+ * specifically, surface a distinct in-app alert.
+ */
+export function joinWaiterChannel(
+  socket: Socket,
+  membershipId: string,
+  onEvent: (event: WaiterChannelEvent) => void,
+): Promise<WaiterChannelHandle> {
+  return new Promise((resolve, reject) => {
+    const channel = socket.channel(`waiter:${membershipId}`, {});
+
+    channel.on("queue_updated", (payload: { event: WaiterChannelEvent }) =>
+      onEvent(payload.event),
+    );
+
+    channel
+      .join()
+      .receive("ok", () => resolve({ channel, leave: () => channel.leave() }))
+      .receive("error", (reason: unknown) => reject(reason))
+      .receive("timeout", () => reject(new Error("waiter channel join timed out")));
+  });
+}
+
 /**
  * `baseUrl` is the REST API's http(s) origin. The `phoenix` client only
  * auto-derives `ws`/`wss` for a *relative* path (`endPointURL()`

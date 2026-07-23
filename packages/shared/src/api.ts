@@ -271,6 +271,7 @@ export function createApiClient(config: ApiClientConfig) {
       request<void>(config, "DELETE", `/devices/${deviceToken}`),
 
     // Waiter (Feature 23 Commit 4, Feature 25) — `config.membershipId` must be set.
+    getShiftStatus: () => request<{ on_shift: boolean }>(config, "GET", "/waiter/shift"),
     clockIn: () => request<void>(config, "POST", "/waiter/shift/clock_in"),
     clockOut: () => request<{ released: number }>(config, "POST", "/waiter/shift/clock_out"),
     getWaiterQueue: () => request<{ orders: Order[] }>(config, "GET", "/waiter/queue"),

@@ -16,7 +16,7 @@ defmodule TabletapWeb.ApiAuth do
   import Plug.Conn
   import Phoenix.Controller, only: [json: 2]
 
-  alias Tabletap.{Accounts, Tenants}
+  alias Tabletap.{Accounts, Repo, Tenants}
 
   @salt "api_auth"
   @access_token_max_age_seconds 900
@@ -79,6 +79,16 @@ defmodule TabletapWeb.ApiAuth do
   holding more than one membership picks one; absent, the same "first
   active membership" default `build_scope/2` already falls back to).
   Only meaningful after `require_authenticated_api_user/2`.
+
+  Also sets ambient `Repo.put_org_id/1` from the resolved scope's org —
+  the same second line `UserAuth.fetch_current_scope_for_user/2` has
+  for the web session pipeline. Every staff context call downstream
+  (`Ordering.get_order/2`, `Staffing.clock_in/1`, ...) requires this to
+  already be set and raises otherwise; without it here, every
+  `/waiter`/`/owner` endpoint would 500 on first real DB query outside
+  a test process (existing tests never caught this — their own `setup`
+  blocks happen to call `Repo.put_org_id/1` for fixture creation first,
+  in the same test process, silently masking the gap).
   """
   def assign_scope(conn, _opts) do
     scope =
@@ -86,6 +96,7 @@ defmodule TabletapWeb.ApiAuth do
         "current_membership_id" => conn.params["membership_id"]
       })
 
+    Repo.put_org_id(scope.org && scope.org.id)
     assign(conn, :current_scope, scope)
   end
 

@@ -124,6 +124,7 @@ defmodule TabletapWeb.Router do
   scope "/api/v1/waiter", TabletapWeb.Api do
     pipe_through [:api, :api_auth, :require_api_auth, :require_api_waiter]
 
+    get "/shift", WaiterController, :shift
     post "/shift/clock_in", WaiterController, :clock_in
     post "/shift/clock_out", WaiterController, :clock_out
     get "/queue", WaiterController, :queue

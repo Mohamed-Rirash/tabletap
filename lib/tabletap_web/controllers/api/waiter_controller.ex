@@ -13,6 +13,19 @@ defmodule TabletapWeb.Api.WaiterController do
   alias Tabletap.{Ordering, Staffing}
   alias TabletapWeb.Api.{Params, Serializers}
 
+  @doc """
+  Whether the current membership is already on an open shift — wraps
+  `Staffing.get_open_shift/1`. Needed because the mobile app has no
+  session to remember "on shift" across a cold start the way a fresh
+  LiveView mount already checks the real DB state every time
+  (`Waiter.QueueLive`'s own `on_shift` assign); force-quitting the app
+  mid-shift doesn't clock a waiter out, so the app has to ask on open
+  rather than assuming off.
+  """
+  def shift(conn, _params) do
+    json(conn, %{on_shift: Staffing.get_open_shift(conn.assigns.current_scope) != nil})
+  end
+
   @doc "Clocks the current membership in for a shift — wraps `Staffing.clock_in/1`."
   def clock_in(conn, _params) do
     case Staffing.clock_in(conn.assigns.current_scope) do

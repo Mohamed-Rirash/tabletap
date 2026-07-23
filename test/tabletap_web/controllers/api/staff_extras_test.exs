@@ -52,6 +52,21 @@ defmodule TabletapWeb.Api.StaffExtrasTest do
     Plug.Conn.put_req_header(conn, "authorization", "Bearer #{ApiAuth.sign_access_token(user)}")
   end
 
+  describe "GET /api/v1/waiter/shift" do
+    test "reports off-shift, then on-shift after clocking in", %{
+      conn: conn,
+      waiter_user: waiter_user
+    } do
+      conn1 = conn |> bearer(waiter_user) |> get(~p"/api/v1/waiter/shift")
+      assert %{"on_shift" => false} = json_response(conn1, 200)
+
+      conn |> bearer(waiter_user) |> post(~p"/api/v1/waiter/shift/clock_in")
+
+      conn2 = conn |> bearer(waiter_user) |> get(~p"/api/v1/waiter/shift")
+      assert %{"on_shift" => true} = json_response(conn2, 200)
+    end
+  end
+
   describe "POST /api/v1/waiter/shift/clock_in and /clock_out" do
     test "a waiter clocks in and out", %{conn: conn, waiter_user: waiter_user} do
       conn1 = conn |> bearer(waiter_user) |> post(~p"/api/v1/waiter/shift/clock_in")
