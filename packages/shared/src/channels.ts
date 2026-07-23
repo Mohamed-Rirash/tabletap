@@ -87,6 +87,41 @@ export function joinWaiterChannel(
   });
 }
 
+export type VenueChannelEvent = "order_needs_claim" | "order_claimed" | "order_updated" | "order_ready";
+
+export interface VenueChannelHandle {
+  channel: Channel;
+  leave: () => void;
+}
+
+/**
+ * Joins `venue:{venueId}:orders` (build-plan.md Feature 23 Commit 3,
+ * Feature 25's owner dashboard) — bearer-authenticated, checked
+ * server-side that the caller's membership at this venue is `:manager`
+ * or `:owner` (`TabletapWeb.VenueChannel`'s own `:require_manager`-
+ * equivalent gate). Same lightweight "something changed, refetch"
+ * signal as `joinWaiterChannel` — `Manager.DashboardLive` itself does a
+ * full reload on any of these events, never a partial patch, and this
+ * mirrors that exactly.
+ */
+export function joinVenueChannel(
+  socket: Socket,
+  venueId: string,
+  onEvent: (event: VenueChannelEvent) => void,
+): Promise<VenueChannelHandle> {
+  return new Promise((resolve, reject) => {
+    const channel = socket.channel(`venue:${venueId}:orders`, {});
+
+    channel.on("venue_updated", (payload: { event: VenueChannelEvent }) => onEvent(payload.event));
+
+    channel
+      .join()
+      .receive("ok", () => resolve({ channel, leave: () => channel.leave() }))
+      .receive("error", (reason: unknown) => reject(reason))
+      .receive("timeout", () => reject(new Error("venue channel join timed out")));
+  });
+}
+
 /**
  * `baseUrl` is the REST API's http(s) origin. The `phoenix` client only
  * auto-derives `ws`/`wss` for a *relative* path (`endPointURL()`

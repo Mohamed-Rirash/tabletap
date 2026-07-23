@@ -154,6 +154,87 @@ export interface Membership {
   venue_name: string | null;
 }
 
+/** build-plan.md Feature 25 — the owner dashboard's own subset of `Analytics.today_summary/1` (matching exactly what `Manager.DashboardLive` itself renders — the deeper analytics-only fields like hourly/payment mix stay web-only, out of this feature's mobile scope). */
+export interface DashboardSummary {
+  net_revenue: Money;
+  order_count: number;
+  avg_check: Money | null;
+  channel_mix: Record<string, { count: number; revenue: Money }>;
+}
+
+export interface DashboardOperations {
+  open_order_count: number;
+  oldest_open_order_minutes: number | null;
+  quoted_eta_minutes: number;
+  on_shift: { waiters: number; cashiers: number; kitchen: number };
+}
+
+export interface AlertOrder {
+  id: string;
+  number: number;
+  status: OrderStatus;
+  placed_at: string | null;
+}
+
+export interface AlertIngredient {
+  id: string;
+  name: string;
+  stock_qty: string;
+  min_threshold: string | null;
+  unit: string;
+}
+
+export interface AlertMenuItem {
+  id: string;
+  name: string;
+}
+
+export interface AlertPayment {
+  id: string;
+  order_id: string;
+  provider: string;
+  amount: Money;
+}
+
+/** The mobile dashboard itself only ever renders a plain count per category (matching the web's own `length(@alerts.x)` restraint) — the rows are typed in full anyway since that's what `GET /api/v1/owner/dashboard` actually returns. */
+export interface DashboardAlerts {
+  low_stock: AlertIngredient[];
+  delayed_orders: AlertOrder[];
+  unaccepted_orders: AlertOrder[];
+  flagged_orders: AlertOrder[];
+  sold_out_items: AlertMenuItem[];
+  failed_payments: AlertPayment[];
+  subscription_issue: "past_due" | "canceled" | null;
+}
+
+export interface OwnerDashboard {
+  venue_id: string;
+  venue_name: string;
+  summary: DashboardSummary;
+  operations: DashboardOperations;
+  alerts: DashboardAlerts;
+  kitchen_orders: Order[];
+}
+
+/** build-plan.md Feature 25 — one row of `GET /api/v1/owner/venues`, the exact shape `Analytics.org_comparison/3` returns. Money never sums across venues (a Pro org can run different currencies per venue) — `VenueTotals` below only totals currency-free fields, matching `Analytics.org_totals/1`. */
+export interface VenueComparisonRow {
+  venue_id: string;
+  venue_name: string;
+  venue_slug: string;
+  net_revenue: Money;
+  order_count: number;
+  avg_check: Money | null;
+  food_cost_pct: string | null;
+  avg_rating: number | null;
+  refund_rate: number | null;
+  subscription_status: string;
+}
+
+export interface VenueTotals {
+  order_count: number;
+  venue_count: number;
+}
+
 export interface ApiClientConfig {
   baseUrl: string;
   /** Bearer access token, if the caller is signed in — omit for guest-token-only calls. */
@@ -286,6 +367,15 @@ export function createApiClient(config: ApiClientConfig) {
       }),
     markUnserveable: (orderId: string) =>
       request<Order>(config, "POST", `/waiter/orders/${orderId}/unserveable`),
+
+    // Owner (Feature 23 Commit 4, Feature 25) — `config.membershipId` must be set.
+    getOwnerDashboard: () => request<OwnerDashboard>(config, "GET", "/owner/dashboard"),
+    getVenueComparison: (range?: "today" | "7d" | "30d") =>
+      request<{ venues: VenueComparisonRow[]; totals: VenueTotals }>(
+        config,
+        "GET",
+        `/owner/venues${range ? `?range=${range}` : ""}`,
+      ),
   };
 }
 

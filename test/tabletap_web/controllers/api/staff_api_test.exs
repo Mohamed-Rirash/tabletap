@@ -161,5 +161,28 @@ defmodule TabletapWeb.Api.StaffApiTest do
       conn = conn |> bearer(waiter_user) |> get(~p"/api/v1/owner/dashboard")
       assert json_response(conn, 403)
     end
+
+    test "a real flagged order in the alerts is valid JSON, not a raw un-serializable struct", %{
+      conn: conn,
+      org: org,
+      venue: venue,
+      item: item,
+      owner: owner,
+      waiter_membership: waiter_membership
+    } do
+      {:ok, order} = placed_order(org, venue, item)
+      {:ok, order} = order |> Order.assign_waiter_changeset(waiter_membership.id) |> Repo.update()
+      scope = %Scope{org: org, venue: venue, membership: waiter_membership, role: :waiter}
+      {:ok, order} = OrderStateMachine.transition(scope, order, :accepted)
+      {:ok, order} = OrderStateMachine.transition(scope, order, :preparing)
+      {:ok, order} = OrderStateMachine.transition(scope, order, :ready)
+      {:ok, _order} = Ordering.mark_unserveable(scope, order)
+
+      conn = conn |> bearer(owner) |> get(~p"/api/v1/owner/dashboard")
+
+      assert %{"alerts" => %{"flagged_orders" => [flagged]}} = json_response(conn, 200)
+      assert flagged["id"] == order.id
+      assert flagged["status"] == "ready"
+    end
   end
 end

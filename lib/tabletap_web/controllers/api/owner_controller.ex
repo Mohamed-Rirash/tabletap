@@ -11,13 +11,26 @@ defmodule TabletapWeb.Api.OwnerController do
   alias Tabletap.{Analytics, Ordering, Plans, Tenants}
   alias TabletapWeb.Api.Serializers
 
+  @doc """
+  `venue_id`/`venue_name` ride along even though nothing in `Analytics.
+  today_summary/1`'s own shape needs them — an owner's membership is
+  org-wide (no `venue_id` of its own), so `scope.venue` is whichever
+  venue `build_scope/2` defaulted to (session-remembered on the web;
+  simply the org's first venue here, since a stateless REST call has no
+  session to remember a switcher pick in). Without these two fields the
+  mobile app would have no way to tell *which* venue's numbers it's
+  looking at, or which `venue:{id}:orders` Channel topic to join for
+  live updates.
+  """
   def dashboard(conn, _params) do
     scope = conn.assigns.current_scope
 
     json(conn, %{
+      venue_id: scope.venue.id,
+      venue_name: scope.venue.name,
       summary: Analytics.today_summary(scope),
       operations: Analytics.today_operations(scope),
-      alerts: Analytics.today_alerts(scope),
+      alerts: Serializers.alerts(Analytics.today_alerts(scope)),
       kitchen_orders:
         Enum.map(Ordering.list_kitchen_orders(scope), &render_kitchen_order(scope, &1))
     })

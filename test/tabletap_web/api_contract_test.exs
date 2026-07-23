@@ -238,6 +238,8 @@ defmodule TabletapWeb.ApiContractTest do
     conn = build_conn() |> bearer(owner) |> get(~p"/api/v1/owner/dashboard")
 
     assert_json_shape(json_response(conn, 200), %{
+      "venue_id" => nil,
+      "venue_name" => nil,
       "summary" => nil,
       "operations" => nil,
       "alerts" => nil,

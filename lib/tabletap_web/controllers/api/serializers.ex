@@ -138,6 +138,56 @@ defmodule TabletapWeb.Api.Serializers do
     }
   end
 
+  @doc """
+  `GET /api/v1/owner/dashboard`'s `alerts` map — `Analytics.
+  today_alerts/1` returns raw Ecto structs in every list (`Order`,
+  `Inventory.Ingredient`, `Catalog.MenuItem`, `Payments.Payment`), none
+  of which have a `Jason.Encoder` impl (code-standards.md — no blanket
+  protocol derivation, every JSON shape is explicit). The web dashboard
+  never hits this because a LiveView renders these structs straight
+  into HTML, never through `Jason.encode!/1` — a real, previously-latent
+  gap only a JSON response ever exercises, and only once a venue
+  actually has a real order/ingredient/payment landing in one of these
+  categories (every prior test used a freshly-seeded, alert-free venue,
+  where every list here is `[]` and Jason never touches an element).
+  """
+  def alerts(alerts) do
+    %{
+      low_stock: Enum.map(alerts.low_stock, &alert_ingredient/1),
+      delayed_orders: Enum.map(alerts.delayed_orders, &alert_order/1),
+      unaccepted_orders: Enum.map(alerts.unaccepted_orders, &alert_order/1),
+      flagged_orders: Enum.map(alerts.flagged_orders, &alert_order/1),
+      sold_out_items: Enum.map(alerts.sold_out_items, &alert_menu_item/1),
+      failed_payments: Enum.map(alerts.failed_payments, &alert_payment/1),
+      subscription_issue: alerts.subscription_issue
+    }
+  end
+
+  defp alert_order(order) do
+    %{id: order.id, number: order.number, status: order.status, placed_at: order.placed_at}
+  end
+
+  defp alert_ingredient(ingredient) do
+    %{
+      id: ingredient.id,
+      name: ingredient.name,
+      stock_qty: ingredient.stock_qty,
+      min_threshold: ingredient.min_threshold,
+      unit: ingredient.unit
+    }
+  end
+
+  defp alert_menu_item(item), do: %{id: item.id, name: item.name}
+
+  defp alert_payment(payment) do
+    %{
+      id: payment.id,
+      order_id: payment.order_id,
+      provider: payment.provider,
+      amount: payment.amount
+    }
+  end
+
   defp order_item(item) do
     %{
       id: item.id,
