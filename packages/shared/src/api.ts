@@ -119,6 +119,7 @@ export interface Order {
   total: Money;
   eta_minutes: number | null;
   payment: OrderPayment | null;
+  flag: "unserveable" | "not_picked_up" | "contains_86d_item" | null;
   items: OrderLine[];
   placed_at: string | null;
   accepted_at: string | null;
@@ -143,10 +144,28 @@ export interface AuthTokens {
   user: { id: string; email: string };
 }
 
+/** build-plan.md Feature 25 — one row of `GET /api/v1/me/memberships`, the staff app's role-detection/mode-switcher source. */
+export interface Membership {
+  membership_id: string;
+  role: "waiter" | "manager" | "owner" | "kitchen" | "cashier";
+  org_id: string;
+  org_name: string;
+  venue_id: string | null;
+  venue_name: string | null;
+}
+
 export interface ApiClientConfig {
   baseUrl: string;
   /** Bearer access token, if the caller is signed in — omit for guest-token-only calls. */
   accessToken?: string;
+  /**
+   * Which membership the caller is currently acting as (build-plan.md
+   * Feature 25's mode switcher) — fed to `ApiAuth.assign_scope/2`'s own
+   * `conn.params["membership_id"]` read, same as the web's venue
+   * switcher feeding `current_membership_id` into the session. Only
+   * meaningful for the staff (`/waiter`, `/owner`) endpoints below.
+   */
+  membershipId?: string;
 }
 
 export class ApiError extends Error {
@@ -173,7 +192,11 @@ async function request<T>(
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (config.accessToken) headers.authorization = `Bearer ${config.accessToken}`;
 
-  const response = await fetch(`${config.baseUrl}${path}`, {
+  const url = config.membershipId
+    ? `${config.baseUrl}${path}${path.includes("?") ? "&" : "?"}membership_id=${config.membershipId}`
+    : `${config.baseUrl}${path}`;
+
+  const response = await fetch(url, {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -188,15 +211,20 @@ async function request<T>(
 
 export function createApiClient(config: ApiClientConfig) {
   return {
-    // Auth (Feature 23 Commit 1)
-    requestMagicLink: (email: string) =>
-      request<{ message: string }>(config, "POST", "/auth/request_magic_link", { email }),
+    // Auth (Feature 23 Commit 1, Feature 25's "app" param + password login)
+    requestMagicLink: (email: string, app?: "customer" | "staff") =>
+      request<{ message: string }>(config, "POST", "/auth/request_magic_link", { email, app }),
+    login: (email: string, password: string) =>
+      request<AuthTokens>(config, "POST", "/auth/login", { email, password }),
     confirmMagicLink: (token: string) =>
       request<AuthTokens>(config, "POST", "/auth/confirm", { token }),
     refresh: (refreshToken: string) =>
       request<AuthTokens>(config, "POST", "/auth/refresh", { refresh_token: refreshToken }),
     logout: (refreshToken: string) =>
       request<void>(config, "POST", "/auth/logout", { refresh_token: refreshToken }),
+
+    // Role detection / mode switcher (Feature 25)
+    getMemberships: () => request<{ memberships: Membership[] }>(config, "GET", "/me/memberships"),
 
     // Customer flow (Feature 23 Commit 2, Feature 24 Commit 1)
     getMenu: (venueSlug: string) => request<Menu>(config, "GET", `/venues/${venueSlug}/menu`),
@@ -241,6 +269,22 @@ export function createApiClient(config: ApiClientConfig) {
       request<void>(config, "POST", "/devices", { token: deviceToken, platform }),
     unregisterDevice: (deviceToken: string) =>
       request<void>(config, "DELETE", `/devices/${deviceToken}`),
+
+    // Waiter (Feature 23 Commit 4, Feature 25) — `config.membershipId` must be set.
+    clockIn: () => request<void>(config, "POST", "/waiter/shift/clock_in"),
+    clockOut: () => request<{ released: number }>(config, "POST", "/waiter/shift/clock_out"),
+    getWaiterQueue: () => request<{ orders: Order[] }>(config, "GET", "/waiter/queue"),
+    getClaimBoard: () => request<{ orders: Order[] }>(config, "GET", "/waiter/claim_board"),
+    claimOrder: (orderId: string) =>
+      request<Order>(config, "POST", `/waiter/orders/${orderId}/claim`),
+    acceptOrder: (orderId: string) =>
+      request<Order>(config, "POST", `/waiter/orders/${orderId}/accept`),
+    serveOrder: (orderId: string, scannedValue: string) =>
+      request<Order>(config, "POST", `/waiter/orders/${orderId}/served`, {
+        scanned_value: scannedValue,
+      }),
+    markUnserveable: (orderId: string) =>
+      request<Order>(config, "POST", `/waiter/orders/${orderId}/unserveable`),
   };
 }
 

@@ -19,6 +19,19 @@ defmodule TabletapWeb.Api.AuthControllerTest do
     put_req_header(conn, "x-forwarded-for", "203.0.113.#{System.unique_integer([:positive])}")
   end
 
+  # `user_fixture/1` itself sends a confirmation email during setup —
+  # the mailbox is FIFO and `assert_received {:email, _}` grabs whatever
+  # is oldest, so a test asserting on email *content* has to drain it
+  # first or it'll inspect that stale fixture email instead of the one
+  # its own request just sent.
+  defp flush_test_mailbox do
+    receive do
+      {:email, _} -> flush_test_mailbox()
+    after
+      0 -> :ok
+    end
+  end
+
   describe "POST /api/v1/auth/request_magic_link" do
     test "sends a magic link email when the user exists", %{conn: conn} do
       user = user_fixture()
@@ -42,6 +55,31 @@ defmodule TabletapWeb.Api.AuthControllerTest do
 
       assert %{"message" => message} = json_response(conn, 200)
       assert message =~ "If your email is in our system"
+    end
+
+    test "defaults to the customer app's deep-link scheme", %{conn: conn} do
+      user = user_fixture()
+      flush_test_mailbox()
+
+      conn
+      |> with_unique_ip()
+      |> post(~p"/api/v1/auth/request_magic_link", %{"email" => user.email})
+
+      assert_received {:email, email}
+      assert email.text_body =~ "tabletap://auth/"
+    end
+
+    test ~s[the "app" => "staff" param mints the staff app's own deep-link scheme (build-plan.md Feature 25 — two installed apps can't reliably share one custom URL scheme)],
+         %{conn: conn} do
+      user = user_fixture()
+      flush_test_mailbox()
+
+      conn
+      |> with_unique_ip()
+      |> post(~p"/api/v1/auth/request_magic_link", %{"email" => user.email, "app" => "staff"})
+
+      assert_received {:email, email}
+      assert email.text_body =~ "tabletap-staff://auth/"
     end
   end
 
